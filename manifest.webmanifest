@@ -1,0 +1,54 @@
+{
+  "name": "Grupo Multiservicios Deportivos JL",
+  "short_name": "GMD JL",
+  "description": "Centro de Gestión Deportiva PWA para torneos multidisciplinares en tiempo real con Supabase",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0B0E14",
+  "theme_color": "#800020",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["sports", "utilities", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Marcadores en Vivo",
+      "short_name": "En Vivo",
+      "description": "Ver marcadores deportivos en tiempo real",
+      "url": "./index.html#live",
+      "icons": [{ "src": "./assets/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Tabla de Posiciones",
+      "short_name": "Posiciones",
+      "description": "Consultar clasificación del torneo",
+      "url": "./index.html#standings",
+      "icons": [{ "src": "./assets/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Acceso Delegado",
+      "short_name": "Delegados",
+      "description": "Gestión de roster para entrenadores y delegados",
+      "url": "./index.html#delegado",
+      "icons": [{ "src": "./assets/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "grupo-multiservicios-deportivos-jl",
+  "version": "1.0.0",
+  "description": "Centro de Gestión Deportiva PWA en Tiempo Real con Supabase para Grupo Multiservicios Deportivo JL",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8080",
+    "serve": "npx serve . -p 8080",
+    "dev": "python -m http.server 8080"
+  },
+  "keywords": [
+    "sports-management",
+    "pwa",
+    "supabase-realtime",
+    "baloncesto",
+    "voleibol",
+    "futsal",
+    "beisbol"
+  ],
+  "author": "Grupo Multiservicios Deportivo JL",
+  "license": "MIT"
+}

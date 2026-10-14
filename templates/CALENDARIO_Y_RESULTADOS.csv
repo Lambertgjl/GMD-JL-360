@@ -1,0 +1,9 @@
+ID_Partido,Fecha,Hora,Sede,Fase,Equipo Local,Q1 Loc,Q2 Loc,Q3 Loc,Q4 Loc,Total Local,Equipo Visitante,Q1 Vis,Q2 Vis,Q3 Vis,Q4 Vis,Total Visitante,Estado
+PAR-001,2026-10-12,18:00,Gimnasio Pablo Higuerey,Fase de Grupos - Grupo A,Broncos de Higuerey,22,19,25,20,86,Titanes de Oriente,18,20,17,21,76,FINALIZADO
+PAR-002,2026-10-12,19:45,Gimnasio Pablo Higuerey,Fase de Grupos - Grupo A,Centauros del Este,24,18,21,26,89,Guerreros de Guanta,20,22,19,21,82,FINALIZADO
+PAR-003,2026-10-13,17:30,Complejo Deportivo JL,Fase de Grupos - Grupo B,Halcones de Puerto,19,23,18,22,82,Vencedores BBC,16,18,20,19,73,FINALIZADO
+PAR-004,2026-10-13,19:15,Gimnasio Pablo Higuerey,Fase de Grupos - Grupo B,Espartanos JL,20,24,19,16,79,Navegantes Sport,18,21,20,18,77,FINALIZADO
+PAR-005,2026-10-14,18:30,Gimnasio Pablo Higuerey,Fase de Grupos - Grupo A,Broncos de Higuerey,21,18,17,14,70,Centauros del Este,19,22,15,12,68,EN CURSO
+PAR-006,2026-10-14,20:15,Gimnasio Pablo Higuerey,Fase de Grupos - Grupo A,Guerreros de Guanta,0,0,0,0,0,Titanes de Oriente,0,0,0,0,0,PROGRAMADO
+PAR-007,2026-10-15,18:00,Complejo Deportivo JL,Fase de Grupos - Grupo B,Espartanos JL,0,0,0,0,0,Halcones de Puerto,0,0,0,0,0,PROGRAMADO
+PAR-008,2026-10-15,19:45,Cancha Los Robles,Fase de Grupos - Grupo B,Navegantes Sport,0,0,0,0,0,Vencedores BBC,0,0,0,0,0,PROGRAMADO
