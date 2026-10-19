@@ -54,23 +54,29 @@ class StandingsEngine {
 
       // Ensure teams exist in map even if added dynamically
       if (!tableMap[loc]) {
+        const foundEq = typeof store.getEquipoPorNombre === 'function' ? store.getEquipoPorNombre(loc) : null;
         tableMap[loc] = {
-          id: `EQ-AUTO-${loc}`,
+          id: foundEq?.id || `EQ-AUTO-${loc}`,
           equipo: loc,
-          siglas: loc.substring(0, 3).toUpperCase(),
-          grupo: m.grupo || 'Grupo A',
-          sede: m.sede,
+          siglas: foundEq?.siglas || loc.substring(0, 3).toUpperCase(),
+          grupo: foundEq?.grupo || m.grupo || 'Grupo A',
+          logoUrl: foundEq?.logoUrl || '',
+          color: foundEq?.color || '#800020',
+          sede: foundEq?.sedePrincipal || m.sede,
           jj: 0, jg: 0, je: 0, jp: 0, pf: 0, pc: 0, dp: 0, pts: 0, racha: []
         };
       }
 
       if (!tableMap[vis]) {
+        const foundEq = typeof store.getEquipoPorNombre === 'function' ? store.getEquipoPorNombre(vis) : null;
         tableMap[vis] = {
-          id: `EQ-AUTO-${vis}`,
+          id: foundEq?.id || `EQ-AUTO-${vis}`,
           equipo: vis,
-          siglas: vis.substring(0, 3).toUpperCase(),
-          grupo: m.grupo || 'Grupo A',
-          sede: m.sede,
+          siglas: foundEq?.siglas || vis.substring(0, 3).toUpperCase(),
+          grupo: foundEq?.grupo || m.grupo || 'Grupo A',
+          logoUrl: foundEq?.logoUrl || '',
+          color: foundEq?.color || '#1E3A8A',
+          sede: foundEq?.sedePrincipal || m.sede,
           jj: 0, jg: 0, je: 0, jp: 0, pf: 0, pc: 0, dp: 0, pts: 0, racha: []
         };
       }
@@ -124,10 +130,19 @@ class StandingsEngine {
       t.ultimos5 = t.racha.slice(-5).reverse();
     });
 
-    // Group tables by Group Name (e.g. "Grupo A", "Grupo B")
+    // Group tables by Group Name according to tournament format
     const grouped = {};
+    const formato = (typeof store.getFormatoCompeticion === 'function' ? store.getFormatoCompeticion(disciplinaId) : null) || disc?.formatoTorneo || 'por_grupo';
+
     Object.values(tableMap).forEach((row) => {
-      const gName = row.grupo || 'Grupo A';
+      let gName = row.grupo || 'Grupo A';
+      if (formato === 'todos_contra_todos') {
+        gName = 'Grupo Único (Liga General)';
+      } else if (formato === 'eliminacion_directa') {
+        gName = 'Cuadro Clasificatorio (Playoffs)';
+      } else if (formato === 'combinado_mixto') {
+        gName = `${row.grupo || 'Grupo A'} (Fase Regular / Playoff)`;
+      }
       if (!grouped[gName]) grouped[gName] = [];
       grouped[gName].push(row);
     });

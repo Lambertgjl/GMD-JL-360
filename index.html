@@ -33,49 +33,74 @@
   <!-- ==============================================================================
        HEADER & NAVIGATION BAR
        ============================================================================== -->
-  <header class="main-header" id="mainHeader">
-    <div class="container header-inner">
-      <div class="brand-wrapper" id="brandHomeBtn">
-        <img src="./assets/logo.png" alt="Grupo Multiservicios Deportivos JL Logo" class="brand-logo-img">
-        <div class="brand-text">
-          <h1>GRUPO MULTISERVICIOS DEPORTIVO JL</h1>
-          <div class="brand-subtitle">
-            <span>Centro de Gestión Deportiva PWA</span>
-            <span>•</span>
-            <span class="header-status-pill" id="realtimeStatusPill">
-              <span class="pulse-dot"></span>
-              <span id="realtimeStatusText">Tiempo Real Activo</span>
-            </span>
+    <!-- ==============================================================================
+       1. ENCABEZADO SUPERIOR & 2. MARCO DE CONTROL Y MENÚ SUPERIOR
+       ============================================================================== -->
+  <header class="portal-header" id="mainHeader" data-portal-header="true">
+    <div class="portal-header-container">
+      
+      <!-- 1. Logo Superior Izquierda: Círculo con borde dorado, balón e iniciales JL -->
+      <div class="portal-logo-wrapper" id="brandHomeBtn" role="button" tabindex="0" title="Grupo Multiservicios Deportivo JL - Inicio">
+        <div class="portal-logo-circle">
+          <img src="./assets/logo.png" alt="Logo Grupo Multiservicios Deportivo JL" class="portal-logo-img">
+        </div>
+      </div>
+
+      <!-- Bloque Central: Título Principal + Marco de Control y Menú Superior -->
+      <div class="portal-header-main">
+        <!-- 1. Título principal en letras doradas con relieve y sombra -->
+        <div class="portal-title-season-wrap" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;">
+          <h1 class="portal-main-title" id="portalMainTitle">
+            Grupo Multiservicios Deportivo JL
+          </h1>
+          <span class="portal-season-badge" id="portalSeasonBadge">Temporada 2026-2027</span>
+        </div>
+
+        <!-- 2. Marco de Control y Menú Superior: Contenedor rectangular rojo redondeado con borde en relieve naranja/rojo claro -->
+        <div class="control-frame-red">
+          <!-- Fila superior de botones -->
+          <div class="control-frame-top-row">
+            <!-- Sistema en Vivo: Botón con texto rojo sobre un fondo amarillo o dorado con borde -->
+            <button class="btn-ctrl-live" id="btnHeaderLive" type="button" title="Acceder al Marcador y Partidos en Tiempo Real">
+              <span class="ctrl-btn-dot"></span>
+              <span>Sistema en Vivo</span>
+            </button>
+
+            <!-- Compartir: Botón con fondo rojo/marrón y texto rojo rodeado por un borde violeta -->
+            <button class="btn-ctrl-share" id="btnHeaderShare" type="button" title="Compartir plataforma deportiva con tu equipo o amigos">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+              <span>Compartir</span>
+            </button>
+
+            <!-- Configurar: Botón con fondo y texto en tonos rojizos con borde azul/violeta -->
+            <button class="btn-ctrl-config" id="btnConfigurarMaster" type="button" title="Panel de Administración y Control Master">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              <span>Configurar</span>
+            </button>
+          </div>
+
+          <!-- Fila inferior: Un rectángulo horizontal más ancho de color negro con borde en relieve, dentro del cual resalta el texto en letras rojas con sombra blanca/gris: "Sistema Multideportivo" -->
+          <div class="ctrl-bottom-banner" id="btnHeaderSistemaMulti" role="button" tabindex="0" title="Grupo Multiservicios Deportivo JL">
+            <span class="ctrl-bottom-text">Sistema Multideportivo</span>
           </div>
         </div>
       </div>
 
-      <div class="header-actions">
-        <!-- PWA Install Button in Header -->
-        <button class="btn btn-outline-gold btn-sm" id="headerInstallBtn" style="display: none;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      <!-- Auxiliary utilities: PWA -->
+      <div class="portal-header-aux">
+        <button class="btn-aux-pwa" id="headerInstallBtn" style="display: none;" title="Instalar App en el dispositivo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           <span>Instalar App</span>
         </button>
-
-        <!-- Access Delegate Button -->
-        <button class="btn btn-outline btn-sm" id="btnAccesoDelegado">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-          <span>Acceso Delegado</span>
-        </button>
-
-        <!-- Access Admin / Config Button -->
-        <button class="btn btn-gold btn-sm" id="btnConfigurarMaster">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          <span id="btnAdminText">Configurar</span>
-        </button>
       </div>
+
     </div>
   </header>
 
   <!-- ==============================================================================
        DISCIPLINES HORIZONTAL SELECTOR
        ============================================================================== -->
-  <nav class="disciplines-bar" aria-label="Selección de Disciplinas">
+  <nav class="disciplines-bar" id="disciplinesBarWrapper" style="display: none;" aria-label="Selección de Disciplinas">
     <div class="container">
       <div class="disciplines-scroller" id="disciplinesScroller">
         <!-- Generated Dynamically -->
@@ -89,10 +114,10 @@
   <main class="container" id="mainContent">
 
     <!-- Active User Role Banner (if logged in as Delegado or Admin) -->
-    <div id="roleAlertBanner" style="display: none; margin-top: 1rem; padding: 0.75rem 1.25rem; background: rgba(212, 175, 55, 0.15); border: 1px solid var(--border-gold); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between;">
+    <div id="roleAlertBanner" style="display: none; margin-top: 0.5rem; padding: 0.75rem 1.25rem; background: rgba(212, 175, 55, 0.15); border: 1px solid var(--border-gold); border-radius: var(--radius-md); align-items: center; justify-content: space-between;">
       <div style="display: flex; align-items: center; gap: 0.6rem;">
         <span id="roleAlertBadge" class="badge badge-gold">Delegado</span>
-        <span id="roleAlertText" style="font-size: 0.88rem; font-weight: 600;">Sesión activa: Broncos de Higuerey</span>
+        <span id="roleAlertText" style="font-size: 0.88rem; font-weight: 600;">Sesión activa: Delegado de Franquicia</span>
       </div>
       <button class="btn btn-outline btn-sm" id="btnCerrarSesion">Cerrar Sesión</button>
     </div>
@@ -100,659 +125,892 @@
     <!-- ==============================================================================
          VIEW 1: VISTA PÚBLICA (AFICIONADOS, ATLETAS Y FANÁTICOS)
          ============================================================================== -->
-    <section id="vistaPublica" class="view-panel active">
-
-      <!-- Hero Scoreboard (Live Match) -->
-      <section class="hero-live-section" id="heroLiveSection">
-        <div class="scoreboard-card" id="scoreboardCard">
-          <div class="scoreboard-bg-accent" id="scoreboardBgAccent"></div>
-
-          <div class="scoreboard-header">
-            <div class="scoreboard-venue">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-              <span id="heroVenue">Gimnasio Pablo Higuerey</span>
-              <span style="opacity: 0.5;">|</span>
-              <span id="heroFase" style="color: var(--text-secondary);">Fase de Grupos - Grupo A</span>
-            </div>
-
-            <div class="scoreboard-period-clock">
-              <span class="badge badge-live" id="heroStatusBadge">
-                <span class="pulse-dot"></span>
-                <span id="heroStatusText">EN CURSO (LIVE)</span>
-              </span>
-              <span class="badge badge-burgundy" id="heroPeriodo">4TO CUARTO</span>
-              <span class="clock-display" id="heroReloj">03:45</span>
-            </div>
-          </div>
-
-          <div class="scoreboard-body">
-            <!-- Local Team -->
-            <div class="team-box local">
-              <div class="team-badge-circle" id="heroLocalBadge" style="background: #9E1B32;">BHY</div>
-              <div class="team-name-lg" id="heroLocalName">Broncos de Higuerey</div>
-              <div class="team-group-label" id="heroLocalGroup">Local • Grupo A</div>
-            </div>
-
-            <!-- Score Numbers Center -->
-            <div class="score-center">
-              <div class="score-numbers">
-                <div class="score-num" id="heroScoreLoc">74</div>
-                <div class="score-divider">:</div>
-                <div class="score-num" id="heroScoreVis">72</div>
-              </div>
-              <div style="font-size: 0.72rem; color: var(--text-secondary); text-align: center;">
-                Marcador Oficial en Tiempo Real
-              </div>
-            </div>
-
-            <!-- Visiting Team -->
-            <div class="team-box visitante">
-              <div class="team-badge-circle" id="heroVisBadge" style="background: #1E3A8A;">CDE</div>
-              <div class="team-name-lg" id="heroVisName">Centauros del Este</div>
-              <div class="team-group-label" id="heroVisGroup">Visitante • Grupo A</div>
-            </div>
-          </div>
-
-          <!-- Quarter by Quarter Breakdown Table -->
-          <div class="quarters-breakdown">
-            <table class="quarters-table">
-              <thead>
-                <tr>
-                  <th style="text-align: left;">Equipo</th>
-                  <th>Q1</th>
-                  <th>Q2</th>
-                  <th>Q3</th>
-                  <th>Q4</th>
-                  <th style="color: var(--brand-gold);">TOTAL</th>
-                </tr>
-              </thead>
-              <tbody id="heroQuartersTableBody">
-                <tr>
-                  <td class="team-name-col" id="heroRowLocalName">Broncos de Higuerey</td>
-                  <td id="heroQ1Loc">21</td>
-                  <td id="heroQ2Loc">18</td>
-                  <td id="heroQ3Loc">17</td>
-                  <td id="heroQ4Loc">18</td>
-                  <td class="total-col" id="heroTotLoc">74</td>
-                </tr>
-                <tr>
-                  <td class="team-name-col" id="heroRowVisName">Centauros del Este</td>
-                  <td id="heroQ1Vis">19</td>
-                  <td id="heroQ2Vis">22</td>
-                  <td id="heroQ3Vis">15</td>
-                  <td id="heroQ4Vis">16</td>
-                  <td class="total-col" id="heroTotVis">72</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- Public Sub-Tabs (Calendario, Posiciones, Rosters, Sedes) -->
-      <div class="nav-tabs-wrapper">
-        <button class="tab-btn active" data-target="tabCalendario">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-          <span>Calendario & Marcadores</span>
-        </button>
-        <button class="tab-btn" data-target="tabPosiciones">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
-          <span>Tablas de Posiciones</span>
-        </button>
-        <button class="tab-btn" data-target="tabRosters">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-          <span>Rosters & Equipos</span>
-        </button>
-        <button class="tab-btn" data-target="tabSedes">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-          <span>Sedes & Organización</span>
-        </button>
-      </div>
-
-      <!-- Tab Content 1: Calendario & Resultados -->
-      <div id="tabCalendario" class="tab-content-panel">
-        <div class="filter-bar">
-          <div class="filter-pills" id="calendarFilterPills">
-            <button class="filter-pill active" data-filter="todos">Todos</button>
-            <button class="filter-pill" data-filter="live">🔴 En Vivo</button>
-            <button class="filter-pill" data-filter="hoy">Hoy</button>
-            <button class="filter-pill" data-filter="programado">Programados</button>
-            <button class="filter-pill" data-filter="finalizado">Finalizados</button>
-          </div>
-
-          <div class="search-box">
-            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input type="text" class="search-input" id="matchSearchInput" placeholder="Buscar equipo o sede...">
-          </div>
-        </div>
-
-        <div class="matches-grid" id="matchesGridContainer">
-          <!-- Dynamically populated -->
-        </div>
-      </div>
-
-      <!-- Tab Content 2: Tablas de Posiciones -->
-      <div id="tabPosiciones" class="tab-content-panel" style="display: none;">
-        <div class="standings-grid" id="standingsContainer">
-          <!-- Standings dynamically populated for Grupo A and Grupo B -->
-        </div>
-      </div>
-
-      <!-- Tab Content 3: Rosters & Equipos -->
-      <div id="tabRosters" class="tab-content-panel" style="display: none;">
-        <div class="filter-bar">
-          <div class="filter-pills" id="teamFilterPills">
-            <button class="filter-pill active" data-group="todos">Todos los Grupos</button>
-            <button class="filter-pill" data-group="Grupo A">Grupo A</button>
-            <button class="filter-pill" data-group="Grupo B">Grupo B</button>
-          </div>
-
-          <div class="search-box">
-            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input type="text" class="search-input" id="athleteSearchInput" placeholder="Buscar atleta o equipo...">
-          </div>
-        </div>
-
-        <div class="teams-grid" id="teamsGridContainer">
-          <!-- Teams dynamically populated -->
-        </div>
-      </div>
-
-      <!-- Tab Content 4: Sedes & Torneo Info -->
-      <div id="tabSedes" class="tab-content-panel" style="display: none;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
-          <div class="standings-card" style="padding: 1.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1rem;">
-              <div style="font-size: 2rem;">🏟️</div>
-              <div>
-                <h3 style="font-family: var(--font-heading); font-size: 1.15rem;">Gimnasio Pablo Higuerey</h3>
-                <span class="badge badge-gold">Sede Principal Oficial</span>
-              </div>
-            </div>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.85rem;">
-              Cancha oficial con piso de tabloncillo, tableros profesionales de cristal y mesa técnica digital conectada en tiempo real al sistema Supabase.
-            </p>
-            <div style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--text-muted);">
-              📍 Ubicación: Sector Central Deportivo • Capacidad: 2,500 espectadores
-            </div>
-          </div>
-
-          <div class="standings-card" style="padding: 1.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1rem;">
-              <div style="font-size: 2rem;">🏆</div>
-              <div>
-                <h3 style="font-family: var(--font-heading); font-size: 1.15rem;">Complejo Deportivo JL</h3>
-                <span class="badge badge-burgundy">Sede Alterna & Entrenamientos</span>
-              </div>
-            </div>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.85rem;">
-              Instalaciones multideportivas preparadas para encuentros de Fase de Grupos, torneos formativos y jornadas vespertinas.
-            </p>
-            <div style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--text-muted);">
-              📍 Ubicación: Av. Principal Los Deportistas • Sede JL Multiservicios
-            </div>
-          </div>
-
-          <div class="standings-card" style="padding: 1.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1rem;">
-              <div style="font-size: 2rem;">📜</div>
-              <div>
-                <h3 style="font-family: var(--font-heading); font-size: 1.15rem;">Reglamento Oficial del Torneo</h3>
-                <span class="badge badge-scheduled">Normativa GMD JL</span>
-              </div>
-            </div>
-            <ul style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7; padding-left: 1.25rem;">
-              <li><strong>Puntuación:</strong> 2 Puntos por victoria, 1 Punto por derrota.</li>
-              <li><strong>Desempate:</strong> Diferencia de Puntos (DP) -> Puntos a Favor (PF).</li>
-              <li><strong>Clasificación:</strong> Los dos (2) primeros lugares de cada grupo avanzan a semifinales.</li>
-              <li><strong>Rosters:</strong> Inscripciones y cambios gestionados exclusivamente por el delegado certificado.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-    </section>
-
     <!-- ==============================================================================
-         VIEW 2: VISTA DE DELEGADO / ENTRENADOR
+         VIEW 0: VISTA PRINCIPAL HUB - SELECTOR DE DISCIPLINAS
+         Fondo blanco limpio, instrucciones en relieve dorado y cuadrícula 2x2
          ============================================================================== -->
-    <section id="vistaDelegado" class="view-panel">
-      <!-- Delegate Login Screen if not authenticated -->
-      <div id="delegadoLoginCard" class="standings-card" style="max-width: 480px; margin: 2rem auto; padding: 2rem;">
-        <div style="text-align: center; margin-bottom: 1.5rem;">
-          <img src="./assets/logo.png" alt="Logo" style="width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--brand-gold); margin-bottom: 0.75rem;">
-          <h2 style="font-family: var(--font-heading); font-size: 1.35rem; color: #ffffff;">Acceso para Delegados y Entrenadores</h2>
-          <p style="font-size: 0.82rem; color: var(--text-secondary);">Ingrese con sus credenciales o seleccione su equipo y PIN único asignado.</p>
-        </div>
-
-        <form id="formDelegadoLogin">
-          <div class="form-group">
-            <label class="form-label">Seleccione su Equipo</label>
-            <select class="form-select" id="selectDelegadoEquipo" required>
-              <!-- Populated dynamically with teams -->
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">PIN de Seguridad del Equipo</label>
-            <input type="password" class="form-input" id="inputDelegadoPin" placeholder="Ingrese PIN (Demo: 2024)" value="2024" required>
-            <span style="font-size: 0.72rem; color: var(--brand-gold-light);">💡 PIN de demostración predeterminado: <strong>2024</strong></span>
-          </div>
-
-          <button type="submit" class="btn btn-burgundy btn-lg" style="width: 100%; margin-top: 1rem;">
-            Ingresar al Panel de Delegado
-          </button>
-        </form>
+    <section id="vistaHub" class="view-panel active portal-white-hub">
+      
+      <!-- 3. Sección Central de Instrucciones -->
+      <div class="instructions-section">
+        <h2 class="instructions-title">SELECCIONA TU DISCIPLINA</h2>
+        <p class="instructions-subtitle">Cada disciplina tiene su propio sistema de torneo</p>
       </div>
 
-      <!-- Delegate Dashboard Screen when authenticated -->
-      <div id="delegadoDashboard" style="display: none;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
-          <div>
-            <h2 style="font-family: var(--font-heading); font-size: 1.45rem;" id="delDashTeamName">Broncos de Higuerey</h2>
-            <p style="font-size: 0.85rem; color: var(--brand-gold-light);" id="delDashDelegateInfo">Delegado: Prof. Roberto Gómez • Grupo A</p>
+      <!-- 4. Tarjetas / Rejilla Adaptable de Disciplinas (Grid Responsivo) -->
+      <div class="disciplines-grid-responsive disciplines-grid-2x2" id="disciplinesHubGrid">
+        
+        <!-- Tarjeta 1: Baloncesto (Arriba a la izquierda) -->
+        <article class="discipline-card-celeste" data-discipline="baloncesto-master" id="cardBaloncesto" title="Ingresar a Baloncesto">
+          <div class="discipline-icon-circle">
+            <!-- SVG Balón de Baloncesto -->
+            <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Balón de Baloncesto">
+              <defs>
+                <radialGradient id="bballShade" cx="35%" cy="32%" r="68%">
+                  <stop offset="0%" stop-color="#FF9D43"/>
+                  <stop offset="55%" stop-color="#EA580C"/>
+                  <stop offset="100%" stop-color="#881E04"/>
+                </radialGradient>
+              </defs>
+              <circle cx="50" cy="50" r="45" fill="url(#bballShade)" stroke="#111827" stroke-width="2.5"/>
+              <line x1="50" y1="5" x2="50" y2="95" stroke="#111827" stroke-width="3.2" stroke-linecap="round"/>
+              <line x1="5" y1="50" x2="95" y2="50" stroke="#111827" stroke-width="3.2" stroke-linecap="round"/>
+              <path d="M 18,18 C 38,32 38,68 18,82" stroke="#111827" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+              <path d="M 82,18 C 62,32 62,68 82,82" stroke="#111827" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+              <path d="M 22,26 A 38,38 0 0 1 45,12" stroke="rgba(255,255,255,0.45)" stroke-width="3" stroke-linecap="round" fill="none"/>
+            </svg>
           </div>
-          <div style="display: flex; gap: 0.6rem;">
-            <button class="btn btn-gold btn-sm" id="btnNuevoAtletaModal">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              <span>+ Inscribir Nuevo Atleta</span>
-            </button>
-            <button class="btn btn-outline btn-sm" id="btnVolverPublicaDesdeDel">
-              <span>Volver a Vista Pública</span>
-            </button>
-          </div>
-        </div>
+          <h3 class="card-sport-name">Baloncesto</h3>
+          <button type="button" class="btn-enter-system" data-discipline="baloncesto-master">
+            Ingresar al sistema
+          </button>
+        </article>
 
-        <!-- Roster Table for this Team -->
-        <div class="standings-card" style="margin-bottom: 2rem;">
-          <div class="standings-card-header">
-            <div class="standings-card-title">
-              <span>📋 Plantilla Oficial de Atletas Inscritos</span>
-              <span class="badge badge-gold" id="delDashAthleteCount">5 Atletas</span>
-            </div>
-            <button class="btn btn-outline btn-sm" id="btnExportarRosterDel">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Exportar Roster</span>
-            </button>
+        <!-- Tarjeta 2: Voleibol (Arriba a la derecha) -->
+        <article class="discipline-card-celeste" data-discipline="voleibol-femenino" id="cardVoleibol" title="Ingresar a Voleibol">
+          <div class="discipline-icon-circle">
+            <!-- SVG Balón de Voleibol (Azul, Amarillo y Blanco) -->
+            <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Balón de Voleibol">
+              <defs>
+                <clipPath id="vballClip">
+                  <circle cx="50" cy="50" r="45"/>
+                </clipPath>
+                <radialGradient id="vballGloss" cx="30%" cy="28%" r="72%">
+                  <stop offset="0%" stop-color="#ffffff" stop-opacity="0.38"/>
+                  <stop offset="70%" stop-color="#000000" stop-opacity="0.05"/>
+                  <stop offset="100%" stop-color="#000000" stop-opacity="0.3"/>
+                </radialGradient>
+              </defs>
+              <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#111827" stroke-width="2.5"/>
+              <g clip-path="url(#vballClip)">
+                <!-- Blue Panels -->
+                <path d="M5,50 C24,46 38,32 44,10 L30,6 C20,24 10,38 5,50 Z" fill="#1D4ED8" stroke="#111827" stroke-width="2"/>
+                <path d="M50,95 C46,76 32,62 10,56 L6,70 C24,80 38,90 50,95 Z" fill="#1D4ED8" stroke="#111827" stroke-width="2"/>
+                <path d="M95,50 C76,54 62,68 56,90 L70,94 C80,76 90,62 95,50 Z" fill="#1D4ED8" stroke="#111827" stroke-width="2"/>
+                
+                <!-- Yellow Panels -->
+                <path d="M50,5 C54,24 68,38 90,44 L94,30 C76,20 62,10 50,5 Z" fill="#FACC15" stroke="#111827" stroke-width="2"/>
+                <path d="M10,56 C32,62 46,76 50,95 L64,90 C58,68 44,50 10,56 Z" fill="#FACC15" stroke="#111827" stroke-width="2"/>
+                <path d="M44,10 C38,32 24,46 5,50 L10,64 C30,58 48,44 44,10 Z" fill="#FACC15" stroke="#111827" stroke-width="2"/>
+                
+                <!-- White Swirl Center & Accents -->
+                <circle cx="50" cy="50" r="18" fill="#F8FAFC" stroke="#111827" stroke-width="2"/>
+                <path d="M50,5 C50,30 30,50 5,50" stroke="#111827" stroke-width="2.5" fill="none"/>
+                <path d="M95,50 C70,50 50,70 50,95" stroke="#111827" stroke-width="2.5" fill="none"/>
+                <path d="M50,5 C50,25 70,50 95,50" stroke="#111827" stroke-width="2" fill="none"/>
+                <path d="M5,50 C25,50 50,75 50,95" stroke="#111827" stroke-width="2" fill="none"/>
+                
+                <!-- Spherical Shading -->
+                <circle cx="50" cy="50" r="45" fill="url(#vballGloss)"/>
+              </g>
+              <circle cx="50" cy="50" r="45" fill="none" stroke="#111827" stroke-width="3"/>
+            </svg>
           </div>
-          <div class="table-responsive">
-            <table class="standings-table">
-              <thead>
-                <tr>
-                  <th>Dorsal</th>
-                  <th style="text-align: left;">Cédula</th>
-                  <th style="text-align: left;">Nombres y Apellidos</th>
-                  <th>Edad</th>
-                  <th>Posición</th>
-                  <th>Rol</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="delRosterTableBody">
-                <!-- Dynamically populated -->
-              </tbody>
-            </table>
-          </div>
-        </div>
+          <h3 class="card-sport-name">Voleibol</h3>
+          <button type="button" class="btn-enter-system" data-discipline="voleibol-femenino">
+            Ingresar al sistema
+          </button>
+        </article>
 
-        <!-- Team Fixture -->
-        <div class="standings-card">
-          <div class="standings-card-header">
-            <div class="standings-card-title">
-              <span>📅 Calendario de Partidos de Mi Equipo</span>
-            </div>
+        <!-- Tarjeta 3: Futbol Sala (Abajo a la izquierda) -->
+        <article class="discipline-card-celeste" data-discipline="futsal-copa" id="cardFutsal" title="Ingresar a Futbol Sala">
+          <div class="discipline-icon-circle">
+            <!-- SVG Balón de Fútbol Tradicional (Blanco y Negro con Pentágonos) -->
+            <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Balón de Fútbol Tradicional">
+              <defs>
+                <clipPath id="futsalClip">
+                  <circle cx="50" cy="50" r="45"/>
+                </clipPath>
+                <radialGradient id="futsalGloss" cx="30%" cy="28%" r="72%">
+                  <stop offset="0%" stop-color="#ffffff" stop-opacity="0.42"/>
+                  <stop offset="65%" stop-color="#000000" stop-opacity="0"/>
+                  <stop offset="100%" stop-color="#000000" stop-opacity="0.4"/>
+                </radialGradient>
+              </defs>
+              <circle cx="50" cy="50" r="45" fill="#F8FAFC" stroke="#111827" stroke-width="2.5"/>
+              <g clip-path="url(#futsalClip)">
+                <!-- Center Pentagon -->
+                <polygon points="50,34 65,45 59,63 41,63 35,45" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                
+                <!-- Surrounding Pentagons / Polygons -->
+                <polygon points="26,14 38,18 35,32 18,36 12,24" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                <polygon points="74,14 88,24 82,36 65,32 62,18" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                <polygon points="12,76 18,64 35,68 38,82 26,86" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                <polygon points="88,76 74,86 62,82 65,68 82,64" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                <polygon points="42,5 58,5 56,12 44,12" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                <polygon points="44,88 56,88 58,95 42,95" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+
+                <!-- Seam Lines Connecting Pentagons -->
+                <line x1="50" y1="34" x2="50" y2="12" stroke="#111827" stroke-width="2.5"/>
+                <line x1="35" y1="45" x2="18" y2="36" stroke="#111827" stroke-width="2.5"/>
+                <line x1="65" y1="45" x2="82" y2="36" stroke="#111827" stroke-width="2.5"/>
+                <line x1="41" y1="63" x2="35" y2="68" stroke="#111827" stroke-width="2.5"/>
+                <line x1="59" y1="63" x2="65" y2="68" stroke="#111827" stroke-width="2.5"/>
+                
+                <line x1="38" y1="18" x2="44" y2="12" stroke="#111827" stroke-width="2.5"/>
+                <line x1="62" y1="18" x2="56" y2="12" stroke="#111827" stroke-width="2.5"/>
+                <line x1="38" y1="82" x2="44" y2="88" stroke="#111827" stroke-width="2.5"/>
+                <line x1="62" y1="82" x2="56" y2="88" stroke="#111827" stroke-width="2.5"/>
+
+                <circle cx="50" cy="50" r="45" fill="url(#futsalGloss)"/>
+              </g>
+              <circle cx="50" cy="50" r="45" fill="none" stroke="#111827" stroke-width="3"/>
+            </svg>
           </div>
-          <div class="matches-grid" id="delMatchesContainer" style="padding: 1.25rem;">
-            <!-- Matches populated -->
+          <h3 class="card-sport-name">Futbol Sala</h3>
+          <button type="button" class="btn-enter-system" data-discipline="futsal-copa">
+            Ingresar al sistema
+          </button>
+        </article>
+
+        <!-- Tarjeta 4: Sotfbol (Abajo a la derecha) -->
+        <article class="discipline-card-celeste" data-discipline="softbol-master" id="cardSoftbol" title="Ingresar a Sotfbol">
+          <div class="discipline-icon-circle">
+            <!-- SVG Pelota de Sóftbol Blanca con Costuras Rojas -->
+            <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Pelota de Sóftbol">
+              <defs>
+                <radialGradient id="sballShade" cx="35%" cy="32%" r="68%">
+                  <stop offset="0%" stop-color="#FFFFFF"/>
+                  <stop offset="60%" stop-color="#F1F5F9"/>
+                  <stop offset="100%" stop-color="#CBD5E1"/>
+                </radialGradient>
+              </defs>
+              <circle cx="50" cy="50" r="45" fill="url(#sballShade)" stroke="#1E293B" stroke-width="2.5"/>
+              
+              <!-- Left Curved Red Seam -->
+              <path d="M 24,12 C 40,30 40,70 24,88" stroke="#DC2626" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <!-- Left Red Stitches -->
+              <path d="M 20,20 L 26,22 M 22,16 L 27,24" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 27,28 L 33,31 M 29,25 L 34,33" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 31,39 L 37,42 M 33,36 L 38,44" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 32,50 L 38,50 M 33,46 L 37,54" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 31,61 L 37,58 M 33,64 L 38,56" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 27,72 L 33,69 M 29,75 L 34,67" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 20,80 L 26,78 M 22,84 L 27,76" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+
+              <!-- Right Curved Red Seam -->
+              <path d="M 76,12 C 60,30 60,70 76,88" stroke="#DC2626" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <!-- Right Red Stitches -->
+              <path d="M 80,20 L 74,22 M 78,16 L 73,24" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 73,28 L 67,31 M 71,25 L 66,33" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 69,39 L 63,42 M 67,36 L 62,44" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 68,50 L 62,50 M 67,46 L 63,54" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 69,61 L 63,58 M 67,64 L 62,56" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 73,72 L 67,69 M 71,75 L 66,67" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 80,80 L 74,78 M 78,84 L 73,76" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+
+              <!-- Highlight -->
+              <path d="M 26,18 A 38,38 0 0 1 45,10" stroke="rgba(255,255,255,0.75)" stroke-width="3" stroke-linecap="round" fill="none"/>
+            </svg>
           </div>
-        </div>
+          <h3 class="card-sport-name">Sotfbol</h3>
+          <button type="button" class="btn-enter-system" data-discipline="softbol-master">
+            Ingresar al sistema
+          </button>
+        </article>
+
       </div>
     </section>
 
     <!-- ==============================================================================
-         VIEW 3: VISTA DE SUPERADMINISTRADOR (CONTROL MASTER)
+         VIEW 1: VISTA PÚBLICA (AFICIONADOS, ATLETAS Y FANÁTICOS)
          ============================================================================== -->
-    <section id="vistaSuperAdmin" class="view-panel">
-      <!-- Admin Login Card if not authenticated -->
-      <div id="adminLoginCard" class="standings-card" style="max-width: 460px; margin: 2rem auto; padding: 2rem;">
-        <div style="text-align: center; margin-bottom: 1.5rem;">
-          <img src="./assets/logo.png" alt="Logo" style="width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--brand-gold); margin-bottom: 0.75rem;">
-          <h2 style="font-family: var(--font-heading); font-size: 1.35rem; color: #ffffff;">Control Master • Superadministrador</h2>
-          <p style="font-size: 0.82rem; color: var(--text-secondary);">Acceso restringido para organizadores y directores técnicos del torneo.</p>
-        </div>
+    <!-- ==============================================================================
+         UNIFIED DISCIPLINE LAYOUT (JL SPORTS HUB 360 STYLE WITH SIDEBAR & RBAC)
+         ============================================================================== -->
+    <section id="vistaDisciplina" class="view-panel">
+      <div class="discipline-hub-container">
 
-        <form id="formAdminLogin">
-          <div class="form-group">
-            <label class="form-label">Correo Electrónico de SuperAdmin</label>
-            <input type="email" class="form-input" id="inputAdminEmail" value="admin@gmdjl.com" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Clave de Seguridad Master</label>
-            <input type="password" class="form-input" id="inputAdminPassword" value="admin2024" required>
-            <span style="font-size: 0.72rem; color: var(--brand-gold-light);">💡 Credenciales demo: <strong>admin@gmdjl.com</strong> / <strong>admin2024</strong></span>
-          </div>
-
-          <button type="submit" class="btn btn-gold btn-lg" style="width: 100%; margin-top: 1rem;">
-            Ingresar al Panel de Control Master
-          </button>
-        </form>
-      </div>
-
-      <!-- Admin Dashboard when logged in -->
-      <div id="adminDashboard" style="display: none;">
-        <!-- Admin Header -->
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
-          <div>
-            <h2 style="font-family: var(--font-heading); font-size: 1.5rem; color: #ffffff;">Panel de Control Master • GMD JL</h2>
-            <p style="font-size: 0.82rem; color: var(--text-secondary);">Administración central de disciplinas, importaciones masivas, mesa técnica y Supabase.</p>
-          </div>
-          <div style="display: flex; gap: 0.6rem;">
-            <button class="btn btn-outline-gold btn-sm" id="btnConfigSupabaseModal">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
-              <span>Conexión Supabase</span>
+        <!-- Top Navigation Bar within Discipline -->
+        <div class="discipline-topbar">
+          <div class="topbar-left">
+            <button class="btn-sidebar-toggle" id="btnSidebarToggle" type="button" title="Abrir / Cerrar Menú Lateral">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
-            <button class="btn btn-outline btn-sm" id="btnVolverPublicaDesdeAdmin">
-              <span>Ver Vista Pública</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- The 4 Operational Steps Navigation requested by user -->
-        <div class="nav-tabs-wrapper" id="adminStepsTabs">
-          <button class="tab-btn active" data-step="paso1">
-            <span>Paso 1: Disciplinas</span>
-          </button>
-          <button class="tab-btn" data-step="paso2">
-            <span>Paso 2: Carga Masiva (Excel/CSV)</span>
-          </button>
-          <button class="tab-btn" data-step="paso3">
-            <span>Paso 3: Mesa de Anotación (LIVE)</span>
-          </button>
-          <button class="tab-btn" data-step="paso4">
-            <span>Paso 4: Automatización de Posiciones</span>
-          </button>
-        </div>
-
-        <!-- ==============================================================================
-             PASO 1: CONFIGURAR / AGREGAR DISCIPLINAS Y CATEGORÍAS
-             ============================================================================== -->
-        <div id="stepPaso1" class="step-panel">
-          <div class="standings-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.8rem;">
-              <div>
-                <h3 style="font-family: var(--font-heading); font-size: 1.15rem;">Disciplinas Deportivas del Torneo</h3>
-                <p style="font-size: 0.8rem; color: var(--text-secondary);">Habilite, edite o agregue nuevas disciplinas (Baloncesto Sub-14, Voleibol Femenino, Futsal, etc.).</p>
+            <div class="topbar-sport-pill" id="topbarSportPill">
+              <span class="sport-icon" id="topbarSportIcon">🏀</span>
+              <div class="sport-text-group">
+                <span class="sport-title" id="topbarSportTitle">Baloncesto</span>
+                <span class="badge badge-gold" id="topbarSportCategory">Torneo Master</span>
               </div>
-              <button class="btn btn-gold btn-sm" id="btnNuevaDisciplinaModal">
-                + Añadir Nueva Disciplina
-              </button>
+            </div>
+          </div>
+
+          <div class="topbar-right">
+            <!-- Active User Role Badge -->
+            <div class="topbar-user-badge" id="topbarUserBadge">
+              <div class="user-avatar-dot" id="topbarUserDot"></div>
+              <div class="user-info-text">
+                <span class="user-name" id="topbarUserName">Pedro Pérez</span>
+                <span class="user-role-label" id="topbarRoleLabel">Fanático / Lectura</span>
+              </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;" id="adminDisciplinasGrid">
-              <!-- Dynamically populated -->
-            </div>
+            <!-- Action buttons -->
+            <button class="btn-topbar-action" id="btnCambiarRolHub" type="button" title="Cambiar de Rol o Identificarse">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <span>Cambiar Rol</span>
+            </button>
+            <button class="btn-topbar-action btn-salir" id="btnSalirADisciplinas" type="button" title="Volver al Menú de Disciplinas">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+              <span>Disciplinas</span>
+            </button>
           </div>
         </div>
 
-        <!-- ==============================================================================
-             PASO 2: CARGA DE DATOS (EXCEL / CSV Y MANUAL)
-             ============================================================================== -->
-        <div id="stepPaso2" class="step-panel" style="display: none;">
-          <!-- Bulk Load Card (Excel / CSV) -->
-          <div class="standings-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
-            <div style="margin-bottom: 1.25rem;">
-              <h3 style="font-family: var(--font-heading); font-size: 1.2rem; color: #ffffff;">Carga Masiva vía Excel / CSV (Recomendado)</h3>
-              <p style="font-size: 0.85rem; color: var(--text-secondary);">
-                Pueble todo el torneo en 1 solo clic. Descargue las plantillas oficiales, edítelas en Excel y súbalas aquí.
-              </p>
+        <!-- Body Layout: Sidebar + Main Area -->
+        <div class="discipline-body-layout">
+          <!-- Mobile Drawer Backdrop -->
+          <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+          <!-- SIDEBAR / PANEL LATERAL (TODOS LOS USUARIOS VEN Y ACCEDEN A LAS RUTAS) -->
+          <aside class="discipline-sidebar" id="disciplineSidebar">
+            <div class="sidebar-header">
+              <div class="sidebar-brand-circle">
+                <img src="./assets/logo.png" alt="Logo Grupo Multiservicios Deportivo JL" class="sidebar-brand-img">
+              </div>
+              <div class="sidebar-brand-info">
+                <div class="sidebar-brand-name">GMD JL 360</div>
+                <div class="sidebar-brand-sub" id="sidebarDisciplineName">Baloncesto</div>
+              </div>
             </div>
 
-            <!-- Download Templates Toolbar -->
-            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem; padding: 1rem; background: rgba(0,0,0,0.3); border-radius: var(--radius-md); border: 1px dashed var(--border-gold);">
-              <span style="font-size: 0.85rem; font-weight: 700; color: var(--brand-gold-light);">Descargar Plantillas Estándar:</span>
-              <button class="btn btn-outline-gold btn-sm" onclick="window.CSVProcessor.downloadTemplate('ROSTER_Y_EQUIPOS.csv')">
-                📥 ROSTER_Y_EQUIPOS.csv
+            <!-- 7 Navigation Routes (Con iconos exactos y etiquetas) -->
+            <nav class="sidebar-nav" aria-label="Navegación interna de la disciplina">
+              <!-- 1. 📊 PANEL PRINCIPAL (DASHBOARD) -->
+              <button class="sidebar-nav-item active" data-module="moduleDashboard" id="navDashboard" type="button">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">PANEL PRINCIPAL</span>
               </button>
-              <button class="btn btn-outline-gold btn-sm" onclick="window.CSVProcessor.downloadTemplate('CONFIG_GRUPOS.csv')">
-                📥 CONFIG_GRUPOS.csv
-              </button>
-              <button class="btn btn-outline-gold btn-sm" onclick="window.CSVProcessor.downloadTemplate('CALENDARIO_Y_RESULTADOS.csv')">
-                📥 CALENDARIO_Y_RESULTADOS.csv
-              </button>
-            </div>
 
-            <!-- Drag & Drop Upload Zone -->
-            <div id="csvDropZone" style="border: 2px dashed rgba(212, 175, 55, 0.4); border-radius: var(--radius-lg); padding: 2.5rem 1.5rem; text-align: center; background: rgba(255, 255, 255, 0.02); cursor: pointer; transition: all 0.2s ease;">
-              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📁</div>
-              <h4 style="font-family: var(--font-heading); font-size: 1.05rem; margin-bottom: 0.35rem;">Arrastre su archivo CSV o haga clic para examinar</h4>
-              <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">
-                Compatible con ROSTER_Y_EQUIPOS.csv, CONFIG_GRUPOS.csv y CALENDARIO_Y_RESULTADOS.csv
-              </p>
-              <input type="file" id="csvFileInput" accept=".csv,text/csv" style="display: none;">
-              <button type="button" class="btn btn-burgundy btn-sm" onclick="document.getElementById('csvFileInput').click()">
-                Seleccionar Archivo CSV
+              <!-- 2. 👥 GESTIÓN EQUIPOS -->
+              <button class="sidebar-nav-item" data-module="moduleEquipos" id="navEquipos" type="button">
+                <span class="nav-icon">👥</span>
+                <span class="nav-text">GESTIÓN EQUIPOS</span>
               </button>
-            </div>
 
-            <!-- CSV Import Preview Status -->
-            <div id="csvImportStatus" style="display: none; margin-top: 1rem; padding: 1rem; border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3);">
-              <!-- Filled via JS -->
-            </div>
-          </div>
+              <!-- 3. ⚙️ CONFIG. GRUPOS -->
+              <button class="sidebar-nav-item" data-module="moduleGrupos" id="navGrupos" type="button">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-text">CONFIG. GRUPOS</span>
+              </button>
 
-          <!-- Manual Load Accordion / Subsections -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem;">
-            <!-- Manual Team Creator -->
-            <div class="standings-card" style="padding: 1.5rem;">
-              <h3 style="font-family: var(--font-heading); font-size: 1.1rem; margin-bottom: 0.85rem;">+ Carga Manual de Equipos</h3>
-              <form id="formManualTeam">
-                <div class="form-group">
-                  <label class="form-label">Nombre del Equipo</label>
-                  <input type="text" class="form-input" id="manTeamName" placeholder="Ej. Titanes de Oriente" required>
+              <!-- 4. 📅 CALENDARIO -->
+              <button class="sidebar-nav-item" data-module="moduleCalendario" id="navCalendario" type="button">
+                <span class="nav-icon">📅</span>
+                <span class="nav-text">CALENDARIO</span>
+              </button>
+
+              <!-- 5. ⚡ RESULTADOS LIVE -->
+              <button class="sidebar-nav-item" data-module="moduleResultadosLive" id="navResultadosLive" type="button">
+                <span class="nav-icon">⚡</span>
+                <span class="nav-text">RESULTADOS LIVE</span>
+                <span class="nav-live-dot" id="sidebarLiveDot"></span>
+              </button>
+
+              <!-- 6. 🏆 TABLA POSICIONES -->
+              <button class="sidebar-nav-item" data-module="modulePosiciones" id="navPosiciones" type="button">
+                <span class="nav-icon">🏆</span>
+                <span class="nav-text">TABLA POSICIONES</span>
+              </button>
+
+              <div class="sidebar-divider"></div>
+
+              <!-- 7. ⬅️ CAMBIAR DISCIPLINA / CERRAR SESIÓN -->
+              <button class="sidebar-nav-item nav-item-exit" id="navCambiarDisciplina" type="button">
+                <span class="nav-icon">⬅️</span>
+                <span class="nav-text">CAMBIAR DISCIPLINA</span>
+              </button>
+            </nav>
+
+            <!-- Sidebar RBAC Footer -->
+            <div class="sidebar-rbac-footer" id="sidebarRbacFooter">
+              <div class="rbac-indicator-dot" id="sidebarRbacDot"></div>
+              <div class="rbac-indicator-text">
+                <div class="rbac-role-name" id="sidebarRoleName">FANÁTICO</div>
+                <div class="rbac-role-scope" id="sidebarRoleScope">Modo Solo Lectura</div>
+              </div>
+            </div>
+          </aside>
+
+          <!-- MAIN CONTENT AREA: 6 MODULES -->
+          <div class="discipline-main-area" id="disciplineMainArea">
+
+            <!-- ============================================================
+                 MODULE 1: PANEL PRINCIPAL (DASHBOARD)
+                 ============================================================ -->
+            <div class="discipline-module active" id="moduleDashboard">
+              <!-- Summary KPI Cards (Tarjetas resumidas) -->
+              <div class="kpis-grid">
+                <div class="kpi-card kpi-cyan">
+                  <div class="kpi-icon-wrap">👥</div>
+                  <div class="kpi-info">
+                    <span class="kpi-val" id="kpiEquiposInscritos">8</span>
+                    <span class="kpi-label">Equipos Inscritos</span>
+                  </div>
                 </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label class="form-label">Grupo</label>
-                    <select class="form-select" id="manTeamGroup">
-                      <option value="Grupo A">Grupo A</option>
-                      <option value="Grupo B">Grupo B</option>
+
+                <div class="kpi-card kpi-red">
+                  <div class="kpi-icon-wrap">
+                    <span class="pulse-dot"></span>
+                    <span>🔴</span>
+                  </div>
+                  <div class="kpi-info">
+                    <span class="kpi-val" id="kpiJuegosEnVivo">1</span>
+                    <span class="kpi-label">Juegos en Vivo</span>
+                  </div>
+                </div>
+
+                <div class="kpi-card kpi-green">
+                  <div class="kpi-icon-wrap">✅</div>
+                  <div class="kpi-info">
+                    <span class="kpi-val" id="kpiJuegosFinalizados">4</span>
+                    <span class="kpi-label">Juegos Finalizados</span>
+                  </div>
+                </div>
+
+                <div class="kpi-card kpi-gold">
+                  <div class="kpi-icon-wrap">⏳</div>
+                  <div class="kpi-info">
+                    <span class="kpi-val" id="kpiJuegosPendientes">3</span>
+                    <span class="kpi-label">Juegos Pendientes</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Marcador Prominente del Juego en Vivo Actual (Hero LIVE) -->
+              <section class="hero-live-section" id="heroLiveSection">
+                <div class="scoreboard-card" id="scoreboardCard">
+                  <div class="scoreboard-bg-accent" id="scoreboardBgAccent"></div>
+
+                  <div class="scoreboard-header">
+                    <div class="scoreboard-venue">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                      <span id="heroVenue">Gimnasio Pablo Higuerey</span>
+                      <span style="opacity: 0.5;">|</span>
+                      <span id="heroFase" style="color: var(--text-secondary);">Fase de Grupos - Grupo A</span>
+                    </div>
+
+                    <div class="scoreboard-period-clock">
+                      <span class="badge badge-live" id="heroStatusBadge">
+                        <span class="pulse-dot"></span>
+                        <span id="heroStatusText">EN CURSO (LIVE)</span>
+                      </span>
+                      <span class="badge badge-burgundy" id="heroPeriodo">4TO CUARTO</span>
+                      <span class="clock-display" id="heroReloj">03:45</span>
+                    </div>
+                  </div>
+
+                  <div class="scoreboard-body">
+                    <!-- Local Team -->
+                    <div class="team-box local">
+                      <div class="team-badge-circle" id="heroLocalBadge" style="background: #0f172a;">
+                        <svg width="34" height="34" viewBox="0 0 40 40" fill="none"><path d="M20 4L34 10V22C34 29 27 35 20 38C13 35 6 29 6 22V10L20 4Z" fill="#D97706" fill-opacity="0.25" stroke="#F59E0B" stroke-width="2.5"/><circle cx="20" cy="20" r="8" fill="#F59E0B"/><path d="M12 20H28M20 12V28" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round"/></svg>
+                      </div>
+                      <div class="team-name-lg" id="heroLocalName">Por Programar</div>
+                      <div class="team-group-label" id="heroLocalGroup">Local</div>
+                    </div>
+
+                    <!-- Score Center -->
+                    <div class="score-center">
+                      <div class="score-numbers">
+                        <div class="score-num" id="heroScoreLoc">-</div>
+                        <div class="score-divider">:</div>
+                        <div class="score-num" id="heroScoreVis">-</div>
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--accent-cyan); text-align: center; font-weight: 700; letter-spacing: 0.5px;">
+                        Marcador Oficial en Tiempo Real
+                      </div>
+                    </div>
+
+                    <!-- Visiting Team -->
+                    <div class="team-box visitante">
+                      <div class="team-badge-circle" id="heroVisBadge" style="background: #0f172a;">
+                        <svg width="34" height="34" viewBox="0 0 40 40" fill="none"><path d="M20 4L34 10V22C34 29 27 35 20 38C13 35 6 29 6 22V10L20 4Z" fill="#2563EB" fill-opacity="0.25" stroke="#38BDF8" stroke-width="2.5"/><circle cx="20" cy="20" r="8" fill="#38BDF8"/><path d="M12 20H28M20 12V28" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round"/></svg>
+                      </div>
+                      <div class="team-name-lg" id="heroVisName">Por Programar</div>
+                      <div class="team-group-label" id="heroVisGroup">Visitante</div>
+                    </div>
+                  </div>
+
+                  <!-- Quarter by Quarter Breakdown Table -->
+                  <div class="quarters-breakdown">
+                    <table class="quarters-table">
+                      <thead>
+                        <tr>
+                          <th style="text-align: left;">Equipo</th>
+                          <th>Q1</th>
+                          <th>Q2</th>
+                          <th>Q3</th>
+                          <th>Q4</th>
+                          <th style="color: var(--brand-gold);">TOTAL</th>
+                        </tr>
+                      </thead>
+                      <tbody id="heroQuartersTableBody">
+                        <tr>
+                          <td class="team-name-col" id="heroRowLocalName">Local</td>
+                          <td id="heroQ1Loc">-</td>
+                          <td id="heroQ2Loc">-</td>
+                          <td id="heroQ3Loc">-</td>
+                          <td id="heroQ4Loc">-</td>
+                          <td class="total-col" id="heroTotLoc">-</td>
+                        </tr>
+                        <tr>
+                          <td class="team-name-col" id="heroRowVisName">Visitante</td>
+                          <td id="heroQ1Vis">-</td>
+                          <td id="heroQ2Vis">-</td>
+                          <td id="heroQ3Vis">-</td>
+                          <td id="heroQ4Vis">-</td>
+                          <td class="total-col" id="heroTotVis">-</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Quick Next Matches Preview -->
+              <div class="dashboard-featured-row">
+                <div class="dashboard-section-header">
+                  <h3 class="section-title">⚡ Próximos Encuentros de la Jornada</h3>
+                  <button class="btn btn-outline-cyan btn-sm" id="btnDashVerCalendario" type="button">
+                    Ver Calendario Completo →
+                  </button>
+                </div>
+                <div class="dash-matches-grid" id="dashMatchesPreviewContainer">
+                  <!-- Populated via JS -->
+                </div>
+              </div>
+            </div>
+
+            <!-- ============================================================
+                 MODULE 2: GESTIÓN EQUIPOS
+                 ============================================================ -->
+            <div class="discipline-module" id="moduleEquipos">
+              <div class="module-header-row">
+                <div>
+                  <h2 class="module-title">👥 Franquicias & Plantillas Oficiales</h2>
+                  <p class="module-subtitle">Consulta de nóminas registradas, delegados responsables y atletas oficiales</p>
+                </div>
+                <!-- SuperAdmin Only: + Nuevo Equipo -->
+                <button class="btn btn-gold btn-md rbac-admin-only" id="btnAdminNuevoEquipoMaster" type="button" style="display: none;">
+                  + Nuevo Equipo
+                </button>
+              </div>
+
+              <!-- Filter Bar -->
+              <div class="filter-bar">
+                <div class="filter-pills" id="teamFilterPills">
+                  <button class="filter-pill active" data-group="todos" type="button">Todos los Grupos</button>
+                  <button class="filter-pill" data-group="Grupo A" type="button">Grupo A</button>
+                  <button class="filter-pill" data-group="Grupo B" type="button">Grupo B</button>
+                </div>
+
+                <div class="search-box">
+                  <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  <input type="text" class="search-input" id="athleteSearchInput" placeholder="Buscar atleta o equipo...">
+                </div>
+              </div>
+
+              <!-- Teams Cards Grid -->
+              <div class="teams-grid-360" id="teamsGridContainer">
+                <!-- Dynamically populated via renderTeamsAndRosters -->
+              </div>
+            </div>
+
+            <!-- ============================================================
+                 MODULE 3: CONFIG. GRUPOS
+                 ============================================================ -->
+            <div class="discipline-module" id="moduleGrupos">
+              <div class="module-header-row">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                    <h2 class="module-title">⚙️ Configuración de Grupos & Sistema de Competencia</h2>
+                    <span class="badge" id="gruposRbacStatusBadge" style="font-size: 0.75rem; padding: 0.3rem 0.65rem; border-radius: 9999px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8;">
+                      🔒 Vista Solo Lectura (Fanáticos / Delegados)
+                    </span>
+                  </div>
+                  <p class="module-subtitle">Control integral de formato de torneo, división de grupos y asignación dinámica de franquicias</p>
+                </div>
+                <!-- Superadmin extra actions -->
+                <div class="rbac-admin-only" style="display: none; gap: 0.5rem; flex-wrap: wrap;" id="adminGruposActions">
+                  <button class="btn btn-outline-cyan btn-sm" id="btnAdminCsvImportModal" type="button">
+                    📁 Importación Excel/CSV
+                  </button>
+                  <button class="btn btn-outline-gold btn-sm" id="btnAdminSupabaseModal" type="button">
+                    ☁️ Supabase Realtime
+                  </button>
+                </div>
+              </div>
+
+              <!-- ============================================================
+                   SECCIÓN 1: SELECTOR SIMPLIFICADO DE SISTEMA DE COMPETENCIA
+                   ============================================================ -->
+              <div class="competition-format-bar">
+                <div class="format-bar-header">
+                  <div>
+                    <span class="format-section-tag">SISTEMA DE COMPETENCIA</span>
+                    <h3 style="font-size: 1.1rem; color: #ffffff; margin: 0.35rem 0 0; font-family: var(--font-heading);">Formato Oficial del Torneo</h3>
+                  </div>
+                  <span class="format-active-label" id="formatActiveLabel">Modalidad Activa: <strong>🛡️ Por Grupo</strong></span>
+                </div>
+                <div class="format-pills-selector" id="formatPillsSelector">
+                  <button type="button" class="format-pill active" data-format="por_grupo" id="btnFormatPorGrupo">
+                    <span class="pill-icon">🛡️</span>
+                    <span class="pill-text">Por Grupo</span>
+                  </button>
+                  <button type="button" class="format-pill" data-format="todos_contra_todos" id="btnFormatRoundRobin">
+                    <span class="pill-icon">🔄</span>
+                    <span class="pill-text">Todos contra Todos</span>
+                  </button>
+                  <button type="button" class="format-pill" data-format="eliminacion_directa" id="btnFormatEliminacion">
+                    <span class="pill-icon">⚡</span>
+                    <span class="pill-text">Eliminación Directa</span>
+                  </button>
+                  <button type="button" class="format-pill" data-format="combinado_mixto" id="btnFormatCombinado">
+                    <span class="pill-icon">🔀</span>
+                    <span class="pill-text">Combinado / Mixto</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- ============================================================
+                   SECCIÓN 2: ASIGNACIÓN CENTRALIZADA DE EQUIPOS
+                   ============================================================ -->
+              <div class="centralized-assignment-box" id="centralizedAssignmentBox">
+                <!-- Toolbar with title and action controls: Guardar, Editar, + Crear Grupo, Eliminar -->
+                <div class="assignment-toolbar">
+                  <div class="assignment-toolbar-left">
+                    <h3 class="assignment-title" id="assignmentTitle">📋 Asignación Centralizada de Franquicias</h3>
+                    <p class="assignment-subtitle" id="assignmentSubtitle">Gestiona de forma centralizada la distribución de todos los equipos registrados</p>
+                  </div>
+                  <div class="assignment-toolbar-actions rbac-admin-only" id="assignmentToolbarActions" style="display: none;">
+                    <button type="button" class="btn btn-gold btn-sm" id="btnGuardarDistribucionGrupos" title="Guardar y aplicar la distribución de grupos">
+                      💾 Guardar Distribución
+                    </button>
+                    <button type="button" class="btn btn-outline-cyan btn-sm" id="btnGenerarCalendarioDesdeGrupos" title="Generar automáticamente el fixture de partidos para esta distribución">
+                      ⚡ Generar Calendario
+                    </button>
+                    <button type="button" class="btn btn-outline-gold btn-sm" id="btnEditarDistribucionGrupos" title="Equilibrar equitativamente los equipos entre grupos">
+                      ✏️ Editar / Equilibrar
+                    </button>
+                    <button type="button" class="btn btn-outline-gold btn-sm" id="btnCrearGrupoNuevoDirecto" title="Crear un nuevo grupo (Grupo C, D...)">
+                      + Crear Grupo
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="btnEliminarDistribucionGrupos" title="Eliminar y restablecer la distribución de grupos">
+                      🗑️ Eliminar Distribución
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Centralized Unified Teams Assignment Table & Distribution Cards -->
+                <div id="centralizedTeamsListContainer">
+                  <!-- Populated dynamically via renderGroupsStructure in js/app.js -->
+                </div>
+              </div>
+
+              <!-- ============================================================
+                   SECCIÓN 3: REGLAMENTO OFICIAL DEL TORNEO (ACTIVO PARA CONSULTA O EDICIÓN)
+                   ============================================================ -->
+              <div class="official-rules-container">
+                <div class="standings-card" style="padding: 1.5rem; border: 1px solid var(--border-gold);">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h3 style="font-family: var(--font-heading); font-size: 1.15rem; margin: 0; color: var(--brand-gold); display: flex; align-items: center; gap: 0.5rem;">
+                      <span>📜</span> <span>Reglamento Oficial del Torneo</span>
+                    </h3>
+                    <div class="rbac-admin-only" id="reglamentoAdminActions" style="display: none; gap: 0.5rem;">
+                      <button type="button" class="btn btn-outline-gold btn-sm" id="btnToggleEditReglamento">
+                        ✏️ Editar Reglamento
+                      </button>
+                      <button type="button" class="btn btn-gold btn-sm" id="btnGuardarReglamento" style="display: none;">
+                        💾 Guardar Reglamento
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Rules Display Mode -->
+                  <div id="reglamentoViewMode">
+                    <ul class="official-rules-list" id="reglamentoList">
+                      <!-- Rendered dynamically -->
+                    </ul>
+                  </div>
+
+                  <!-- Rules Edit Mode -->
+                  <div id="reglamentoEditMode" style="display: none;">
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.5rem;">Ingresa cada norma o artículo del reglamento en una línea independiente:</p>
+                    <textarea class="form-input" id="reglamentoTextarea" rows="6" style="width: 100%; font-size: 0.85rem; line-height: 1.6; resize: vertical;"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ============================================================
+                 MODULE 4: CALENDARIO
+                 ============================================================ -->
+            <div class="discipline-module" id="moduleCalendario">
+              <div class="module-header-row">
+                <div>
+                  <h2 class="module-title">📅 Calendario Oficial de Encuentros</h2>
+                  <p class="module-subtitle">Horarios, sedes y programación de todas las jornadas del torneo</p>
+                </div>
+                <!-- Superadmin: Actions Bar -->
+                <div class="rbac-admin-only" style="display: none; gap: 0.5rem; flex-wrap: wrap; align-items: center;" id="adminCalendarActions">
+                  <button class="btn btn-outline-danger btn-sm" id="btnAdminLimpiarCalendario" type="button" title="Reiniciar y vaciar toda la programación de la disciplina">
+                    🗑️ Limpiar / Vaciar Calendario
+                  </button>
+                  <button class="btn btn-outline-gold btn-sm" id="btnAdminGenerarCalendario" type="button" title="Generar fixture automático según sistema de competencia y grupos">
+                    ⚡ Generar Calendario
+                  </button>
+                  <button class="btn btn-gold btn-sm" id="btnAdminProgramarPartido" type="button" title="Programar un nuevo encuentro de forma manual">
+                    + Programar Partido
+                  </button>
+                </div>
+              </div>
+
+              <!-- Filter Bar -->
+              <div class="filter-bar">
+                <div class="filter-pills" id="calendarFilterPills">
+                  <button class="filter-pill active" data-filter="todos" type="button">Todos</button>
+                  <button class="filter-pill" data-filter="live" type="button">🔴 En Vivo</button>
+                  <button class="filter-pill" data-filter="hoy" type="button">Hoy</button>
+                  <button class="filter-pill" data-filter="programado" type="button">Programados</button>
+                  <button class="filter-pill" data-filter="finalizado" type="button">Finalizados</button>
+                </div>
+
+                <div class="search-box">
+                  <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  <input type="text" class="search-input" id="matchSearchInput" placeholder="Buscar equipo o sede...">
+                </div>
+              </div>
+
+              <!-- Matches Grid -->
+              <div class="matches-grid" id="matchesGridContainer">
+                <!-- Dynamically populated via renderMatches -->
+              </div>
+            </div>
+
+            <!-- ============================================================
+                 MODULE 5: RESULTADOS LIVE
+                 ============================================================ -->
+            <div class="discipline-module" id="moduleResultadosLive">
+              <div class="module-header-row">
+                <div>
+                  <h2 class="module-title">⚡ Marcador en Vivo & Resultados</h2>
+                  <p class="module-subtitle">Transmisión segundo a segundo con desglose cuarto a cuarto / set a set</p>
+                </div>
+                <!-- Realtime connection badge -->
+                <div class="realtime-status-badge" id="liveRealtimeBadge">
+                  <span class="pulse-dot"></span>
+                  <span>Transmisión en Tiempo Real</span>
+                </div>
+              </div>
+
+              <!-- Match Selector Bar with Quick Navigation -->
+              <div class="live-match-selector-bar">
+                <button class="btn btn-outline btn-sm live-nav-arrow" id="btnLivePrevMatch" type="button" title="Partido Anterior">
+                  ⬅️ Anterior
+                </button>
+                <div class="live-select-wrapper">
+                  <label for="liveViewerMatchSelect" class="live-select-label">Seleccionar Partido:</label>
+                  <select class="live-select-input" id="liveViewerMatchSelect">
+                    <!-- Dynamically populated with active/scheduled matches -->
+                  </select>
+                </div>
+                <button class="btn btn-outline btn-sm live-nav-arrow" id="btnLiveNextMatch" type="button" title="Siguiente Partido">
+                  Siguiente ➡️
+                </button>
+              </div>
+
+              <!-- Carrusel / Tira Interactiva de Partidos Programados & Live -->
+              <div class="live-matches-carousel-container" id="liveMatchesCarouselContainer">
+                <div class="live-matches-carousel-track" id="liveMatchesCarouselTrack">
+                  <!-- Dynamically populated with interactive match cards -->
+                </div>
+              </div>
+
+              <!-- Consola Principal de Marcador Digital Oficial (SIEMPRE Visible y Centrada) -->
+              <div class="scorer-console main-scoreboard-console" id="scorerConsolePanel">
+                <div class="scorer-topbar">
+                  <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+                    <span class="badge badge-gold" id="scorerConsoleBadge">Marcador Digital Oficial</span>
+                    <span id="scorerConsoleSubtitle" style="font-size: 0.78rem; color: var(--text-secondary);">Transmisión Oficial en Tiempo Real</span>
+                    <span id="scorerMatchVenueFase" style="font-size: 0.78rem; color: var(--brand-gold-light); margin-left: 0.4rem;">📍 Gimnasio Pablo Higuerey</span>
+                  </div>
+
+                  <!-- Match Navigation & Status Controls -->
+                  <div class="scorer-nav-actions" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                    <button class="btn btn-outline btn-sm" id="btnScorerPrevMatch" type="button" title="Ir al partido anterior">⬅️ Anterior</button>
+                    <select class="form-select form-select-sm scorer-match-quick-select" id="scorerMatchSelect" style="max-width: 210px; font-size: 0.78rem; padding: 0.35rem 0.5rem; background: rgba(0,0,0,0.5); border-color: var(--border-gold); color: #fff;" title="Selector rápido de partido para la mesa">
+                      <!-- Dynamically synced with scheduled matches -->
                     </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Siglas</label>
-                    <input type="text" class="form-input" id="manTeamSiglas" placeholder="TDO" maxlength="4">
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Sede Principal</label>
-                  <input type="text" class="form-input" id="manTeamVenue" value="Gimnasio Pablo Higuerey">
-                </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label class="form-label">Nombre Delegado</label>
-                    <input type="text" class="form-input" id="manTeamDelegate" placeholder="Prof. Nombre">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Teléfono Delegado</label>
-                    <input type="text" class="form-input" id="manTeamPhone" placeholder="+58 414-0000000">
+                    <button class="btn btn-outline btn-sm" id="btnScorerNextMatch" type="button" title="Ir al siguiente partido">Siguiente ➡️</button>
+                    <div class="scorer-admin-status-btns rbac-admin-only" id="scorerAdminStatusBtns" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                      <div style="height: 20px; width: 1px; background: rgba(255,255,255,0.15); margin: 0 0.2rem;"></div>
+                      <button class="btn btn-outline btn-sm" id="btnScorerSetProgramado" type="button">Programado</button>
+                      <button class="btn btn-burgundy btn-sm" id="btnScorerSetLive" type="button">🔴 Iniciar LIVE</button>
+                      <button class="btn btn-gold btn-sm" id="btnScorerSetFinalizado" type="button">🏁 Finalizar Juego</button>
+                    </div>
                   </div>
                 </div>
-                <button type="submit" class="btn btn-gold btn-sm" style="width: 100%; margin-top: 0.5rem;">
-                  Guardar Equipo
-                </button>
-              </form>
-            </div>
 
-            <!-- Manual Match Creator -->
-            <div class="standings-card" style="padding: 1.5rem;">
-              <h3 style="font-family: var(--font-heading); font-size: 1.1rem; margin-bottom: 0.85rem;">+ Carga Manual de Partidos (Calendario)</h3>
-              <form id="formManualMatch">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label class="form-label">Equipo Local</label>
-                    <select class="form-select" id="manMatchLocal" required></select>
+                <!-- Courtside Digital LED Scoreboard Arena -->
+                <div class="scoreboard-arena-grid">
+                  <!-- Lado Izquierdo: Equipo Local -->
+                  <div class="team-scoreboard-card local-card">
+                    <div class="team-header-badges">
+                      <span class="badge badge-burgundy">LOCAL</span>
+                    </div>
+
+                    <!-- Logo y Nombre Local -->
+                    <div class="team-logo-display" id="scorerLocalLogo">
+                      <div class="team-avatar-mini team-default-emblem-frame" style="width: 68px; height: 68px; background: #0f172a; border: 2px solid var(--border-gold);">
+                        <svg width="42" height="42" viewBox="0 0 40 40" fill="none"><path d="M20 4L34 10V22C34 29 27 35 20 38C13 35 6 29 6 22V10L20 4Z" fill="#D97706" fill-opacity="0.25" stroke="#F59E0B" stroke-width="2.5"/><circle cx="20" cy="20" r="8" fill="#F59E0B"/><path d="M12 20H28M20 12V28" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round"/></svg>
+                      </div>
+                    </div>
+                    <h3 class="scoreboard-team-name" id="scorerLocalName">Equipo Local</h3>
+
+                    <!-- Puntaje Grande Centrado y Botones Horizontales Compactos -->
+                    <div class="led-score-block">
+                      <div class="led-digital-score" id="scorerLocalTotal">0</div>
+                      <div class="score-quick-actions compact-row scorer-admin-controls" id="scorerLocalQuickActions">
+                        <button class="btn-quick-circle score-adj-btn" data-team="loc" data-val="1" type="button" title="Sumar 1 Punto (+1)">+1</button>
+                        <button class="btn-quick-circle score-adj-btn" data-team="loc" data-val="2" type="button" title="Sumar 2 Puntos (+2)">+2</button>
+                        <button class="btn-quick-circle score-adj-btn" data-team="loc" data-val="3" type="button" title="Sumar 3 Puntos (+3)">+3</button>
+                        <button class="btn-quick-circle minus-btn score-adj-btn" data-team="loc" data-val="-1" type="button" title="Restar 1 Punto (-1)">-1</button>
+                      </div>
+                    </div>
                   </div>
-                  <div class="form-group">
-                    <label class="form-label">Equipo Visitante</label>
-                    <select class="form-select" id="manMatchVis" required></select>
+
+                  <!-- Centro: Separador "X", Reloj y Período -->
+                  <div class="scoreboard-center-box">
+                    <span class="badge badge-gold" id="scorerLiveBadge">EN CURSO (LIVE)</span>
+
+                    <!-- Reloj Oficial -->
+                    <div class="clock-display led-clock-display" id="scorerClockDisplay">10:00</div>
+                    <div class="clock-controls-row scorer-admin-controls" id="scorerClockControls">
+                      <button class="btn btn-outline btn-sm" id="btnClockToggle" type="button">▶ Iniciar / Pausar</button>
+                      <button class="btn btn-outline btn-sm" id="btnClockReset" type="button">↺ 10:00</button>
+                    </div>
+
+                    <!-- Separador Digital "X" -->
+                    <div class="scoreboard-led-separator" title="Separador Marcador">X</div>
+
+                    <!-- Selector de Período -->
+                    <div class="period-selector-wrap">
+                      <span class="period-selector-label">Período Activo:</span>
+                      <div class="period-selector" id="scorerPeriodSelector">
+                        <button class="period-btn" data-period="Q1" type="button">Q1</button>
+                        <button class="period-btn" data-period="Q2" type="button">Q2</button>
+                        <button class="period-btn" data-period="Q3" type="button">Q3</button>
+                        <button class="period-btn active" data-period="Q4" type="button">Q4</button>
+                        <button class="period-btn" data-period="OT" type="button">OT</button>
+                      </div>
+                    </div>
+
+                    <!-- Botón de Transmisión Instantánea -->
+                    <button class="btn btn-gold btn-md scorer-admin-controls rbac-admin-only" id="btnBroadcastInstant" type="button" style="margin-top: 0.75rem; width: 100%; justify-content: center; font-weight: 800;">
+                      ⚡ Transmitir en Vivo (Realtime)
+                    </button>
+                    <span style="font-size: 0.7rem; color: var(--text-muted); text-align: center;">
+                      Sincronizado vía Supabase Realtime a todos los móviles
+                    </span>
+                  </div>
+
+                  <!-- Lado Derecho: Equipo Visitante -->
+                  <div class="team-scoreboard-card vis-card">
+                    <div class="team-header-badges">
+                      <span class="badge badge-scheduled">VISITANTE</span>
+                    </div>
+
+                    <!-- Logo y Nombre Visitante -->
+                    <div class="team-logo-display" id="scorerVisLogo">
+                      <div class="team-avatar-mini team-default-emblem-frame" style="width: 68px; height: 68px; background: #0f172a; border: 2px solid var(--border-gold);">
+                        <svg width="42" height="42" viewBox="0 0 40 40" fill="none"><path d="M20 4L34 10V22C34 29 27 35 20 38C13 35 6 29 6 22V10L20 4Z" fill="#2563EB" fill-opacity="0.25" stroke="#38BDF8" stroke-width="2.5"/><circle cx="20" cy="20" r="8" fill="#38BDF8"/><path d="M12 20H28M20 12V28" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round"/></svg>
+                      </div>
+                    </div>
+                    <h3 class="scoreboard-team-name" id="scorerVisName">Equipo Visitante</h3>
+
+                    <!-- Puntaje Grande Centrado y Botones Horizontales Compactos -->
+                    <div class="led-score-block">
+                      <div class="led-digital-score" id="scorerVisTotal">0</div>
+                      <div class="score-quick-actions compact-row scorer-admin-controls" id="scorerVisQuickActions">
+                        <button class="btn-quick-circle score-adj-btn" data-team="vis" data-val="1" type="button" title="Sumar 1 Punto (+1)">+1</button>
+                        <button class="btn-quick-circle score-adj-btn" data-team="vis" data-val="2" type="button" title="Sumar 2 Puntos (+2)">+2</button>
+                        <button class="btn-quick-circle score-adj-btn" data-team="vis" data-val="3" type="button" title="Sumar 3 Puntos (+3)">+3</button>
+                        <button class="btn-quick-circle minus-btn score-adj-btn" data-team="vis" data-val="-1" type="button" title="Restar 1 Punto (-1)">-1</button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label class="form-label">Fecha</label>
-                    <input type="date" class="form-input" id="manMatchDate" required>
+
+                <!-- Desglose Cuarto a Cuarto Oficial -->
+                <div class="scorer-quarters-breakdown">
+                  <div class="scorer-quarters-title">
+                    <span style="font-weight: 700; color: #ffffff;">📊 Desglose Oficial por Cuartos / Períodos</span>
+                    <span style="font-size: 0.75rem; color: var(--text-secondary);">(Se actualiza automáticamente al presionar +1, +2, +3 o puedes ajustar manualmente)</span>
                   </div>
-                  <div class="form-group">
-                    <label class="form-label">Hora</label>
-                    <input type="time" class="form-input" id="manMatchTime" value="18:30" required>
+                  <div class="table-responsive" style="margin-top: 0.6rem;">
+                    <table class="quarters-table scorer-table" style="width: 100%;">
+                      <thead>
+                        <tr>
+                          <th style="text-align: left; width: 35%;">Equipo</th>
+                          <th style="text-align: center; width: 12%;">Q1</th>
+                          <th style="text-align: center; width: 12%;">Q2</th>
+                          <th style="text-align: center; width: 12%;">Q3</th>
+                          <th style="text-align: center; width: 12%;">Q4</th>
+                          <th style="text-align: center; width: 17%; color: var(--brand-gold);">TOTAL</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td class="team-name-col" id="scorerTableLocalName" style="font-weight: 700;">Equipo Local</td>
+                          <td style="text-align: center;"><input type="number" class="form-input quarter-input" id="scorerQ1Loc" min="0" value="0"></td>
+                          <td style="text-align: center;"><input type="number" class="form-input quarter-input" id="scorerQ2Loc" min="0" value="0"></td>
+                          <td style="text-align: center;"><input type="number" class="form-input quarter-input" id="scorerQ3Loc" min="0" value="0"></td>
+                          <td style="text-align: center;"><input type="number" class="form-input quarter-input" id="scorerQ4Loc" min="0" value="0"></td>
+                          <td class="total-col" id="scorerTableLocalTotal" style="color: #00ff66; font-family: 'Chakra Petch', monospace; font-size: 1.15rem; font-weight: 900; text-align: center;">0</td>
+                        </tr>
+                        <tr>
+                          <td class="team-name-col" id="scorerTableVisName" style="font-weight: 700;">Equipo Visitante</td>
+                          <td style="text-align: center;"><input type="number" class="form-input quarter-input" id="scorerQ1Vis" min="0" value="0"></td>
+                          <td style="text-align: center;"><input type="number" class="form-input quarter-input" id="scorerQ2Vis" min="0" value="0"></td>
+                          <td style="text-align: center;"><input type="number" class="form-input quarter-input" id="scorerQ3Vis" min="0" value="0"></td>
+                          <td style="text-align: center;"><input type="number" class="form-input quarter-input" id="scorerQ4Vis" min="0" value="0"></td>
+                          <td class="total-col" id="scorerTableVisTotal" style="color: #00ff66; font-family: 'Chakra Petch', monospace; font-size: 1.15rem; font-weight: 900; text-align: center;">0</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label class="form-label">Sede</label>
-                    <input type="text" class="form-input" id="manMatchVenue" value="Gimnasio Pablo Higuerey">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Fase</label>
-                    <input type="text" class="form-input" id="manMatchPhase" value="Fase de Grupos">
-                  </div>
-                </div>
-                <button type="submit" class="btn btn-burgundy btn-sm" style="width: 100%; margin-top: 0.5rem;">
-                  Programar Partido
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        <!-- ==============================================================================
-             PASO 3: OPERACIÓN DE PARTIDOS EN TIEMPO REAL (MESA DE ANOTACIÓN)
-             ============================================================================== -->
-        <div id="stepPaso3" class="step-panel" style="display: none;">
-          <div class="scorer-console">
-            <!-- Scorer Topbar -->
-            <div class="scorer-topbar">
-              <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-                <span class="badge badge-gold">Mesa Técnica Oficial</span>
-                <label for="scorerMatchSelect" style="font-size: 0.82rem; font-weight: 600;">Seleccionar Encuentro:</label>
-                <select class="scorer-select" id="scorerMatchSelect">
-                  <!-- Matches loaded dynamically -->
-                </select>
-              </div>
-
-              <!-- Match Status Controls -->
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <button class="btn btn-outline btn-sm" id="btnScorerSetProgramado">Programado</button>
-                <button class="btn btn-burgundy btn-sm" id="btnScorerSetLive">🔴 Iniciar LIVE</button>
-                <button class="btn btn-gold btn-sm" id="btnScorerSetFinalizado">🏁 Finalizar Juego</button>
-              </div>
-            </div>
-
-            <!-- Courtside Scoring Arena -->
-            <div class="scorer-arena-grid">
-              <!-- Local Scoring Panel -->
-              <div class="team-scorer-panel">
-                <span class="badge badge-burgundy">LOCAL</span>
-                <h4 style="font-family: var(--font-heading); font-size: 1.25rem; text-align: center;" id="scorerLocalName">Broncos de Higuerey</h4>
-                <div class="scorer-big-points" id="scorerLocalTotal">74</div>
-
-                <div class="score-control-buttons">
-                  <button class="score-adj-btn" data-team="loc" data-val="1">+1</button>
-                  <button class="score-adj-btn" data-team="loc" data-val="2">+2</button>
-                  <button class="score-adj-btn" data-team="loc" data-val="3">+3</button>
-                  <button class="score-adj-btn minus" data-team="loc" data-val="-1">-1</button>
-                </div>
-
-                <!-- Quarter input overrides -->
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; margin-top: 0.5rem; width: 100%;">
-                  <input type="number" class="form-input" id="scorerQ1Loc" placeholder="Q1" style="padding: 0.3rem; text-align: center;">
-                  <input type="number" class="form-input" id="scorerQ2Loc" placeholder="Q2" style="padding: 0.3rem; text-align: center;">
-                  <input type="number" class="form-input" id="scorerQ3Loc" placeholder="Q3" style="padding: 0.3rem; text-align: center;">
-                  <input type="number" class="form-input" id="scorerQ4Loc" placeholder="Q4" style="padding: 0.3rem; text-align: center;">
-                </div>
-              </div>
-
-              <!-- Center Console: Period & Match Clock -->
-              <div class="scorer-center-console">
-                <span class="badge badge-gold" id="scorerLiveBadge">EN CURSO (LIVE)</span>
-
-                <div class="period-selector" id="scorerPeriodSelector">
-                  <button class="period-btn" data-period="Q1">Q1</button>
-                  <button class="period-btn" data-period="Q2">Q2</button>
-                  <button class="period-btn" data-period="Q3">Q3</button>
-                  <button class="period-btn active" data-period="Q4">Q4</button>
-                  <button class="period-btn" data-period="OT">OT</button>
-                </div>
-
-                <div class="clock-display" style="font-size: 2rem; padding: 0.3rem 1.25rem;" id="scorerClockDisplay">03:45</div>
-
-                <div style="display: flex; gap: 0.4rem;">
-                  <button class="btn btn-outline btn-sm" id="btnClockToggle">▶ Iniciar / Pausar</button>
-                  <button class="btn btn-outline btn-sm" id="btnClockReset">↺ Reiniciar 10:00</button>
-                </div>
-
-                <!-- Broadcast Button -->
-                <button class="btn btn-gold btn-lg" id="btnBroadcastInstant" style="margin-top: 0.75rem; width: 100%;">
-                  ⚡ GUARDAR Y TRANSMITIR (REALTIME)
-                </button>
-                <span style="font-size: 0.7rem; color: var(--text-muted); text-align: center;">
-                  Transmisión instantánea conectada a Supabase Realtime
-                </span>
-              </div>
-
-              <!-- Visiting Scoring Panel -->
-              <div class="team-scorer-panel">
-                <span class="badge badge-scheduled">VISITANTE</span>
-                <h4 style="font-family: var(--font-heading); font-size: 1.25rem; text-align: center;" id="scorerVisName">Centauros del Este</h4>
-                <div class="scorer-big-points" id="scorerVisTotal">72</div>
-
-                <div class="score-control-buttons">
-                  <button class="score-adj-btn" data-team="vis" data-val="1">+1</button>
-                  <button class="score-adj-btn" data-team="vis" data-val="2">+2</button>
-                  <button class="score-adj-btn" data-team="vis" data-val="3">+3</button>
-                  <button class="score-adj-btn minus" data-team="vis" data-val="-1">-1</button>
-                </div>
-
-                <!-- Quarter input overrides -->
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; margin-top: 0.5rem; width: 100%;">
-                  <input type="number" class="form-input" id="scorerQ1Vis" placeholder="Q1" style="padding: 0.3rem; text-align: center;">
-                  <input type="number" class="form-input" id="scorerQ2Vis" placeholder="Q2" style="padding: 0.3rem; text-align: center;">
-                  <input type="number" class="form-input" id="scorerQ3Vis" placeholder="Q3" style="padding: 0.3rem; text-align: center;">
-                  <input type="number" class="form-input" id="scorerQ4Vis" placeholder="Q4" style="padding: 0.3rem; text-align: center;">
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- ==============================================================================
-             PASO 4: AUTOMATIZACIÓN DE LA TABLA DE POSICIONES
-             ============================================================================== -->
-        <div id="stepPaso4" class="step-panel" style="display: none;">
-          <div class="standings-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.8rem;">
-              <div>
-                <h3 style="font-family: var(--font-heading); font-size: 1.25rem;">Cálculo y Auditoría de Tabla de Posiciones</h3>
-                <p style="font-size: 0.82rem; color: var(--text-secondary);">
-                  Reglas activas: <strong>2 PTS al ganador</strong>, <strong>1 PT al perdedor</strong>. Clasificación ordenada por PTS > DP > PF.
-                </p>
+            <!-- ============================================================
+                 MODULE 6: TABLA POSICIONES
+                 ============================================================ -->
+            <div class="discipline-module" id="modulePosiciones">
+              <div class="module-header-row">
+                <div>
+                  <h2 class="module-title">🏆 Tabla Oficial de Posiciones</h2>
+                  <p class="module-subtitle">Cálculo automatizado oficial: JJ, JG, JP, PF, PC, DIF y PTS acumulados</p>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                  <button class="btn btn-outline-cyan btn-sm" id="btnExportStandingsCSV" type="button">
+                    📥 Exportar CSV
+                  </button>
+                  <!-- Superadmin button -->
+                  <button class="btn btn-gold btn-sm rbac-admin-only" id="btnRecalcularPosicionesMaster" type="button" style="display: none;">
+                    🔄 Recalcular Posiciones
+                  </button>
+                </div>
               </div>
 
-              <div style="display: flex; gap: 0.6rem;">
-                <button class="btn btn-gold btn-sm" id="btnAdminRecalcularPosiciones">
-                  ⚡ Recalcular Todo Ahora
-                </button>
-                <button class="btn btn-outline btn-sm" id="btnAdminExportarPosicionesCSV">
-                  📥 Exportar a CSV / Excel
-                </button>
+              <!-- Standings Container (Grupo A & Grupo B) -->
+              <div class="standings-grid" id="standingsContainer">
+                <!-- Dynamically populated via renderStandings -->
               </div>
             </div>
 
-            <!-- Standings Preview -->
-            <div class="standings-grid" id="adminStandingsPreview">
-              <!-- Dynamically populated -->
-            </div>
           </div>
         </div>
       </div>
@@ -763,6 +1021,377 @@
   <!-- ==============================================================================
        MODALS
        ============================================================================== -->
+
+  <!-- Modal: Identificación y Control de Acceso (3 Pestañas: FANÁTICO, DELEGADO, ADMIN) -->
+  <div class="modal-overlay" id="modalIdentificacion">
+    <div class="modal-card auth-modal-card">
+      <div class="modal-header auth-header">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div class="auth-logo-badge">
+            <img src="./assets/logo.png" alt="Logo Grupo Multiservicios Deportivo JL" style="width: 36px; height: 36px; border-radius: 50%;">
+          </div>
+          <div>
+            <h3 class="modal-title" style="font-size: 1.15rem; color: #ffffff;">Control de Acceso y Roles</h3>
+            <div class="auth-sport-pill" id="modalAuthSportBadge">🏀 Baloncesto Master</div>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="btnCloseModalIdentificacion" type="button">&times;</button>
+      </div>
+
+      <!-- 3 Pestañas de Roles -->
+      <div class="auth-role-tabs">
+        <button type="button" class="auth-tab-btn active" data-tab="tabFanatico" id="btnTabFanatico">
+          <span class="auth-tab-icon">🎟️</span>
+          <span class="auth-tab-title">FANÁTICO</span>
+          <span class="auth-tab-sub">Visitante / Lectura</span>
+        </button>
+        <button type="button" class="auth-tab-btn" data-tab="tabDelegado" id="btnTabDelegado">
+          <span class="auth-tab-icon">📋</span>
+          <span class="auth-tab-title">DELEGADO</span>
+          <span class="auth-tab-sub">Delegado de Equipo</span>
+        </button>
+        <button type="button" class="auth-tab-btn" data-tab="tabAdmin" id="btnTabAdmin">
+          <span class="auth-tab-icon">👑</span>
+          <span class="auth-tab-title">ADMIN</span>
+          <span class="auth-tab-sub">Superadministrador</span>
+        </button>
+      </div>
+
+      <div class="modal-body auth-modal-body">
+        <!-- Pestaña 1: FANÁTICO -->
+        <form id="formAuthFanatico" class="auth-role-form active">
+          <div class="auth-role-info-pill info-fanatico">
+            <span>👀</span>
+            <div>
+              <strong>Rol Fanático / Visitante:</strong> Acceso completo a todos los módulos (Panel, Equipos, Grupos, Calendario, Resultados Live y Posiciones) en modo solo lectura.
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="fanaticoNombre">Nombre y Apellido <span style="color: var(--accent-live);">*</span></label>
+            <input type="text" class="form-input" id="fanaticoNombre" placeholder="Ej. Pedro Pérez" required autocomplete="name">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="fanaticoCedula">Cédula de Identidad <span style="color: var(--accent-live);">*</span></label>
+            <input type="text" class="form-input" id="fanaticoCedula" placeholder="Ej. 12345678" required inputmode="numeric">
+            <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem; display: block;">
+              Ingrese su número de documento sin puntos ni letras.
+            </span>
+          </div>
+
+          <div style="display: flex; gap: 0.65rem; margin-top: 1.25rem;">
+            <button type="button" class="btn btn-outline btn-sm" style="flex: 1;" onclick="closeDisciplineAuthModal()">Cerrar / Cancelar</button>
+            <button type="submit" class="btn btn-cyan-glow btn-sm auth-submit-btn" id="btnSubmitFanatico" style="flex: 2; margin-top: 0; justify-content: center;">
+              <span>Ingresar como Fanático →</span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Pestaña 2: DELEGADO -->
+        <form id="formAuthDelegado" class="auth-role-form">
+          <div class="auth-role-info-pill info-delegado">
+            <span>📋</span>
+            <div>
+              <strong>Rol Delegado de Equipo:</strong> Consulta general y permiso para agregar atletas en la nómina de su franquicia asignada.
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="delegadoNombre">Nombre del Delegado Técnico <span style="color: var(--accent-live);">*</span></label>
+            <input type="text" class="form-input" id="delegadoNombre" placeholder="Ej. Prof. Roberto Gómez" required autocomplete="name">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="delegadoCedula">Cédula de Identidad <span style="color: var(--accent-live);">*</span></label>
+            <input type="text" class="form-input" id="delegadoCedula" placeholder="Ej. 12345678" required inputmode="numeric">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="delegadoEquipoSelect">Club / Equipo Asignado</label>
+            <select class="form-select" id="delegadoEquipoSelect">
+              <!-- Populated dynamically with teams of the discipline -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="delegadoPin">PIN de Delegado <span style="color: var(--accent-live);">*</span></label>
+            <input type="password" class="form-input" id="delegadoPin" placeholder="Ej. 2024" value="2024" required>
+            <span style="font-size: 0.72rem; color: var(--brand-gold-light); margin-top: 0.25rem; display: block;">
+              💡 PIN demo oficial asignado: <strong>2024</strong>
+            </span>
+          </div>
+
+          <div style="display: flex; gap: 0.65rem; margin-top: 1.25rem;">
+            <button type="button" class="btn btn-outline btn-sm" style="flex: 1;" onclick="closeDisciplineAuthModal()">Cerrar / Cancelar</button>
+            <button type="submit" class="btn btn-gold-glow btn-sm auth-submit-btn" id="btnSubmitDelegado" style="flex: 2; margin-top: 0; justify-content: center;">
+              <span>Ingresar como Delegado →</span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Pestaña 3: ADMIN -->
+        <form id="formAuthAdmin" class="auth-role-form">
+          <div class="auth-role-info-pill info-admin">
+            <span>👑</span>
+            <div>
+              <strong>Rol Superadministrador:</strong> Control total sobre la disciplina, programación de partidos, mesa de anotación en tiempo real y nóminas.
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="adminNombre">Nombre del Administrador <span style="color: var(--accent-live);">*</span></label>
+            <input type="text" class="form-input" id="adminNombre" placeholder="Ej. José Lambert" value="José Lambert" required autocomplete="name">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="adminCedula">Cédula de Identidad <span style="color: var(--accent-live);">*</span></label>
+            <input type="text" class="form-input" id="adminCedula" placeholder="Ej. 14621157" value="14621157" required inputmode="numeric">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="adminClave">Clave Administrador <span style="color: var(--accent-live);">*</span></label>
+            <input type="password" class="form-input" id="adminClave" placeholder="Ej. admin2024" value="admin2024" required>
+            <span style="font-size: 0.72rem; color: var(--brand-gold-light); margin-top: 0.25rem; display: block;">
+              💡 Superadministrador Principal: <strong>José Lambert</strong> / C.I. <strong>14621157</strong> (Clave: <strong>admin2024</strong>)
+            </span>
+          </div>
+
+          <div style="display: flex; gap: 0.65rem; margin-top: 1.25rem;">
+            <button type="button" class="btn btn-outline btn-sm" style="flex: 1;" onclick="closeDisciplineAuthModal()">Cerrar / Cancelar</button>
+            <button type="submit" class="btn btn-burgundy-glow btn-sm auth-submit-btn" id="btnSubmitAdmin" style="flex: 2; margin-top: 0; justify-content: center;">
+              <span>Ingresar como Administrador →</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Programar Partido (SuperAdmin) -->
+  <div class="modal-overlay" id="modalProgramarPartido">
+    <div class="modal-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Programar Nuevo Encuentro</h3>
+        <button class="modal-close-btn" type="button" onclick="document.getElementById('modalProgramarPartido').classList.remove('open')">&times;</button>
+      </div>
+      <form id="formProgramarPartidoModal">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Equipo Local</label>
+              <select class="form-select" id="progMatchLocal" required></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Equipo Visitante</label>
+              <select class="form-select" id="progMatchVis" required></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Fecha del Partido</label>
+              <input type="date" class="form-input" id="progMatchDate" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Hora Oficial</label>
+              <input type="time" class="form-input" id="progMatchTime" value="18:30" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Sede / Cancha</label>
+              <input type="text" class="form-input" id="progMatchVenue" placeholder="Ej. Gimnasio Pablo Higuerey" value="Gimnasio Pablo Higuerey">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fase del Torneo</label>
+              <select class="form-select" id="progMatchPhase">
+                <option value="Fase de Grupos - Grupo A">Fase de Grupos - Grupo A</option>
+                <option value="Fase de Grupos - Grupo B">Fase de Grupos - Grupo B</option>
+                <option value="Cuartos de Final">Cuartos de Final</option>
+                <option value="Semifinal">Semifinal</option>
+                <option value="Gran Final">Gran Final</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('modalProgramarPartido').classList.remove('open')">Cerrar / Cancelar</button>
+          <button type="submit" class="btn btn-gold btn-sm">Guardar Cambios / Añadir</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Editar Partido (SuperAdmin) -->
+  <div class="modal-overlay" id="modalEditarPartido">
+    <div class="modal-card" style="max-width: 540px;">
+      <div class="modal-header">
+        <h3 class="modal-title">✏️ Modificar Encuentro Oficial</h3>
+        <button class="modal-close-btn" type="button" onclick="document.getElementById('modalEditarPartido').classList.remove('open')">&times;</button>
+      </div>
+      <form id="formEditarPartidoModal">
+        <div class="modal-body">
+          <input type="hidden" id="editMatchId">
+          
+          <!-- Contendientes -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Equipo Local <span style="color: var(--accent-live);">*</span></label>
+              <select class="form-select" id="editMatchLocal" required></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Equipo Visitante <span style="color: var(--accent-live);">*</span></label>
+              <select class="form-select" id="editMatchVis" required></select>
+            </div>
+          </div>
+
+          <!-- Fecha y Hora -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Fecha del Partido <span style="color: var(--accent-live);">*</span></label>
+              <input type="date" class="form-input" id="editMatchDate" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Hora Oficial <span style="color: var(--accent-live);">*</span></label>
+              <input type="time" class="form-input" id="editMatchTime" required>
+            </div>
+          </div>
+
+          <!-- Estado y Sede -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Estado del Juego <span style="color: var(--accent-live);">*</span></label>
+              <select class="form-select" id="editMatchStatus" required>
+                <option value="PROGRAMADO">⚪ Programado</option>
+                <option value="EN CURSO">🔴 En Vivo / En Curso</option>
+                <option value="FINALIZADO">🏁 Finalizado</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sede / Cancha</label>
+              <input type="text" class="form-input" id="editMatchVenue" placeholder="Ej. Gimnasio Pablo Higuerey">
+            </div>
+          </div>
+
+          <!-- Fase y Grupo -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Fase del Torneo</label>
+              <input type="text" class="form-input" id="editMatchPhase" placeholder="Ej. Fase de Grupos - Grupo A">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Grupo / División</label>
+              <input type="text" class="form-input" id="editMatchGroup" placeholder="Ej. Grupo A">
+            </div>
+          </div>
+
+          <!-- Marcadores (Opcional si En Curso o Finalizado) -->
+          <div id="editMatchScoreRow" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 0.75rem 1rem; margin-top: 0.25rem;">
+            <div style="font-size: 0.78rem; font-weight: 700; color: var(--brand-gold); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+              <span>🔢</span> <span>Puntuación / Marcador Acumulado</span>
+            </div>
+            <div class="form-row" style="margin-bottom: 0;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 0.75rem;">Puntos Local</label>
+                <input type="number" class="form-input" id="editMatchScoreLoc" min="0" value="0">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 0.75rem;">Puntos Visitante</label>
+                <input type="number" class="form-input" id="editMatchScoreVis" min="0" value="0">
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('modalEditarPartido').classList.remove('open')">Cancelar</button>
+          <button type="submit" class="btn btn-gold btn-sm">💾 Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Registrar / Editar Equipo (SuperAdmin & Delegado) -->
+  <div class="modal-overlay" id="modalNuevoEquipo">
+    <div class="modal-card modal-compact" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalEquipoTitle">Registrar Nueva Franquicia / Equipo</h3>
+        <button class="modal-close-btn" type="button" onclick="document.getElementById('modalNuevoEquipo').classList.remove('open')">&times;</button>
+      </div>
+      <form id="formNuevoEquipoModal">
+        <div class="modal-body">
+          <input type="hidden" id="newTeamId">
+
+          <!-- 1. Nombre del Equipo -->
+          <div class="form-group">
+            <label class="form-label">Nombre del Equipo / Club <span style="color: var(--accent-live);">*</span></label>
+            <input type="text" class="form-input" id="newTeamName" placeholder="Ej. Espartanos JL" required>
+          </div>
+
+          <!-- 2. Logo del Equipo (Carga/selección de imagen desde el ordenador / base local) -->
+          <div class="form-group">
+            <label class="form-label">Logo del Equipo</label>
+            <div style="display: flex; align-items: center; gap: 0.85rem; padding: 0.65rem 0.85rem; background: rgba(0,0,0,0.28); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+              <img id="newTeamLogoPreview" src="./assets/logo.png" alt="Logo" style="width: 48px; height: 48px; border-radius: 50%; object-fit: contain; border: 2px solid var(--border-gold); background: #0f172a; flex-shrink: 0; image-rendering: -webkit-optimize-contrast;">
+              <div style="display: flex; flex-direction: column; gap: 0.35rem; flex: 1;">
+                <label class="btn btn-outline-gold btn-sm" style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; width: fit-content;">
+                  📁 Cargar Imagen desde Ordenador
+                  <input type="file" id="newTeamLogoFile" accept="image/*" style="display: none;">
+                </label>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">Formatos admitidos: PNG, JPG, WebP o SVG</span>
+              </div>
+              <button type="button" class="btn btn-outline btn-sm" id="btnRemoveTeamLogo" style="display: none; font-size: 0.75rem; padding: 0.3rem 0.55rem;" title="Quitar logo personalizado">Quitar</button>
+            </div>
+            <input type="hidden" id="newTeamLogoUrl" value="">
+          </div>
+
+          <!-- 3. Delegado Responsable & 4. Teléfono -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Delegado Responsable <span style="color: var(--accent-live);">*</span></label>
+              <input type="text" class="form-input" id="newTeamDelegate" placeholder="Ej. Prof. Carlos Méndez" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Teléfono</label>
+              <input type="tel" class="form-input" id="newTeamPhone" placeholder="0414-1234567">
+            </div>
+          </div>
+
+          <!-- 5. Cuerpo Técnico: Campos independientes para Entrenador, Asistente y Utilero -->
+          <div class="cuerpo-tecnico-box">
+            <div class="cuerpo-tecnico-title">
+              <span>👔</span> <span>Cuerpo Técnico y Personal del Equipo</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Entrenador (DT)</label>
+              <input type="text" class="form-input" id="newTeamEntrenador" placeholder="Nombre completo del Entrenador">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Asistente</label>
+                <input type="text" class="form-input" id="newTeamAsistente" placeholder="Nombre del Asistente">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Utilero</label>
+                <input type="text" class="form-input" id="newTeamUtilero" placeholder="Nombre del Utilero">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones del formulario: Guardar Cambios, Eliminar y Cancelar -->
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline-danger btn-sm" id="btnEliminarEquipoModal" style="display: none;">
+            🗑️ Eliminar
+          </button>
+          <div style="display: flex; gap: 0.5rem; margin-left: auto;">
+            <button type="button" class="btn btn-outline btn-sm" id="btnCancelarEquipoModal">Cancelar</button>
+            <button type="submit" class="btn btn-gold btn-sm" id="btnGuardarEquipoSubmit">Guardar Cambios</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal 1: Team Roster Detail (Public view click) -->
   <div class="modal-overlay" id="modalTeamRoster">
@@ -794,14 +1423,14 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline btn-sm" onclick="document.getElementById('modalTeamRoster').classList.remove('open')">Cerrar</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('modalTeamRoster').classList.remove('open')">Cerrar / Cancelar</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 2: Inscribir / Editar Atleta (Delegate & Admin) -->
   <div class="modal-overlay" id="modalEditAtleta">
-    <div class="modal-card" style="max-width: 520px;">
+    <div class="modal-card modal-compact" style="max-width: 480px;">
       <div class="modal-header">
         <h3 class="modal-title" id="modalAtletaTitle">Inscribir Nuevo Atleta</h3>
         <button class="modal-close-btn" onclick="document.getElementById('modalEditAtleta').classList.remove('open')">&times;</button>
@@ -809,6 +1438,13 @@
       <form id="formAtleta">
         <div class="modal-body">
           <input type="hidden" id="atletaId">
+
+          <!-- Team selector (visible for Superadmin, auto-filled for Delegate) -->
+          <div class="form-group" id="atletaEquipoGroup" style="display: none;">
+            <label class="form-label">Club / Equipo Perteneciente</label>
+            <select class="form-select" id="atletaEquipoSelect"></select>
+          </div>
+
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Cédula de Identidad</label>
@@ -831,38 +1467,241 @@
               <input type="date" class="form-input" id="atletaFechaNac">
             </div>
             <div class="form-group">
-              <label class="form-label">Edad</label>
+              <label class="form-label">Edad (Cálculo Automático)</label>
               <input type="number" class="form-input" id="atletaEdad" placeholder="25" min="5" max="80" required>
             </div>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Posición en la Cancha</label>
-              <select class="form-select" id="atletaPosicion">
-                <option value="Base">Base</option>
-                <option value="Escolta">Escolta</option>
-                <option value="Alero">Alero</option>
-                <option value="Ala-Pívot">Ala-Pívot</option>
-                <option value="Pívot">Pívot</option>
-                <option value="Portero">Portero</option>
-                <option value="Defensa">Defensa</option>
-                <option value="Delantero">Delantero</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Rol en el Equipo</label>
-              <select class="form-select" id="atletaRol">
-                <option value="Atleta">Atleta</option>
-                <option value="Capitán">Capitán</option>
-                <option value="Sub-Capitán">Sub-Capitán</option>
-              </select>
-            </div>
+          <div class="form-group">
+            <label class="form-label">Rol en el Equipo</label>
+            <select class="form-select" id="atletaRol">
+              <option value="Atleta">Atleta</option>
+              <option value="Capitán">Capitán</option>
+              <option value="Sub-Capitán">Sub-Capitán</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Foto de Perfil del Atleta (URL o imagen)</label>
+            <input type="text" class="form-input" id="atletaFotoUrl" placeholder="https://ejemplo.com/foto.jpg o dejar en blanco">
+            <span style="font-size: 0.72rem; color: var(--text-muted);">Puede pegar una URL directa de imagen o avatar representativo.</span>
+          </div>
+
+          <div id="atletaPermissionHint" style="padding: 0.6rem; background: rgba(0,0,0,0.3); border-radius: var(--radius-sm); font-size: 0.75rem; color: var(--brand-gold-light);">
+            ℹ️ Los delegados pueden corregir errores tipográficos o fotos mientras el periodo de inscripción esté abierto.
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('modalEditAtleta').classList.remove('open')">Cancelar</button>
-          <button type="submit" class="btn btn-burgundy btn-sm">Guardar Atleta</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('modalEditAtleta').classList.remove('open')">Cerrar / Cancelar</button>
+          <button type="submit" class="btn btn-gold btn-sm" id="btnGuardarAtletaSubmit">Guardar Cambios / Añadir</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Solicitar Baja de Atleta (Delegado -> SuperAdmin) -->
+  <div class="modal-overlay" id="modalSolicitarBaja">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Solicitud Formal de Baja de Atleta</h3>
+        <button class="modal-close-btn" onclick="document.getElementById('modalSolicitarBaja').classList.remove('open')">&times;</button>
+      </div>
+      <form id="formSolicitarBaja">
+        <div class="modal-body">
+          <input type="hidden" id="solBajaAtletaId">
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+            Por normativa de seguridad y protección de nóminas, el retiro o desvinculación de un atleta debe ser formalmente autorizado por el Superadministrador.
+          </p>
+          <div style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 1rem; border-left: 3px solid var(--accent-live);">
+            <div><strong>Atleta:</strong> <span id="solBajaAtletaNombre">-</span></div>
+            <div><strong>Cédula:</strong> <span id="solBajaAtletaCedula">-</span></div>
+            <div><strong>Dorsal:</strong> <span id="solBajaAtletaCamiseta">-</span></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Motivo de la Solicitud de Baja</label>
+            <select class="form-select" id="solBajaMotivo" required>
+              <option value="Lesión física de larga duración">Lesión física de larga duración</option>
+              <option value="Retiro voluntario de la competición">Retiro voluntario de la competición</option>
+              <option value="Traspaso / Desvinculación de club">Traspaso / Desvinculación de club</option>
+              <option value="Error involuntario de inscripción">Error involuntario de inscripción</option>
+              <option value="Otro motivo justificado">Otro motivo justificado</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Detalles u Observaciones Adicionales</label>
+            <textarea class="form-textarea" id="solBajaDetalles" rows="3" placeholder="Explique brevemente el motivo para constancia de la mesa técnica y la comisión técnica..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('modalSolicitarBaja').classList.remove('open')">Cerrar / Cancelar</button>
+          <button type="submit" class="btn btn-burgundy btn-sm">Guardar Cambios / Enviar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Ficha Técnica Oficial para Mesa de Anotación (Printable Lineup Sheet) -->
+  <div class="modal-overlay" id="modalFichaTecnica">
+    <div class="modal-card" style="max-width: 820px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Ficha Técnica Oficial • Mesa de Anotación</h3>
+        <button class="modal-close-btn" onclick="document.getElementById('modalFichaTecnica').classList.remove('open')">&times;</button>
+      </div>
+      <div class="modal-body" id="fichaTecnicaPrintable">
+        <!-- Rendered dynamically via JS -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('modalFichaTecnica').classList.remove('open')">Cerrar / Cancelar</button>
+        <button class="btn btn-gold btn-sm" id="btnPrintFichaTecnica">🖨️ Imprimir / Guardar Ficha Oficial</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Editar / Personalizar Disciplina (SuperAdmin) -->
+  <div class="modal-overlay submodal-layer" id="modalEditDisciplina">
+    <div class="modal-card modal-card-discipline">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalEditDisciplinaTitle">Personalizar Disciplina e Identidad Gráfica</h3>
+        <button class="modal-close-btn" type="button" onclick="document.getElementById('modalEditDisciplina').classList.remove('open')">&times;</button>
+      </div>
+      <form id="formEditDisciplina">
+        <div class="modal-body modal-body-scrollable">
+          <input type="hidden" id="editDiscId">
+          <div class="form-group">
+            <label class="form-label">Nombre del Deporte</label>
+            <input type="text" class="form-input" id="editDiscNombre" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Categoría / Torneo</label>
+            <input type="text" class="form-input" id="editDiscCategoria" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Descripción de la Disciplina</label>
+            <input type="text" class="form-input" id="editDiscDescripcion" placeholder="Ej. Torneo Oficial Master de Baloncesto">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Logotipo / Avatar (Desde el Ordenador o URL)</label>
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem;">
+              <img id="editDiscLogoPreview" src="./assets/logo.png" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--border-gold);" alt="Logo">
+              <label class="btn btn-outline-gold btn-sm" style="cursor: pointer;">
+                📁 Cargar Imagen desde Ordenador
+                <input type="file" id="editDiscLogoFile" accept="image/*" style="display: none;">
+              </label>
+            </div>
+            <input type="hidden" id="editDiscLogoUrl" value="">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Icono Emoji o Símbolo</label>
+              <input type="text" class="form-input" id="editDiscIcono" maxlength="4">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Color de Marca</label>
+              <input type="color" class="form-input" id="editDiscColor">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">URL del Banner / Portada Cinematográfica</label>
+            <input type="text" class="form-input" id="editDiscBanner" placeholder="./assets/banner_baloncesto.jpg o URL">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Cantidad de Períodos</label>
+              <input type="number" class="form-input" id="editDiscPeriodos" min="1" max="10">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nombre del Período</label>
+              <input type="text" class="form-input" id="editDiscNombrePeriodo" placeholder="Cuarto, Set, Inning, Tiempo">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Puntos al Ganador</label>
+              <input type="number" class="form-input" id="editDiscPtsG" value="2">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Puntos al Perdedor</label>
+              <input type="number" class="form-input" id="editDiscPtsP" value="1">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer modal-footer-fixed">
+          <button type="button" class="btn btn-outline btn-md" id="btnCancelEditDisciplina" onclick="document.getElementById('modalEditDisciplina').classList.remove('open')">Cancelar / Cerrar</button>
+          <button type="submit" class="btn btn-gold btn-md" id="btnSaveEditDisciplina"><span>💾 Guardar Cambios</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Añadir / Editar Patrocinador (SuperAdmin) -->
+  <div class="modal-overlay" id="modalEditPatrocinador">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalPatrocinadorTitle">Añadir Patrocinador Oficial</h3>
+        <button class="modal-close-btn" onclick="document.getElementById('modalEditPatrocinador').classList.remove('open')">&times;</button>
+      </div>
+      <form id="formEditPatrocinador">
+        <div class="modal-body">
+          <input type="hidden" id="patId">
+          <div class="form-group">
+            <label class="form-label">Nombre de la Empresa o Marca</label>
+            <input type="text" class="form-input" id="patNombre" placeholder="Ej. Hidratación PowerSport" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">URL del Logo de la Marca</label>
+            <input type="text" class="form-input" id="patLogo" placeholder="./assets/logo.png o URL web">
+          </div>
+          <div class="form-group">
+            <label class="form-label">URL del Banner Promocional</label>
+            <input type="text" class="form-input" id="patBanner" placeholder="./assets/banner_baloncesto.jpg o URL">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Enlace Web o Red Social</label>
+            <input type="url" class="form-input" id="patWeb" placeholder="https://instagram.com/empresa">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('modalEditPatrocinador').classList.remove('open')">Cerrar / Cancelar</button>
+          <button type="submit" class="btn btn-gold btn-sm">Guardar Cambios / Añadir</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Editar Credenciales de Delegado (SuperAdmin) -->
+  <div class="modal-overlay" id="modalEditCredencialDelegado">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Gestión de Credenciales de Delegado</h3>
+        <button class="modal-close-btn" onclick="document.getElementById('modalEditCredencialDelegado').classList.remove('open')">&times;</button>
+      </div>
+      <form id="formEditCredencialDelegado">
+        <div class="modal-body">
+          <input type="hidden" id="credEquipoId">
+          <div class="form-group">
+            <label class="form-label">Club / Equipo</label>
+            <input type="text" class="form-input" id="credEquipoNombre" readonly style="opacity: 0.85;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nombre del Delegado Técnico / Entrenador</label>
+            <input type="text" class="form-input" id="credDelegadoNombre" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Correo Electrónico Institucional de Acceso</label>
+            <input type="email" class="form-input" id="credDelegadoEmail" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Teléfono de Contacto</label>
+            <input type="text" class="form-input" id="credDelegadoTelefono">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Clave / PIN de Acceso</label>
+            <input type="text" class="form-input" id="credDelegadoPin" placeholder="Ej. 2024" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('modalEditCredencialDelegado').classList.remove('open')">Cerrar / Cancelar</button>
+          <button type="submit" class="btn btn-gold btn-sm">Guardar Cambios</button>
         </div>
       </form>
     </div>
@@ -907,20 +1746,20 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline btn-sm" onclick="document.getElementById('modalSupabaseConfig').classList.remove('open')">Cerrar</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('modalSupabaseConfig').classList.remove('open')">Cerrar / Cancelar</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 4: Añadir Disciplina -->
-  <div class="modal-overlay" id="modalNuevaDisciplina">
-    <div class="modal-card" style="max-width: 480px;">
+  <div class="modal-overlay submodal-layer" id="modalNuevaDisciplina">
+    <div class="modal-card modal-card-discipline">
       <div class="modal-header">
         <h3 class="modal-title">Añadir Nueva Disciplina</h3>
-        <button class="modal-close-btn" onclick="document.getElementById('modalNuevaDisciplina').classList.remove('open')">&times;</button>
+        <button class="modal-close-btn" type="button" onclick="document.getElementById('modalNuevaDisciplina').classList.remove('open')">&times;</button>
       </div>
       <form id="formNuevaDisciplina">
-        <div class="modal-body">
+        <div class="modal-body modal-body-scrollable">
           <div class="form-group">
             <label class="form-label">Nombre del Deporte</label>
             <input type="text" class="form-input" id="discNombre" placeholder="Ej. Baloncesto, Voleibol, Futsal" required>
@@ -928,6 +1767,25 @@
           <div class="form-group">
             <label class="form-label">Categoría</label>
             <input type="text" class="form-input" id="discCategoria" placeholder="Ej. Sub-14 Masculino, Femenino Libre" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Descripción de la Disciplina</label>
+            <input type="text" class="form-input" id="discDescripcion" placeholder="Ej. Torneo Oficial de Baloncesto Libre">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Logotipo / Avatar (Desde el Ordenador)</label>
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem;">
+              <img id="discLogoPreview" src="./assets/logo.png" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--border-gold);" alt="Logo">
+              <label class="btn btn-outline-gold btn-sm" style="cursor: pointer;">
+                📁 Cargar desde Ordenador
+                <input type="file" id="discLogoFile" accept="image/*" style="display: none;">
+              </label>
+            </div>
+            <input type="hidden" id="discLogoUrl" value="">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Delegado Inicial / Coordinador (Opcional)</label>
+            <input type="text" class="form-input" id="discDelegadoInicial" placeholder="Ej. Prof. Roberto Gómez (+58 414-8765432)">
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -950,18 +1808,496 @@
             </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('modalNuevaDisciplina').classList.remove('open')">Cancelar</button>
-          <button type="submit" class="btn btn-gold btn-sm">Guardar Disciplina</button>
+        <div class="modal-footer modal-footer-fixed">
+          <button type="button" class="btn btn-outline btn-md" onclick="document.getElementById('modalNuevaDisciplina').classList.remove('open')">Cancelar / Cerrar</button>
+          <button type="submit" class="btn btn-gold btn-md"><span>💾 Guardar Cambios</span></button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- ==============================================================================
-       PWA FLOATING INSTALL BANNER
+       MODAL: CONFIGURACIÓN DEL SISTEMA (AJUSTES GENERALES & SUPERADMINISTRADOR)
        ============================================================================== -->
-  <div class="pwa-install-banner" id="pwaFloatingBanner" style="display: none;">
+  <div class="modal-overlay" id="modalConfiguracionSistema" role="dialog" aria-modal="true" aria-labelledby="modalConfiguracionTitle">
+    <div class="modal-card config-modal-card">
+      
+      <!-- Modal Header -->
+      <div class="modal-header config-modal-header">
+        <div style="display: flex; align-items: center; gap: 0.65rem;">
+          <div class="config-modal-icon-badge">⚙️</div>
+          <div>
+            <h3 class="modal-title" id="modalConfiguracionTitle" style="font-size: 1.15rem; margin: 0; line-height: 1.2;">Configuración del Sistema</h3>
+            <span style="font-size: 0.72rem; color: var(--text-secondary);">Panel Integral de Gestión, Experiencia y Control Maestro</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="btnCloseConfigModal" type="button" title="Cerrar Panel">&times;</button>
+      </div>
+
+      <!-- Barra Superior: 2 Pestañas Principales -->
+      <div class="config-main-nav">
+        <button class="config-nav-tab active" id="btnTabAjustesGenerales" type="button">
+          <span class="config-tab-icon">⚙️</span>
+          <div class="config-tab-texts">
+            <span class="config-tab-title">AJUSTES GENERALES</span>
+            <span class="config-tab-desc">Experiencia & Versión</span>
+          </div>
+        </button>
+
+        <button class="config-nav-tab" id="btnTabSuperAdmin" type="button">
+          <span class="config-tab-icon">👑</span>
+          <div class="config-tab-texts">
+            <span class="config-tab-title">SUPERADMINISTRADOR</span>
+            <span class="config-tab-desc" id="superAdminLockStatus">🔒 Acceso Protegido</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="modal-body config-modal-body">
+        
+        <!-- =========================================================================
+             PESTAÑA 1: "AJUSTES GENERALES"
+             ========================================================================= -->
+        <div class="config-tab-pane active" id="paneAjustesGenerales">
+          
+          <!-- Sección: Preferencias de Experiencia -->
+          <div class="config-section-card">
+            <div class="config-section-header">
+              <span class="config-section-icon">🎛️</span>
+              <div>
+                <h4 class="config-section-title">Preferencias de Experiencia</h4>
+                <p class="config-section-sub">Configuración de retroalimentación interactiva, sonido y sincronización en vivo.</p>
+              </div>
+            </div>
+
+            <!-- Efectos de Sonido y Silbatos -->
+            <div class="config-preference-item">
+              <div class="pref-info">
+                <div class="pref-title-row">
+                  <span class="pref-name">Efectos de Sonido y Silbatos</span>
+                  <span class="badge badge-gold" style="font-size: 0.65rem;">Audio Web Sintetizado</span>
+                </div>
+                <div class="pref-desc">
+                  Activa o desactiva sonidos al anotar puntos, chimes de enceste y alertas arbitrales en tiempo real durante los partidos.
+                </div>
+              </div>
+              <div class="pref-ctrl">
+                <button type="button" class="btn btn-outline-cyan btn-sm btn-test-sound" id="btnTestWhistleSound" title="Probar sonido de silbato">
+                  🔊 Probar Silbato
+                </button>
+                <label class="settings-switch">
+                  <input type="checkbox" id="cfgSwitchSonidos" checked>
+                  <span class="settings-switch-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Live Sync & Notificaciones -->
+            <div class="config-preference-item">
+              <div class="pref-info">
+                <div class="pref-title-row">
+                  <span class="pref-name">Live Sync & Notificaciones</span>
+                  <span class="badge badge-success" style="font-size: 0.65rem;">Sincronización en Vivo</span>
+                </div>
+                <div class="pref-desc">
+                  Sincronización automática de resultados e incidencias entre ventanas, pantallas y dispositivos con alertas automáticas.
+                </div>
+              </div>
+              <div class="pref-ctrl">
+                <label class="settings-switch">
+                  <input type="checkbox" id="cfgSwitchLiveSync" checked>
+                  <span class="settings-switch-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Ajuste de Brillo y Visualización General -->
+            <div class="config-preference-item" style="flex-direction: column; align-items: stretch; gap: 0.75rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="pref-info">
+                  <span class="pref-name">Ajuste de Brillo y Visualización General</span>
+                  <div class="pref-desc">Regula la iluminación general de la interfaz visual para canchas techadas o entornos al aire libre.</div>
+                </div>
+                <span class="badge badge-cyan" id="cfgBrightnessValueBadge" style="font-size: 0.75rem; font-weight: 700;">100% (Estándar)</span>
+              </div>
+              
+              <div class="brightness-slider-wrap">
+                <span style="font-size: 0.85rem; color: var(--text-muted);">🔅 70%</span>
+                <input type="range" class="config-range-slider" id="cfgRangeBrightness" min="70" max="120" value="100" step="2">
+                <span style="font-size: 0.85rem; color: var(--text-muted);">🔆 120%</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Sección: Versión del Sistema -->
+          <div class="config-section-card" style="margin-top: 1rem;">
+            <div class="config-section-header">
+              <span class="config-section-icon">ℹ️</span>
+              <div>
+                <h4 class="config-section-title">Versión del Sistema y Estado</h4>
+                <p class="config-section-sub">Información técnica activa de la plataforma y almacenamiento de datos.</p>
+              </div>
+            </div>
+
+            <div class="system-version-grid">
+              <div class="version-stat-box">
+                <div class="stat-label">Versión Activa</div>
+                <div class="stat-value text-gold" id="cfgSysVersionText">v2.6.4 (2026-2027 Pro)</div>
+                <div class="stat-hint">Plataforma Multideportiva Oficial</div>
+              </div>
+
+              <div class="version-stat-box">
+                <div class="stat-label">Almacenamiento Local</div>
+                <div class="stat-value text-green">100% Operativo</div>
+                <div class="stat-hint">LocalStorage & Cache Persistente</div>
+              </div>
+
+              <div class="version-stat-box">
+                <div class="stat-label">Bus Realtime</div>
+                <div class="stat-value text-cyan">gmd_jl_broadcast_bus</div>
+                <div class="stat-hint">BroadcastChannel Inter-Tab Activo</div>
+              </div>
+
+              <div class="version-stat-box">
+                <div class="stat-label">Arquitectura Web</div>
+                <div class="stat-value text-gold">PWA Progresiva</div>
+                <div class="stat-hint">Instalable & Modo Offline Ready</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- =========================================================================
+             PESTAÑA 2: "SUPERADMINISTRADOR"
+             ========================================================================= -->
+        <div class="config-tab-pane" id="paneSuperAdmin">
+          
+          <!-- Vista A: Pantalla de Autenticación Exclusiva (si no está autenticado) -->
+          <div id="superAdminAuthLockScreen" class="superadmin-lock-container">
+            <div class="lock-shield-circle">🛡️</div>
+            <h4 class="lock-title">Autenticación de Superadministrador</h4>
+            <p class="lock-desc">
+              Esta sección requiere validación de credenciales del Superadministrador activo (<strong style="color: var(--brand-gold);">José Lambert</strong> o cuenta con privilegios de Control Maestro).
+            </p>
+
+            <form id="formSuperAdminUnlock" class="lock-form-grid">
+              <div class="form-group" style="margin-bottom: 0.9rem;">
+                <label class="form-label" for="saAuthNombreCompleto" style="font-weight: 700; color: #ffffff;">Nombre completo:</label>
+                <input type="text" class="form-input" id="saAuthNombreCompleto" placeholder="Ej. José Lambert" value="José Lambert" required autocomplete="name">
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1.15rem;">
+                <label class="form-label" for="saAuthCedulaPin" style="font-weight: 700; color: #ffffff;">Cédula / PIN (Ej. 14621157):</label>
+                <input type="password" class="form-input" id="saAuthCedulaPin" placeholder="Ej. 14621157 o clave PIN" required autocomplete="current-password">
+              </div>
+
+              <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                <button type="submit" class="btn btn-gold btn-md" id="btnSubmitUnlockSuperAdmin" style="width: 100%; justify-content: center; gap: 0.5rem; font-weight: 800; letter-spacing: 0.5px; padding: 0.75rem 1rem;">
+                  <span>🔓 DESBLOQUEAR PANEL SUPERADMINISTRADOR</span>
+                </button>
+              </div>
+
+              <div class="auth-hint-box" style="margin-top: 0.85rem; text-align: center; font-size: 0.76rem; color: var(--text-muted); background: rgba(0, 0, 0, 0.3); padding: 0.55rem; border-radius: var(--radius-sm); border: 1px dashed rgba(212, 175, 55, 0.3);">
+                💡 Superadministrador Master: <strong>José Lambert</strong> | Cédula / PIN: <strong>14621157</strong> (o <strong>admin2024</strong>)
+              </div>
+            </form>
+          </div>
+
+          <!-- Vista B: Panel Protegido Desbloqueado con 3 Sub-pestañas -->
+          <div id="superAdminUnlockedPanel" class="superadmin-unlocked-container" style="display: none;">
+            
+            <!-- Barra de estado de Superusuario -->
+            <div class="sa-user-badge-bar">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div class="sa-avatar-circle">JL</div>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <strong style="color: #ffffff; font-size: 0.88rem;" id="saActiveUserName">José Lambert</strong>
+                    <span class="badge badge-gold" style="font-size: 0.65rem;">Super Administrador Master</span>
+                  </div>
+                  <span style="font-size: 0.72rem; color: var(--text-secondary);" id="saActiveUserDoc">C.I. 14621157 • Acceso Total Habilitado</span>
+                </div>
+              </div>
+              <button type="button" class="btn btn-danger btn-sm" id="btnLockSuperAdminPanel" title="Cerrar sesión de Superadministrador y bloquear panel" style="display: inline-flex; align-items: center; gap: 0.45rem; font-weight: 700; padding: 0.45rem 0.9rem; border-radius: var(--radius-sm); box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);">
+                <span>🔒 Cerrar Sesión Superadmin</span>
+              </button>
+            </div>
+
+            <!-- Sub-pestañas Internas (A, B, C) -->
+            <div class="sa-subtabs-nav">
+              <button type="button" class="sa-subtab-btn active" data-subtab="subtabDisciplinas" id="btnSubtabDisciplinas">
+                <span>🏀</span>
+                <span>DISCIPLINAS</span>
+              </button>
+              <button type="button" class="sa-subtab-btn" data-subtab="subtabEventoLogo" id="btnSubtabEventoLogo">
+                <span>🏷️</span>
+                <span>EVENTO & LOGO</span>
+              </button>
+              <button type="button" class="sa-subtab-btn" data-subtab="subtabAdmins" id="btnSubtabAdmins">
+                <span>🛡️</span>
+                <span>ADMINS</span>
+              </button>
+            </div>
+
+            <!-- SUB-PESTAÑA A: DISCIPLINAS -->
+            <div class="sa-subtab-pane active" id="subtabDisciplinas">
+              <div class="subtab-action-bar">
+                <div>
+                  <h4 style="font-family: var(--font-heading); color: #ffffff; font-size: 0.95rem; margin: 0;">Gestión de Disciplinas Deportivas</h4>
+                  <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0;">Administra las disciplinas del sistema (Baloncesto STOB, Voleibol Femenino Master, Fútbol Sala, etc.).</p>
+                </div>
+                <button type="button" class="btn btn-gold btn-sm" id="btnOpenNuevaDiscFromConfig">
+                  <span>➕ Nueva Disciplina</span>
+                </button>
+              </div>
+
+              <!-- Listado de disciplinas -->
+              <div class="config-disciplines-list" id="cfgDisciplinesListContainer">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- SUB-PESTAÑA B: EVENTO & LOGO -->
+            <div class="sa-subtab-pane" id="subtabEventoLogo" style="display: none;">
+              <div class="config-section-card">
+                <div class="config-section-header">
+                  <span class="config-section-icon">🏷️</span>
+                  <div>
+                    <h4 class="config-section-title">Personalización de Textos de Cabecera e Identidad</h4>
+                    <p class="config-section-sub">Edita el título principal de gestión deportiva, la temporada y la identidad gráfica.</p>
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0.9rem;">
+                  <label class="form-label">Título de Gestión Deportiva</label>
+                  <input type="text" class="form-input" id="cfgInputTituloEvento" value="Grupo Multiservicios Deportivo JL" placeholder="Ej. Grupo Multiservicios Deportivo JL" required>
+                </div>
+
+                <div class="form-row" style="margin-bottom: 0.9rem;">
+                  <div class="form-group">
+                    <label class="form-label">Temporada Oficial</label>
+                    <input type="text" class="form-input" id="cfgInputTemporadaEvento" value="2026-2027" placeholder="Ej. 2026-2027" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Slogan Institucional</label>
+                    <input type="text" class="form-input" id="cfgInputSloganEvento" value="Sistema Multideportivo Integral" placeholder="Ej. Sistema Multideportivo Integral">
+                  </div>
+                </div>
+
+                <!-- Carga o Cambio del Logotipo Principal -->
+                <div class="logo-customizer-box">
+                  <label class="form-label" style="display: block; margin-bottom: 0.6rem;">Logotipo Principal de la Aplicación</label>
+                  
+                  <div class="logo-preview-row">
+                    <div class="logo-preview-badge">
+                      <img src="./assets/logo.png" alt="Previsualización Logo" id="cfgLogoPreviewImg" class="preview-logo-display">
+                    </div>
+
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
+                      <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                        Carga el logotipo principal desde tu ordenador para proyectar la identidad de marca en toda la cabecera, barra lateral y pantallas.
+                      </div>
+
+                      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <label class="btn btn-gold btn-sm" style="cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;">
+                          <span>📁 Cargar Logotipo desde Ordenador</span>
+                          <input type="file" id="cfgFileInputLogo" accept="image/*" style="display: none;">
+                        </label>
+                        <button type="button" class="btn btn-outline btn-sm" id="btnRestaurarLogoDefault">
+                          ↺ Restaurar Logo Predeterminado
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Live Header Preview Box -->
+                  <div class="header-live-preview-box">
+                    <span style="font-size: 0.68rem; color: var(--brand-gold); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Vista Previa de la Marca en Cabecera</span>
+                    <div class="header-preview-content">
+                      <img src="./assets/logo.png" alt="Logo Header" id="cfgPreviewHeaderLogo" style="width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--brand-gold);">
+                      <div>
+                        <div id="cfgPreviewHeaderTitle" style="font-family: var(--font-heading); font-size: 1.05rem; font-weight: 800; color: #ffffff;">Grupo Multiservicios Deportivo JL</div>
+                        <div id="cfgPreviewHeaderSeason" style="font-size: 0.75rem; color: var(--brand-gold-light); font-weight: 600;">Temporada 2026-2027</div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            </div>
+
+            <!-- SUB-PESTAÑA C: ADMINS -->
+            <div class="sa-subtab-pane" id="subtabAdmins" style="display: none;">
+              
+              <!-- Formulario para Agregar Nuevo Administrador -->
+              <div class="config-section-card">
+                <div class="config-section-header">
+                  <span class="config-section-icon">➕</span>
+                  <div>
+                    <h4 class="config-section-title" id="adminFormHeaderTitle">Agregar Nuevo Administrador</h4>
+                    <p class="config-section-sub">Registra usuarios autorizados con acceso global o disciplinario.</p>
+                  </div>
+                </div>
+
+                <form id="formRegistrarNuevoAdmin" class="new-admin-form-grid">
+                  <input type="hidden" id="adminEditId" value="">
+
+                  <div class="form-group">
+                    <label class="form-label">1. Nombre Completo</label>
+                    <input type="text" class="form-input" id="adminNewNombre" placeholder="Ej. Carlos Méndez" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">2. Usuario / ID de Acceso o Cédula</label>
+                    <input type="text" class="form-input" id="adminNewCedula" placeholder="Ej. 18456123" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">3. Clave de Acceso / PIN</label>
+                    <input type="password" class="form-input" id="adminNewClave" placeholder="Ej. 2026 o clave123" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">4. Disciplina Asignada</label>
+                    <select class="form-input" id="adminNewDisciplina" required>
+                      <option value="todas">Todas las Disciplinas (Acceso Global)</option>
+                      <!-- Dynamically populated -->
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">5. Rol / Privilegio</label>
+                    <select class="form-input" id="adminNewRol" required>
+                      <option value="admin_disciplina">Administrador de Disciplina</option>
+                      <option value="superadmin">Super Administrador</option>
+                      <option value="anotador">Anotador (Mesa Técnica)</option>
+                    </select>
+                  </div>
+
+                  <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                    <button type="submit" class="btn btn-gold btn-md" id="btnSubmitAdminForm" style="width: 100%; justify-content: center; gap: 0.4rem;">
+                      <span>➕ Registrar Administrador</span>
+                    </button>
+                    <button type="button" class="btn btn-outline btn-md" id="btnCancelEditAdmin" style="display: none;">
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Listado de Administradores Activos y Asignaciones -->
+              <div class="config-section-card" style="margin-top: 1rem;">
+                <div class="config-section-header">
+                  <span class="config-section-icon">👥</span>
+                  <div>
+                    <h4 class="config-section-title">Administradores Activos y Asignaciones</h4>
+                    <p class="config-section-sub">Supervisa y administra permisos y accesos de los encargados de torneos.</p>
+                  </div>
+                </div>
+
+                <div class="active-admins-table-wrap">
+                  <table class="active-admins-table">
+                    <thead>
+                      <tr>
+                        <th>Administrador</th>
+                        <th>Cédula / ID</th>
+                        <th>Rol / Privilegio</th>
+                        <th>Disciplina Asignada</th>
+                        <th style="text-align: right;">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody id="cfgActiveAdminsTableBody">
+                      <!-- Dynamically populated -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- BOTÓN DE ACCIÓN GLOBAL (Sticky Footer) -->
+      <div class="modal-footer config-modal-footer">
+        <button type="button" class="btn btn-outline btn-md" id="btnCancelConfigModal">
+          Cerrar
+        </button>
+        <button type="button" class="btn btn-gold btn-md config-btn-save-global" id="btnGuardarCambiosGlobales">
+          <span>💾 Guardar y Aplicar Cambios Globales</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==============================================================================
+       MODAL CREACIÓN / EDICIÓN DE GRUPOS DE COMPETICIÓN
+       ============================================================================== -->
+  <div class="modal-overlay" id="modalGestionGrupo">
+    <div class="modal-card" style="max-width: 480px; padding: 2rem;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <h3 class="modal-title" id="modalGestionGrupoTitle" style="font-family: var(--font-heading); font-size: 1.25rem; color: #ffffff;">
+          🛡️ Crear Nuevo Grupo
+        </h3>
+        <button type="button" class="modal-close" id="btnCerrarModalGrupo" style="background: none; border: none; font-size: 1.6rem; color: var(--text-muted); cursor: pointer;">&times;</button>
+      </div>
+      <form id="formGestionGrupo">
+        <input type="hidden" id="inputGrupoModo" value="crear">
+        <input type="hidden" id="inputGrupoOldName" value="">
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label class="form-label" for="inputNombreGrupo" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.4rem;">
+            Nombre del Grupo / División:
+          </label>
+          <input type="text" class="form-input" id="inputNombreGrupo" placeholder="Ej: Grupo C, Zona Norte, Grupo Oriental" required style="width: 100%;">
+          <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.35rem;">
+            Puedes usar nombres alfabéticos tradicionales (A, B, C...) o etiquetas geográficas y personalizadas.
+          </span>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" class="btn btn-outline btn-md" id="btnCancelarModalGrupo">Cancelar</button>
+          <button type="submit" class="btn btn-gold btn-md" id="btnGuardarModalGrupo">Guardar Grupo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==============================================================================
+       MODAL COMPARTIR PLATAFORMA DEPORTIVA
+       ============================================================================== -->
+  <div class="modal-overlay" id="modalShare">
+    <div class="modal-card" style="max-width: 480px; text-align: center; padding: 2rem;">
+      <div style="font-size: 2.8rem; margin-bottom: 0.5rem;">📲</div>
+      <h3 style="font-family: var(--font-heading); font-size: 1.4rem; color: #ffffff; margin-bottom: 0.5rem;">
+        Compartir Grupo Multiservicios Deportivo JL
+      </h3>
+      <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+        Comparte los resultados, calendarios y marcadores en vivo de todas las disciplinas deportivas en tiempo real.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
+        <button class="btn btn-gold btn-md" id="btnShareWhatsApp" style="width: 100%; justify-content: center; gap: 8px;">
+          <span>💬 Compartir por WhatsApp</span>
+        </button>
+        <button class="btn btn-outline btn-md" id="btnCopyTournamentLink" style="width: 100%; justify-content: center; gap: 8px;">
+          <span>📋 Copiar Enlace Directo</span>
+        </button>
+      </div>
+
+      <button type="button" class="btn btn-outline-gold btn-sm" onclick="document.getElementById('modalShare').classList.remove('open')">
+        Cerrar / Cancelar
+      </button>
+    </div>
+  </div>
+
+<div class="pwa-install-banner" id="pwaFloatingBanner" style="display: none;">
     <img src="./assets/icon-192.png" alt="Icon" style="width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--brand-gold);">
     <div class="pwa-banner-text">
       <div class="pwa-banner-title">INSTALAR Grupo Multiservicios Deportivo JL</div>
