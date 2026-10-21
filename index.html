@@ -141,170 +141,160 @@
       <div class="disciplines-grid-responsive disciplines-grid-2x2" id="disciplinesHubGrid">
         
         <!-- Tarjeta 1: Baloncesto (Arriba a la izquierda) -->
-        <article class="discipline-card-celeste" data-discipline="baloncesto-master" id="cardBaloncesto" title="Ingresar a Baloncesto">
-          <div class="discipline-icon-circle">
-            <!-- SVG Balón de Baloncesto -->
-            <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Balón de Baloncesto">
-              <defs>
-                <radialGradient id="bballShade" cx="35%" cy="32%" r="68%">
-                  <stop offset="0%" stop-color="#FF9D43"/>
-                  <stop offset="55%" stop-color="#EA580C"/>
-                  <stop offset="100%" stop-color="#881E04"/>
-                </radialGradient>
-              </defs>
-              <circle cx="50" cy="50" r="45" fill="url(#bballShade)" stroke="#111827" stroke-width="2.5"/>
-              <line x1="50" y1="5" x2="50" y2="95" stroke="#111827" stroke-width="3.2" stroke-linecap="round"/>
-              <line x1="5" y1="50" x2="95" y2="50" stroke="#111827" stroke-width="3.2" stroke-linecap="round"/>
-              <path d="M 18,18 C 38,32 38,68 18,82" stroke="#111827" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-              <path d="M 82,18 C 62,32 62,68 82,82" stroke="#111827" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-              <path d="M 22,26 A 38,38 0 0 1 45,12" stroke="rgba(255,255,255,0.45)" stroke-width="3" stroke-linecap="round" fill="none"/>
-            </svg>
+        <article class="discipline-card-celeste" data-discipline="baloncesto-master" id="card_baloncesto-master" title="Ingresar a Baloncesto" style="border-color: #D4AF37;">
+          <div class="discipline-icon-circle" style="border-color: #D4AF37;">
+            <img src="./assets/banner_baloncesto.jpg" alt="Baloncesto" class="discipline-card-real-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+            <div class="discipline-cover-fallback" style="display: none;">
+              <!-- SVG Balón de Baloncesto -->
+              <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Balón de Baloncesto">
+                <defs>
+                  <radialGradient id="bballShade" cx="35%" cy="32%" r="68%">
+                    <stop offset="0%" stop-color="#FF9D43"/>
+                    <stop offset="55%" stop-color="#EA580C"/>
+                    <stop offset="100%" stop-color="#881E04"/>
+                  </radialGradient>
+                </defs>
+                <circle cx="50" cy="50" r="45" fill="url(#bballShade)" stroke="#111827" stroke-width="2.5"/>
+                <line x1="50" y1="5" x2="50" y2="95" stroke="#111827" stroke-width="3.2" stroke-linecap="round"/>
+                <line x1="5" y1="50" x2="95" y2="50" stroke="#111827" stroke-width="3.2" stroke-linecap="round"/>
+                <path d="M 18,18 C 38,32 38,68 18,82" stroke="#111827" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+                <path d="M 82,18 C 62,32 62,68 82,82" stroke="#111827" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+                <path d="M 22,26 A 38,38 0 0 1 45,12" stroke="rgba(255,255,255,0.45)" stroke-width="3" stroke-linecap="round" fill="none"/>
+              </svg>
+            </div>
           </div>
           <h3 class="card-sport-name">Baloncesto</h3>
-          <button type="button" class="btn-enter-system" data-discipline="baloncesto-master">
+          <button type="button" class="btn-enter-system" data-discipline="baloncesto-master" title="Ingresar al sistema de Baloncesto">
             Ingresar al sistema
           </button>
         </article>
 
         <!-- Tarjeta 2: Voleibol (Arriba a la derecha) -->
-        <article class="discipline-card-celeste" data-discipline="voleibol-femenino" id="cardVoleibol" title="Ingresar a Voleibol">
-          <div class="discipline-icon-circle">
-            <!-- SVG Balón de Voleibol (Azul, Amarillo y Blanco) -->
-            <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Balón de Voleibol">
-              <defs>
-                <clipPath id="vballClip">
-                  <circle cx="50" cy="50" r="45"/>
-                </clipPath>
-                <radialGradient id="vballGloss" cx="30%" cy="28%" r="72%">
-                  <stop offset="0%" stop-color="#ffffff" stop-opacity="0.38"/>
-                  <stop offset="70%" stop-color="#000000" stop-opacity="0.05"/>
-                  <stop offset="100%" stop-color="#000000" stop-opacity="0.3"/>
-                </radialGradient>
-              </defs>
-              <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#111827" stroke-width="2.5"/>
-              <g clip-path="url(#vballClip)">
-                <!-- Blue Panels -->
-                <path d="M5,50 C24,46 38,32 44,10 L30,6 C20,24 10,38 5,50 Z" fill="#1D4ED8" stroke="#111827" stroke-width="2"/>
-                <path d="M50,95 C46,76 32,62 10,56 L6,70 C24,80 38,90 50,95 Z" fill="#1D4ED8" stroke="#111827" stroke-width="2"/>
-                <path d="M95,50 C76,54 62,68 56,90 L70,94 C80,76 90,62 95,50 Z" fill="#1D4ED8" stroke="#111827" stroke-width="2"/>
-                
-                <!-- Yellow Panels -->
-                <path d="M50,5 C54,24 68,38 90,44 L94,30 C76,20 62,10 50,5 Z" fill="#FACC15" stroke="#111827" stroke-width="2"/>
-                <path d="M10,56 C32,62 46,76 50,95 L64,90 C58,68 44,50 10,56 Z" fill="#FACC15" stroke="#111827" stroke-width="2"/>
-                <path d="M44,10 C38,32 24,46 5,50 L10,64 C30,58 48,44 44,10 Z" fill="#FACC15" stroke="#111827" stroke-width="2"/>
-                
-                <!-- White Swirl Center & Accents -->
-                <circle cx="50" cy="50" r="18" fill="#F8FAFC" stroke="#111827" stroke-width="2"/>
-                <path d="M50,5 C50,30 30,50 5,50" stroke="#111827" stroke-width="2.5" fill="none"/>
-                <path d="M95,50 C70,50 50,70 50,95" stroke="#111827" stroke-width="2.5" fill="none"/>
-                <path d="M50,5 C50,25 70,50 95,50" stroke="#111827" stroke-width="2" fill="none"/>
-                <path d="M5,50 C25,50 50,75 50,95" stroke="#111827" stroke-width="2" fill="none"/>
-                
-                <!-- Spherical Shading -->
-                <circle cx="50" cy="50" r="45" fill="url(#vballGloss)"/>
-              </g>
-              <circle cx="50" cy="50" r="45" fill="none" stroke="#111827" stroke-width="3"/>
-            </svg>
+        <article class="discipline-card-celeste" data-discipline="voleibol-femenino" id="card_voleibol-femenino" title="Ingresar a Voleibol" style="border-color: #38BDF8;">
+          <div class="discipline-icon-circle" style="border-color: #38BDF8;">
+            <img src="./assets/banner_voleibol.jpg" alt="Voleibol" class="discipline-card-real-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+            <div class="discipline-cover-fallback" style="display: none;">
+              <!-- SVG Balón de Voleibol (Azul, Amarillo y Blanco) -->
+              <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Balón de Voleibol">
+                <defs>
+                  <clipPath id="vballClip">
+                    <circle cx="50" cy="50" r="45"/>
+                  </clipPath>
+                  <radialGradient id="vballGloss" cx="30%" cy="28%" r="72%">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.38"/>
+                    <stop offset="70%" stop-color="#000000" stop-opacity="0.05"/>
+                    <stop offset="100%" stop-color="#000000" stop-opacity="0.3"/>
+                  </radialGradient>
+                </defs>
+                <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#111827" stroke-width="2.5"/>
+                <g clip-path="url(#vballClip)">
+                  <path d="M5,50 C24,46 38,32 44,10 L30,6 C20,24 10,38 5,50 Z" fill="#1D4ED8" stroke="#111827" stroke-width="2"/>
+                  <path d="M50,95 C46,76 32,62 10,56 L6,70 C24,80 38,90 50,95 Z" fill="#1D4ED8" stroke="#111827" stroke-width="2"/>
+                  <path d="M95,50 C76,54 62,68 56,90 L70,94 C80,76 90,62 95,50 Z" fill="#1D4ED8" stroke="#111827" stroke-width="2"/>
+                  <path d="M50,5 C54,24 68,38 90,44 L94,30 C76,20 62,10 50,5 Z" fill="#FACC15" stroke="#111827" stroke-width="2"/>
+                  <path d="M10,56 C32,62 46,76 50,95 L64,90 C58,68 44,50 10,56 Z" fill="#FACC15" stroke="#111827" stroke-width="2"/>
+                  <path d="M44,10 C38,32 24,46 5,50 L10,64 C30,58 48,44 44,10 Z" fill="#FACC15" stroke="#111827" stroke-width="2"/>
+                  <circle cx="50" cy="50" r="18" fill="#F8FAFC" stroke="#111827" stroke-width="2"/>
+                  <path d="M50,5 C50,30 30,50 5,50" stroke="#111827" stroke-width="2.5" fill="none"/>
+                  <path d="M95,50 C70,50 50,70 50,95" stroke="#111827" stroke-width="2.5" fill="none"/>
+                  <path d="M50,5 C50,25 70,50 95,50" stroke="#111827" stroke-width="2" fill="none"/>
+                  <path d="M5,50 C25,50 50,75 50,95" stroke="#111827" stroke-width="2" fill="none"/>
+                  <circle cx="50" cy="50" r="45" fill="url(#vballGloss)"/>
+                </g>
+                <circle cx="50" cy="50" r="45" fill="none" stroke="#111827" stroke-width="3"/>
+              </svg>
+            </div>
           </div>
           <h3 class="card-sport-name">Voleibol</h3>
-          <button type="button" class="btn-enter-system" data-discipline="voleibol-femenino">
+          <button type="button" class="btn-enter-system" data-discipline="voleibol-femenino" title="Ingresar al sistema de Voleibol">
             Ingresar al sistema
           </button>
         </article>
 
         <!-- Tarjeta 3: Futbol Sala (Abajo a la izquierda) -->
-        <article class="discipline-card-celeste" data-discipline="futsal-copa" id="cardFutsal" title="Ingresar a Futbol Sala">
-          <div class="discipline-icon-circle">
-            <!-- SVG Balón de Fútbol Tradicional (Blanco y Negro con Pentágonos) -->
-            <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Balón de Fútbol Tradicional">
-              <defs>
-                <clipPath id="futsalClip">
-                  <circle cx="50" cy="50" r="45"/>
-                </clipPath>
-                <radialGradient id="futsalGloss" cx="30%" cy="28%" r="72%">
-                  <stop offset="0%" stop-color="#ffffff" stop-opacity="0.42"/>
-                  <stop offset="65%" stop-color="#000000" stop-opacity="0"/>
-                  <stop offset="100%" stop-color="#000000" stop-opacity="0.4"/>
-                </radialGradient>
-              </defs>
-              <circle cx="50" cy="50" r="45" fill="#F8FAFC" stroke="#111827" stroke-width="2.5"/>
-              <g clip-path="url(#futsalClip)">
-                <!-- Center Pentagon -->
-                <polygon points="50,34 65,45 59,63 41,63 35,45" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
-                
-                <!-- Surrounding Pentagons / Polygons -->
-                <polygon points="26,14 38,18 35,32 18,36 12,24" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
-                <polygon points="74,14 88,24 82,36 65,32 62,18" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
-                <polygon points="12,76 18,64 35,68 38,82 26,86" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
-                <polygon points="88,76 74,86 62,82 65,68 82,64" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
-                <polygon points="42,5 58,5 56,12 44,12" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
-                <polygon points="44,88 56,88 58,95 42,95" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
-
-                <!-- Seam Lines Connecting Pentagons -->
-                <line x1="50" y1="34" x2="50" y2="12" stroke="#111827" stroke-width="2.5"/>
-                <line x1="35" y1="45" x2="18" y2="36" stroke="#111827" stroke-width="2.5"/>
-                <line x1="65" y1="45" x2="82" y2="36" stroke="#111827" stroke-width="2.5"/>
-                <line x1="41" y1="63" x2="35" y2="68" stroke="#111827" stroke-width="2.5"/>
-                <line x1="59" y1="63" x2="65" y2="68" stroke="#111827" stroke-width="2.5"/>
-                
-                <line x1="38" y1="18" x2="44" y2="12" stroke="#111827" stroke-width="2.5"/>
-                <line x1="62" y1="18" x2="56" y2="12" stroke="#111827" stroke-width="2.5"/>
-                <line x1="38" y1="82" x2="44" y2="88" stroke="#111827" stroke-width="2.5"/>
-                <line x1="62" y1="82" x2="56" y2="88" stroke="#111827" stroke-width="2.5"/>
-
-                <circle cx="50" cy="50" r="45" fill="url(#futsalGloss)"/>
-              </g>
-              <circle cx="50" cy="50" r="45" fill="none" stroke="#111827" stroke-width="3"/>
-            </svg>
+        <article class="discipline-card-celeste" data-discipline="futsal-copa" id="card_futsal-copa" title="Ingresar a Futbol Sala" style="border-color: #10B981;">
+          <div class="discipline-icon-circle" style="border-color: #10B981;">
+            <img src="./assets/banner_futsal.jpg" alt="Futbol Sala" class="discipline-card-real-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+            <div class="discipline-cover-fallback" style="display: none;">
+              <!-- SVG Balón de Fútbol Tradicional (Blanco y Negro con Pentágonos) -->
+              <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Balón de Fútbol Tradicional">
+                <defs>
+                  <clipPath id="futsalClip">
+                    <circle cx="50" cy="50" r="45"/>
+                  </clipPath>
+                  <radialGradient id="futsalGloss" cx="30%" cy="28%" r="72%">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.42"/>
+                    <stop offset="65%" stop-color="#000000" stop-opacity="0"/>
+                    <stop offset="100%" stop-color="#000000" stop-opacity="0.4"/>
+                  </radialGradient>
+                </defs>
+                <circle cx="50" cy="50" r="45" fill="#F8FAFC" stroke="#111827" stroke-width="2.5"/>
+                <g clip-path="url(#futsalClip)">
+                  <polygon points="50,34 65,45 59,63 41,63 35,45" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                  <polygon points="26,14 38,18 35,32 18,36 12,24" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                  <polygon points="74,14 88,24 82,36 65,32 62,18" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                  <polygon points="12,76 18,64 35,68 38,82 26,86" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                  <polygon points="88,76 74,86 62,82 65,68 82,64" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                  <polygon points="42,5 58,5 56,12 44,12" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                  <polygon points="44,88 56,88 58,95 42,95" fill="#18181B" stroke="#000000" stroke-width="2.5"/>
+                  <line x1="50" y1="34" x2="50" y2="12" stroke="#111827" stroke-width="2.5"/>
+                  <line x1="35" y1="45" x2="18" y2="36" stroke="#111827" stroke-width="2.5"/>
+                  <line x1="65" y1="45" x2="82" y2="36" stroke="#111827" stroke-width="2.5"/>
+                  <line x1="41" y1="63" x2="35" y2="68" stroke="#111827" stroke-width="2.5"/>
+                  <line x1="59" y1="63" x2="65" y2="68" stroke="#111827" stroke-width="2.5"/>
+                  <line x1="38" y1="18" x2="44" y2="12" stroke="#111827" stroke-width="2.5"/>
+                  <line x1="62" y1="18" x2="56" y2="12" stroke="#111827" stroke-width="2.5"/>
+                  <line x1="38" y1="82" x2="44" y2="88" stroke="#111827" stroke-width="2.5"/>
+                  <line x1="62" y1="82" x2="56" y2="88" stroke="#111827" stroke-width="2.5"/>
+                  <circle cx="50" cy="50" r="45" fill="url(#futsalGloss)"/>
+                </g>
+                <circle cx="50" cy="50" r="45" fill="none" stroke="#111827" stroke-width="3"/>
+              </svg>
+            </div>
           </div>
           <h3 class="card-sport-name">Futbol Sala</h3>
-          <button type="button" class="btn-enter-system" data-discipline="futsal-copa">
+          <button type="button" class="btn-enter-system" data-discipline="futsal-copa" title="Ingresar al sistema de Futbol Sala">
             Ingresar al sistema
           </button>
         </article>
 
         <!-- Tarjeta 4: Sotfbol (Abajo a la derecha) -->
-        <article class="discipline-card-celeste" data-discipline="softbol-master" id="cardSoftbol" title="Ingresar a Sotfbol">
-          <div class="discipline-icon-circle">
-            <!-- SVG Pelota de Sóftbol Blanca con Costuras Rojas -->
-            <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Pelota de Sóftbol">
-              <defs>
-                <radialGradient id="sballShade" cx="35%" cy="32%" r="68%">
-                  <stop offset="0%" stop-color="#FFFFFF"/>
-                  <stop offset="60%" stop-color="#F1F5F9"/>
-                  <stop offset="100%" stop-color="#CBD5E1"/>
-                </radialGradient>
-              </defs>
-              <circle cx="50" cy="50" r="45" fill="url(#sballShade)" stroke="#1E293B" stroke-width="2.5"/>
-              
-              <!-- Left Curved Red Seam -->
-              <path d="M 24,12 C 40,30 40,70 24,88" stroke="#DC2626" stroke-width="3" fill="none" stroke-linecap="round"/>
-              <!-- Left Red Stitches -->
-              <path d="M 20,20 L 26,22 M 22,16 L 27,24" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M 27,28 L 33,31 M 29,25 L 34,33" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M 31,39 L 37,42 M 33,36 L 38,44" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M 32,50 L 38,50 M 33,46 L 37,54" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M 31,61 L 37,58 M 33,64 L 38,56" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M 27,72 L 33,69 M 29,75 L 34,67" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M 20,80 L 26,78 M 22,84 L 27,76" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-
-              <!-- Right Curved Red Seam -->
-              <path d="M 76,12 C 60,30 60,70 76,88" stroke="#DC2626" stroke-width="3" fill="none" stroke-linecap="round"/>
-              <!-- Right Red Stitches -->
-              <path d="M 80,20 L 74,22 M 78,16 L 73,24" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M 73,28 L 67,31 M 71,25 L 66,33" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M 69,39 L 63,42 M 67,36 L 62,44" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M 68,50 L 62,50 M 67,46 L 63,54" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M 69,61 L 63,58 M 67,64 L 62,56" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M 73,72 L 67,69 M 71,75 L 66,67" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M 80,80 L 74,78 M 78,84 L 73,76" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
-
-              <!-- Highlight -->
-              <path d="M 26,18 A 38,38 0 0 1 45,10" stroke="rgba(255,255,255,0.75)" stroke-width="3" stroke-linecap="round" fill="none"/>
-            </svg>
+        <article class="discipline-card-celeste" data-discipline="softbol-master" id="card_softbol-master" title="Ingresar a Sotfbol" style="border-color: #F59E0B;">
+          <div class="discipline-icon-circle" style="border-color: #F59E0B;">
+            <img src="./assets/logo.png" alt="Sotfbol" class="discipline-card-real-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+            <div class="discipline-cover-fallback" style="display: none;">
+              <!-- SVG Pelota de Sóftbol Blanca con Costuras Rojas -->
+              <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Pelota de Sóftbol">
+                <defs>
+                  <radialGradient id="sballShade" cx="35%" cy="32%" r="68%">
+                    <stop offset="0%" stop-color="#FFFFFF"/>
+                    <stop offset="60%" stop-color="#F1F5F9"/>
+                    <stop offset="100%" stop-color="#CBD5E1"/>
+                  </radialGradient>
+                </defs>
+                <circle cx="50" cy="50" r="45" fill="url(#sballShade)" stroke="#1E293B" stroke-width="2.5"/>
+                <path d="M 24,12 C 40,30 40,70 24,88" stroke="#DC2626" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <path d="M 20,20 L 26,22 M 22,16 L 27,24" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 27,28 L 33,31 M 29,25 L 34,33" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 31,39 L 37,42 M 33,36 L 38,44" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 32,50 L 38,50 M 33,46 L 37,54" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 31,61 L 37,58 M 33,64 L 38,56" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 27,72 L 33,69 M 29,75 L 34,67" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 20,80 L 26,78 M 22,84 L 27,76" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 76,12 C 60,30 60,70 76,88" stroke="#DC2626" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <path d="M 80,20 L 74,22 M 78,16 L 73,24" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 73,28 L 67,31 M 71,25 L 66,33" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 69,39 L 63,42 M 67,36 L 62,44" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 68,50 L 62,50 M 67,46 L 63,54" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 69,61 L 63,58 M 67,64 L 62,56" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 73,72 L 67,69 M 71,75 L 66,67" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 80,80 L 74,78 M 78,84 L 73,76" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M 26,18 A 38,38 0 0 1 45,10" stroke="rgba(255,255,255,0.75)" stroke-width="3" stroke-linecap="round" fill="none"/>
+              </svg>
+            </div>
           </div>
           <h3 class="card-sport-name">Sotfbol</h3>
-          <button type="button" class="btn-enter-system" data-discipline="softbol-master">
+          <button type="button" class="btn-enter-system" data-discipline="softbol-master" title="Ingresar al sistema de Sotfbol">
             Ingresar al sistema
           </button>
         </article>
@@ -1562,7 +1552,7 @@
     <div class="modal-card modal-card-discipline">
       <div class="modal-header">
         <h3 class="modal-title" id="modalEditDisciplinaTitle">Personalizar Disciplina e Identidad Gráfica</h3>
-        <button class="modal-close-btn" type="button" onclick="document.getElementById('modalEditDisciplina').classList.remove('open')">&times;</button>
+        <button class="modal-close-btn" type="button" onclick="closeEditDisciplinaModal()">&times;</button>
       </div>
       <form id="formEditDisciplina">
         <div class="modal-body modal-body-scrollable">
@@ -1581,14 +1571,17 @@
           </div>
           <div class="form-group">
             <label class="form-label">Logotipo / Avatar (Desde el Ordenador o URL)</label>
-            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem;">
-              <img id="editDiscLogoPreview" src="./assets/logo.png" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--border-gold);" alt="Logo">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+              <img id="editDiscLogoPreview" src="./assets/logo.png" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--border-gold);" alt="Logo">
               <label class="btn btn-outline-gold btn-sm" style="cursor: pointer;">
                 📁 Cargar Imagen desde Ordenador
                 <input type="file" id="editDiscLogoFile" accept="image/*" style="display: none;">
               </label>
+              <button type="button" class="btn btn-outline btn-sm" id="btnRestaurarDiscLogoDefault" title="Restaurar logotipo al predeterminado">
+                ↺ Restaurar Logo
+              </button>
             </div>
-            <input type="hidden" id="editDiscLogoUrl" value="">
+            <input type="text" class="form-input" id="editDiscLogoUrl" placeholder="URL de la imagen o logotipo (Ej. https://... o data:image/...)">
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -1626,7 +1619,7 @@
           </div>
         </div>
         <div class="modal-footer modal-footer-fixed">
-          <button type="button" class="btn btn-outline btn-md" id="btnCancelEditDisciplina" onclick="document.getElementById('modalEditDisciplina').classList.remove('open')">Cancelar / Cerrar</button>
+          <button type="button" class="btn btn-outline btn-md" id="btnCancelEditDisciplina" onclick="closeEditDisciplinaModal()">Cancelar / Cerrar</button>
           <button type="submit" class="btn btn-gold btn-md" id="btnSaveEditDisciplina"><span>💾 Guardar Cambios</span></button>
         </div>
       </form>
@@ -1756,7 +1749,7 @@
     <div class="modal-card modal-card-discipline">
       <div class="modal-header">
         <h3 class="modal-title">Añadir Nueva Disciplina</h3>
-        <button class="modal-close-btn" type="button" onclick="document.getElementById('modalNuevaDisciplina').classList.remove('open')">&times;</button>
+        <button class="modal-close-btn" type="button" onclick="closeNuevaDisciplinaModal()">&times;</button>
       </div>
       <form id="formNuevaDisciplina">
         <div class="modal-body modal-body-scrollable">
@@ -1809,7 +1802,7 @@
           </div>
         </div>
         <div class="modal-footer modal-footer-fixed">
-          <button type="button" class="btn btn-outline btn-md" onclick="document.getElementById('modalNuevaDisciplina').classList.remove('open')">Cancelar / Cerrar</button>
+          <button type="button" class="btn btn-outline btn-md" onclick="closeNuevaDisciplinaModal()">Cancelar / Cerrar</button>
           <button type="submit" class="btn btn-gold btn-md"><span>💾 Guardar Cambios</span></button>
         </div>
       </form>

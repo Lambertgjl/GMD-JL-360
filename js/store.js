@@ -14,6 +14,7 @@ const DEFAULT_SEED_DATA = {
       nombre: 'Baloncesto',
       categoria: 'Torneo Master / Libre',
       icono: '🏀',
+      avatar: './assets/banner_baloncesto.jpg',
       banner: './assets/banner_baloncesto.jpg',
       color: '#D4AF37',
       activa: true,
@@ -24,6 +25,7 @@ const DEFAULT_SEED_DATA = {
       nombre: 'Voleibol',
       categoria: 'Femenino Libre',
       icono: '🏐',
+      avatar: './assets/banner_voleibol.jpg',
       banner: './assets/banner_voleibol.jpg',
       color: '#38BDF8',
       activa: true,
@@ -34,6 +36,7 @@ const DEFAULT_SEED_DATA = {
       nombre: 'Futbol Sala',
       categoria: 'Copa JL Multiservicios',
       icono: '⚽',
+      avatar: './assets/banner_futsal.jpg',
       banner: './assets/banner_futsal.jpg',
       color: '#10B981',
       activa: true,
@@ -44,6 +47,7 @@ const DEFAULT_SEED_DATA = {
       nombre: 'Sotfbol',
       categoria: 'Torneo Master / Modificado',
       icono: '🥎',
+      avatar: './assets/logo.png',
       banner: './assets/logo.png',
       color: '#F59E0B',
       activa: true,
@@ -454,7 +458,7 @@ class TournamentStore {
         const parsed = JSON.parse(stored);
         
         // Ensure standard disciplines are synced
-        let discs = parsed.disciplinas || [];
+        let discs = parsed.disciplinas || (parsed.config && parsed.config.disciplinas) || [];
         discs = discs.map(d => {
           if (d.id === 'beisbol-cinco' || d.nombre === 'Béisbol 5') {
             return {
@@ -462,21 +466,34 @@ class TournamentStore {
               nombre: 'Sotfbol',
               categoria: 'Torneo Master / Modificado',
               icono: '🥎',
-              banner: './assets/logo.png',
+              avatar: d.avatar || './assets/logo.png',
+              banner: d.banner || './assets/logo.png',
               color: '#F59E0B',
               activa: true,
               reglas: { periodos: 7, nombrePeriodo: 'Inning', ptsGanador: 2, ptsPerdedor: 1, duracionMin: 15 }
             };
           }
           if (d.id === 'futsal-copa') {
-            return { ...d, nombre: 'Futbol Sala' };
+            const futsalAvatar = d.avatar || d.logoUrl || d.logo || d.banner || './assets/banner_futsal.jpg';
+            return { ...d, nombre: d.nombre || 'Futbol Sala', avatar: futsalAvatar, banner: d.banner || futsalAvatar };
+          }
+          if (d.id === 'baloncesto-master') {
+            const bballAvatar = d.avatar || d.logoUrl || d.logo || d.banner || './assets/banner_baloncesto.jpg';
+            return { ...d, avatar: bballAvatar, banner: d.banner || bballAvatar };
+          }
+          if (d.id === 'voleibol-femenino') {
+            const vballAvatar = d.avatar || d.logoUrl || d.logo || d.banner || './assets/banner_voleibol.jpg';
+            return { ...d, avatar: vballAvatar, banner: d.banner || vballAvatar };
           }
           return d;
         });
 
         DEFAULT_SEED_DATA.disciplinas.forEach(defD => {
-          if (!discs.some(d => d.id === defD.id)) {
-            discs.push(defD);
+          const existing = discs.find(d => d.id === defD.id);
+          if (!existing) {
+            discs.push(JSON.parse(JSON.stringify(defD)));
+          } else {
+            if (!existing.avatar) existing.avatar = defD.avatar || defD.banner;
           }
         });
         parsed.disciplinas = discs;
@@ -551,7 +568,29 @@ class TournamentStore {
               matches.push(JSON.parse(JSON.stringify(defP)));
             } else {
               // Sincronizar puntos y estado oficiales si el partido en almacenamiento estaba en 0 o desactualizado
-              if (defP.totalLocal > 0 || defP.totalVisitante > 0 || defP.estado === 'FINALIZADO') {
+              if (defP.id === 'PAR-BAL-01' || defP.id === 'PAR-BAL-02') {
+                const exTotalL = Number(existing.totalLocal ?? existing.puntosLocal ?? existing.marcadorLocal ?? 0);
+                const exTotalV = Number(existing.totalVisitante ?? existing.puntosVisitante ?? existing.marcadorVisitante ?? 0);
+                if (exTotalL === 0 && exTotalV === 0 || existing.estado !== defP.estado || !existing.q1Loc) {
+                  existing.totalLocal = defP.totalLocal;
+                  existing.totalVisitante = defP.totalVisitante;
+                  existing.puntosLocal = defP.puntosLocal ?? defP.totalLocal;
+                  existing.puntosVisitante = defP.puntosVisitante ?? defP.totalVisitante;
+                  existing.q1Loc = defP.q1Loc;
+                  existing.q2Loc = defP.q2Loc;
+                  existing.q3Loc = defP.q3Loc;
+                  existing.q4Loc = defP.q4Loc;
+                  existing.otLoc = defP.otLoc ?? 0;
+                  existing.q1Vis = defP.q1Vis;
+                  existing.q2Vis = defP.q2Vis;
+                  existing.q3Vis = defP.q3Vis;
+                  existing.q4Vis = defP.q4Vis;
+                  existing.otVis = defP.otVis ?? 0;
+                  existing.estado = defP.estado;
+                  existing.periodoActual = defP.periodoActual;
+                  existing.reloj = defP.reloj;
+                }
+              } else if (defP.totalLocal > 0 || defP.totalVisitante > 0 || defP.estado === 'FINALIZADO') {
                 const exTotalL = Number(existing.totalLocal ?? existing.puntosLocal ?? existing.marcadorLocal ?? 0);
                 const exTotalV = Number(existing.totalVisitante ?? existing.puntosVisitante ?? existing.marcadorVisitante ?? 0);
                 if (exTotalL === 0 && exTotalV === 0) {
@@ -616,9 +655,12 @@ class TournamentStore {
           console.warn('Error reading session from localStorage:', e);
         }
 
+        mergedConfig.disciplinas = discs;
+
         return {
           ...DEFAULT_SEED_DATA,
           ...parsed,
+          disciplinas: discs,
           config: mergedConfig
         };
       }
@@ -768,6 +810,13 @@ class TournamentStore {
 
   updateConfig(newConfig) {
     this.data.config = { ...this.data.config, ...newConfig };
+    if (newConfig && newConfig.disciplinas && Array.isArray(newConfig.disciplinas)) {
+      this.data.disciplinas = JSON.parse(JSON.stringify(newConfig.disciplinas));
+      this.data.config.disciplinas = JSON.parse(JSON.stringify(newConfig.disciplinas));
+    } else {
+      this.data.config.disciplinas = JSON.parse(JSON.stringify(this.data.disciplinas || []));
+    }
+    this.saveToStorage();
     this.notify({ action: 'config_updated' });
   }
 
@@ -1214,14 +1263,26 @@ class TournamentStore {
   }
 
   // Disciplines
+  setDisciplinas(disciplinas) {
+    if (Array.isArray(disciplinas)) {
+      this.data.disciplinas = disciplinas;
+      this.data.config.disciplinas = JSON.parse(JSON.stringify(disciplinas));
+      this.saveToStorage();
+      this.notify({ action: 'disciplines_updated' });
+    }
+  }
+
   addDisciplina(disc) {
     const id = disc.id || disc.nombre.toLowerCase().replace(/\s+/g, '-');
+    const avatar = disc.avatar || disc.banner || './assets/logo.png';
     const nueva = {
       id,
       nombre: disc.nombre,
       categoria: disc.categoria || 'Libre',
+      descripcion: disc.descripcion || '',
       icono: disc.icono || '🏆',
-      banner: disc.banner || './assets/logo.png',
+      avatar: avatar,
+      banner: disc.banner || avatar,
       color: disc.color || '#D4AF37',
       activa: disc.activa !== false,
       reglas: {
@@ -1233,6 +1294,8 @@ class TournamentStore {
       }
     };
     this.data.disciplinas.push(nueva);
+    this.data.config.disciplinas = JSON.parse(JSON.stringify(this.data.disciplinas));
+    this.saveToStorage();
     this.notify({ action: 'discipline_added', id });
     return nueva;
   }
@@ -1248,6 +1311,8 @@ class TournamentStore {
           ...(patch.reglas || {})
         }
       };
+      this.data.config.disciplinas = JSON.parse(JSON.stringify(this.data.disciplinas));
+      this.saveToStorage();
       this.notify({ action: 'discipline_updated', id });
       return this.data.disciplinas[idx];
     }
@@ -1258,6 +1323,8 @@ class TournamentStore {
     const disc = this.data.disciplinas.find((d) => d.id === id);
     if (disc) {
       disc.activa = !disc.activa;
+      this.data.config.disciplinas = JSON.parse(JSON.stringify(this.data.disciplinas));
+      this.saveToStorage();
       this.notify({ action: 'discipline_toggled', id });
     }
   }
@@ -1270,6 +1337,8 @@ class TournamentStore {
       if (this.data.config.disciplinaActual === id) {
         this.data.config.disciplinaActual = this.data.disciplinas[0]?.id || '';
       }
+      this.data.config.disciplinas = JSON.parse(JSON.stringify(this.data.disciplinas));
+      this.saveToStorage();
       this.notify({ action: 'discipline_deleted', id, removed });
       return true;
     }

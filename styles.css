@@ -622,6 +622,24 @@ body {
   margin-bottom: 12px;
   transition: transform 0.2s ease;
   flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.discipline-card-real-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.discipline-cover-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .discipline-card-celeste:hover .discipline-icon-circle {
@@ -2037,6 +2055,17 @@ body.inside-discipline-view .discipline-sidebar {
   box-shadow: inset 0 0 20px rgba(0, 255, 102, 0.18), 0 8px 24px rgba(0, 0, 0, 0.75);
   letter-spacing: 2px;
   margin: 0 auto;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+@keyframes scorePulseAnim {
+  0% { transform: scale(1); filter: brightness(1); }
+  40% { transform: scale(1.09); filter: brightness(1.45); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+.score-update-flash {
+  animation: scorePulseAnim 0.35s ease-out;
 }
 
 /* Botones de Acción Rápida Horizontales y Compactos (+1, +2, +3, -1) */
