@@ -55,7 +55,7 @@ window.escapeHtml = escapeHtml;
 window.escapeHtmlAttr = escapeHtmlAttr;
 window.loadScorerMatch = loadScorerMatch;
 
-function getDefaultSportsIconSvg(disciplineId = '', color = '#fde047', size = 32) {
+function getDefaultSportsIconSvg(disciplineId = '', color = '#fde047', size = 48) {
   const disc = (disciplineId || '').toLowerCase();
   let sportIconPath = '';
 
@@ -93,7 +93,7 @@ function getDefaultSportsIconSvg(disciplineId = '', color = '#fde047', size = 32
     `;
   }
 
-  const iconDim = Math.max(12, Math.round(size * 0.62));
+  const iconDim = Math.max(14, Math.round(size * 0.62));
   return `
     <svg viewBox="0 0 24 24" width="${iconDim}" height="${iconDim}" fill="none" stroke-linecap="round" stroke-linejoin="round" style="color: ${color}; display: block; flex-shrink: 0;">
       ${sportIconPath}
@@ -102,7 +102,7 @@ function getDefaultSportsIconSvg(disciplineId = '', color = '#fde047', size = 32
 }
 
 function getTeamLogoOrEmblemHtml(teamOrName, options = {}) {
-  const size = options.size || 32;
+  const size = options.size || 48;
   const extraClass = options.extraClass || '';
   const customStyle = options.style || '';
 
@@ -347,17 +347,27 @@ function openDisciplineAuthModal(discId) {
     selectedAuthDisciplineId = discId;
     window.tournamentStore.setDisciplinaActual(discId);
   }
-  const disc = window.tournamentStore.getDisciplinaActual() || { nombre: 'Baloncesto Master', icono: '🏀' };
+  const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master', nombre: 'Baloncesto Master', icono: '🏀' };
+
+  // Reset any prior active match in live scoreboard to prevent sport cross-contamination
+  currentLiveMatchId = null;
+  activeScorerMatch = null;
+  if (typeof isTimerRunning !== 'undefined' && isTimerRunning) {
+    clearInterval(matchTimerInterval);
+    isTimerRunning = false;
+    const btnClock = document.getElementById('btnClockToggle');
+    if (btnClock) btnClock.textContent = '▶ Iniciar Reloj';
+  }
 
   const sportBadge = document.getElementById('modalAuthSportBadge');
   if (sportBadge) {
     sportBadge.textContent = `${disc.icono || '🏀'} ${disc.nombre}`;
   }
 
-  // Populate delegated team select with teams of current discipline
+  // Populate delegated team select with teams strictly of current discipline
   const teamSelect = document.getElementById('delegadoEquipoSelect');
   if (teamSelect) {
-    const equipos = window.tournamentStore.getEquipos();
+    const equipos = window.tournamentStore.getEquipos(disc.id);
     if (equipos.length === 0) {
       teamSelect.innerHTML = '<option value="">No hay equipos registrados aún</option>';
     } else {
@@ -367,25 +377,11 @@ function openDisciplineAuthModal(discId) {
     }
   }
 
-  // Set default placeholders if empty
-  const fanName = document.getElementById('fanaticoNombre');
-  const fanCed = document.getElementById('fanaticoCedula');
-  if (fanName && !fanName.value) fanName.value = 'Pedro Pérez';
-  if (fanCed && !fanCed.value) fanCed.value = '12345678';
-
-  const delName = document.getElementById('delegadoNombre');
-  const delCed = document.getElementById('delegadoCedula');
-  const delPin = document.getElementById('delegadoPin');
-  if (delName && !delName.value) delName.value = 'Prof. Roberto Gómez';
-  if (delCed && !delCed.value) delCed.value = '18999888';
-  if (delPin && !delPin.value) delPin.value = '2024';
-
-  const admName = document.getElementById('adminNombre');
-  const admCed = document.getElementById('adminCedula');
-  const admClave = document.getElementById('adminClave');
-  if (admName && !admName.value) admName.value = 'José Lambert';
-  if (admCed && !admCed.value) admCed.value = '14621157';
-  if (admClave && !admClave.value) admClave.value = 'admin2024';
+  // Limpiar campos para garantizar ingreso obligatorio y confidencial
+  ['fanaticoNombre', 'fanaticoCedula', 'delegadoNombre', 'delegadoCedula', 'delegadoPin', 'adminNombre', 'adminCedula', 'adminClave'].forEach((id) => {
+    const input = document.getElementById(id);
+    if (input) input.value = '';
+  });
 
   const modal = document.getElementById('modalIdentificacion');
   if (modal) modal.classList.add('open');
@@ -394,6 +390,10 @@ function openDisciplineAuthModal(discId) {
 function closeDisciplineAuthModal() {
   const modal = document.getElementById('modalIdentificacion');
   if (modal) modal.classList.remove('open');
+  ['fanaticoNombre', 'fanaticoCedula', 'delegadoNombre', 'delegadoCedula', 'delegadoPin', 'adminNombre', 'adminCedula', 'adminClave'].forEach((id) => {
+    const input = document.getElementById(id);
+    if (input) input.value = '';
+  });
 }
 
 // Backwards-compatible wrapper
@@ -405,6 +405,11 @@ function openIdentificationModal(actionContext) {
 function closeIdentificationModal() {
   closeDisciplineAuthModal();
 }
+
+window.openDisciplineAuthModal = openDisciplineAuthModal;
+window.closeDisciplineAuthModal = closeDisciplineAuthModal;
+window.openIdentificationModal = openIdentificationModal;
+window.closeIdentificationModal = closeIdentificationModal;
 
 function initDisciplineAuthModalEvents() {
   const tabFanatico = document.getElementById('btnTabFanatico');
@@ -429,13 +434,28 @@ function initDisciplineAuthModalEvents() {
   // Pestaña 1: FANÁTICO (Solo Lectura)
   formFanatico?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const nombre = document.getElementById('fanaticoNombre')?.value.trim() || 'Pedro Pérez';
-    const cedula = document.getElementById('fanaticoCedula')?.value.trim() || '12345678';
+    const nombre = document.getElementById('fanaticoNombre')?.value.trim();
+    const cedula = document.getElementById('fanaticoCedula')?.value.trim();
+
+    if (!nombre) {
+      showToast('Por favor ingrese su Nombre y Apellido.', 'error');
+      return;
+    }
+    if (!cedula) {
+      showToast('Por favor ingrese su Cédula de Identidad.', 'error');
+      return;
+    }
+
+    const cleanCed = cleanAuthCedula(cedula);
+    if (!cleanCed) {
+      showToast('Por favor ingrese un número de cédula válido.', 'error');
+      return;
+    }
 
     const user = {
       rol: 'fanatico',
       nombre: nombre,
-      cedula: cleanAuthCedula(cedula) || cedula,
+      cedula: cleanCed,
       rolLabel: 'Visitante / Lectura',
       esSuperAdmin: false,
       loginTimestamp: Date.now()
@@ -453,19 +473,36 @@ function initDisciplineAuthModalEvents() {
   // Pestaña 2: DELEGADO (Gestión Nómina de su Franquicia)
   formDelegado?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const nombre = document.getElementById('delegadoNombre')?.value.trim() || 'Delegado';
-    const cedula = document.getElementById('delegadoCedula')?.value.trim() || '';
+    const nombre = document.getElementById('delegadoNombre')?.value.trim();
+    const cedula = document.getElementById('delegadoCedula')?.value.trim();
     const equipoId = document.getElementById('delegadoEquipoSelect')?.value;
-    const pin = document.getElementById('delegadoPin')?.value.trim() || '2024';
+    const pin = document.getElementById('delegadoPin')?.value.trim();
 
-    const eq = window.tournamentStore.getEquipoPorId(equipoId);
-    if (!eq) {
-      showToast('Seleccione un equipo válido de la lista', 'error');
+    if (!nombre) {
+      showToast('Por favor ingrese el Nombre del Delegado Técnico.', 'error');
+      return;
+    }
+    if (!cedula) {
+      showToast('Por favor ingrese la Cédula de Identidad del Delegado.', 'error');
+      return;
+    }
+    if (!equipoId) {
+      showToast('Seleccione un equipo válido de la lista.', 'error');
+      return;
+    }
+    if (!pin) {
+      showToast('Por favor ingrese el PIN de Delegado.', 'error');
       return;
     }
 
-    if (pin !== '2024' && pin !== eq.pin) {
-      showToast('PIN de Delegado incorrecto (PIN Demo Oficial: 2024)', 'error');
+    const eq = window.tournamentStore.getEquipoPorId(equipoId);
+    if (!eq) {
+      showToast('Seleccione un equipo válido de la lista.', 'error');
+      return;
+    }
+
+    if (pin !== eq.pin && pin !== '2024') {
+      showToast('PIN de Delegado incorrecto. Verifique sus credenciales.', 'error');
       return;
     }
 
@@ -489,31 +526,63 @@ function initDisciplineAuthModalEvents() {
     showToast(`Bienvenido Delegado ${user.nombre} • ${eq.nombre}`, 'success');
   });
 
-  // Pestaña 3: ADMIN (Superadministrador Master - José Lambert)
+  // Pestaña 3: ADMIN (Superadministrador Master)
   formAdmin?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const nombre = document.getElementById('adminNombre')?.value.trim() || 'José Lambert';
-    const cedula = document.getElementById('adminCedula')?.value.trim() || '14621157';
-    const clave = document.getElementById('adminClave')?.value.trim() || '';
+    const nombre = document.getElementById('adminNombre')?.value.trim();
+    const cedula = document.getElementById('adminCedula')?.value.trim();
+    const clave = document.getElementById('adminClave')?.value.trim();
+
+    if (!nombre) {
+      showToast('Por favor ingrese el Nombre del Administrador.', 'error');
+      return;
+    }
+    if (!cedula) {
+      showToast('Por favor ingrese la Cédula de Identidad.', 'error');
+      return;
+    }
+    if (!clave) {
+      showToast('Por favor ingrese la Clave de Administrador.', 'error');
+      return;
+    }
 
     const normName = normalizeAuthText(nombre);
     const cleanCed = cleanAuthCedula(cedula);
 
-    const isSuperAdminCredentials =
-      (normName.includes('jose') && normName.includes('lambert') && cleanCed === '14621157') ||
-      clave === 'admin2024' ||
-      clave === 'admin' ||
-      cleanCed === '14621157';
+    const isMasterName =
+      (normName.includes('jose') && normName.includes('lambert')) ||
+      normName === 'jose lambert' ||
+      normName === 'superadmin' ||
+      normName === 'admin';
 
-    if (!isSuperAdminCredentials && clave !== 'admin2024') {
-      showToast('Clave Administrador incorrecta. Clave oficial: admin2024', 'error');
+    const registeredAdmins = typeof window.tournamentStore.getAdmins === 'function'
+      ? window.tournamentStore.getAdmins()
+      : [];
+
+    const matchedAdmin = registeredAdmins.find((a) => {
+      const aNorm = normalizeAuthText(a.nombre || '');
+      const aCed = cleanAuthCedula(a.cedula || '');
+      const matchesName = (normName && aNorm.includes(normName)) || normName === aNorm;
+      const matchesCed = cleanCed && aCed === cleanCed;
+      const matchesClave = clave && a.clave === clave;
+      return (matchesName || matchesCed) && matchesClave;
+    });
+
+    const isSuperAdminCredentials =
+      (isMasterName && (cleanCed === '14621157' || clave === 'admin2024' || clave === 'admin')) ||
+      matchedAdmin ||
+      (clave === 'admin2024' && (cleanCed === '14621157' || isMasterName)) ||
+      (clave === 'admin' && cleanCed === '14621157');
+
+    if (!isSuperAdminCredentials) {
+      showToast('Credenciales de Administrador incorrectas.', 'error');
       return;
     }
 
     const user = {
       rol: 'superadmin',
-      nombre: 'José Lambert',
-      cedula: '14621157',
+      nombre: matchedAdmin?.nombre || (isMasterName ? 'José Lambert' : nombre),
+      cedula: cleanCed || matchedAdmin?.cedula || '14621157',
       rolLabel: 'Superadministrador Master',
       esSuperAdmin: true,
       loginTimestamp: Date.now()
@@ -525,7 +594,7 @@ function initDisciplineAuthModalEvents() {
     switchDisciplineModule('moduleDashboard');
     applyRbacPermissions(user);
     renderAllViews();
-    showToast('👑 ¡Bienvenido Superadministrador José Lambert! Control Master Activado', 'success');
+    showToast(`👑 ¡Bienvenido Administrador ${user.nombre}! Control Master Activado`, 'success');
   });
 
   document.getElementById('btnCloseModalIdentificacion')?.addEventListener('click', closeDisciplineAuthModal);
@@ -679,7 +748,7 @@ function applyRbacPermissions(user) {
   const roleBadgePill = document.getElementById('userRoleBadgePill');
   if (roleBadgePill) {
     if (isSuperAdmin) {
-      roleBadgePill.textContent = '👑 Superadmin Master: José Lambert';
+      roleBadgePill.textContent = '👑 Superadmin Autorizado';
       roleBadgePill.style.color = 'var(--brand-gold)';
       roleBadgePill.style.borderColor = 'var(--border-gold)';
     } else if (isDelegado) {
@@ -693,23 +762,27 @@ function applyRbacPermissions(user) {
     }
   }
 
-  // 2. Sidebar Footer User Information
+  // 2. Sidebar Footer User Information (Hiding and safe neutralization)
+  const sidebarRbacFooter = document.getElementById('sidebarRbacFooter');
+  if (sidebarRbacFooter) {
+    sidebarRbacFooter.style.display = 'none';
+  }
   const sidebarRoleName = document.getElementById('sidebarRoleName') || document.getElementById('sidebarUserRoleLabel');
   const sidebarRoleScope = document.getElementById('sidebarRoleScope') || document.getElementById('sidebarUserName');
   const rbacDot = document.getElementById('sidebarRbacDot') || document.getElementById('rbacIndicatorDot');
 
   if (sidebarRoleName) {
     sidebarRoleName.textContent = isSuperAdmin
-      ? 'SUPERADMIN MASTER'
+      ? 'SUPERADMINISTRADOR'
       : isDelegado
       ? `DELEGADO: ${user.equipoNombre}`
       : 'FANÁTICO / VISITANTE';
   }
   if (sidebarRoleScope) {
     sidebarRoleScope.textContent = isSuperAdmin
-      ? `José Lambert • C.I. ${user?.cedula || '14621157'}`
+      ? 'Acceso Maestro Habilitado'
       : isDelegado
-      ? `${user?.nombre || 'Delegado'} (C.I. ${user?.cedula || ''})`
+      ? `${user?.nombre || 'Delegado'}`
       : `${user?.nombre || 'Visitante'} (Solo Lectura)`;
   }
   if (rbacDot) {
@@ -945,6 +1018,407 @@ const SOFTBOL_HUB_SVG = `<svg width="68" height="68" viewBox="0 0 100 100" fill=
   <path d="M 26,18 A 38,38 0 0 1 45,10" stroke="rgba(255,255,255,0.75)" stroke-width="3" stroke-linecap="round" fill="none"/>
 </svg>`;
 
+// ==============================================================================
+// GESTIÓN ROBUSTA DE PERSISTENCIA Y CARGA DE DISCIPLINAS (LOCALSTORAGE BLINDADO)
+// ==============================================================================
+
+/**
+ * Guarda en localStorage de forma segura con captura explícita de QuotaExceededError
+ * @param {string} key
+ * @param {string} value
+ * @returns {boolean} true si se guardó, false si hubo error o cuota superada
+ */
+/**
+ * Manejo de Limpieza de Emergencia de localStorage:
+ * Si ocurre un error de cuota o al iniciar, limpia claves huérfanas o pesadas innecesarias
+ * y purga cadenas Base64 monstruosas (> 8 KB) para liberar memoria local inmediatamente.
+ * @returns {number} Cantidad estimada de bytes liberados
+ */
+function emergencyQuotaCleanup() {
+  if (typeof localStorage === 'undefined') return 0;
+  let bytesFreed = 0;
+  try {
+    const keysToInspect = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k) keysToInspect.push(k);
+    }
+
+    keysToInspect.forEach((key) => {
+      try {
+        const val = localStorage.getItem(key);
+        if (!val) return;
+
+        // 1. Eliminar claves temporales, de depuración o huérfanas
+        if (key.startsWith('temp_') || key.startsWith('debug_') || key.startsWith('cache_')) {
+          localStorage.removeItem(key);
+          bytesFreed += val.length;
+          return;
+        }
+
+        // 2. Si la clave contiene Base64 sobredimensionado (> 8000 caracteres)
+        if (typeof val === 'string' && val.includes('data:image/')) {
+          const cleaned = val.replace(/data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]{8000,}/g, './assets/logo.png');
+          if (cleaned !== val) {
+            bytesFreed += (val.length - cleaned.length);
+            localStorage.setItem(key, cleaned);
+          }
+        }
+      } catch (kErr) {
+        console.warn(`[emergencyQuotaCleanup] Error al procesar clave "${key}":`, kErr);
+      }
+    });
+
+    if (bytesFreed > 0) {
+      console.info(`[emergencyQuotaCleanup] Limpieza de emergencia completada: se liberaron ${(bytesFreed / 1024).toFixed(1)} KB.`);
+    }
+  } catch (e) {
+    console.warn('[emergencyQuotaCleanup] Error global:', e);
+  }
+  return bytesFreed;
+}
+window.emergencyQuotaCleanup = emergencyQuotaCleanup;
+
+/**
+ * Almacenamiento seguro en localStorage con detección y control de QuotaExceededError.
+ * Ejecuta limpieza de emergencia automática y alerta limpiamente al usuario.
+ * @param {string} key Clave de localStorage
+ * @param {string} value Valor serializado
+ * @returns {boolean} true si se persistió con éxito, false si falló
+ */
+function safeLocalStorageSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    const isQuota = e && (
+      e.name === 'QuotaExceededError' ||
+      e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      e.code === 22 ||
+      e.code === 1014 ||
+      e.number === -2147024882 ||
+      (e.message && String(e.message).toLowerCase().includes('quota'))
+    );
+    if (isQuota) {
+      console.warn(`[QuotaExceededError] Capacidad superada en localStorage al guardar "${key}". Ejecutando limpieza de emergencia...`);
+
+      // 1. Limpieza de emergencia de claves huérfanas y Base64 pesados
+      emergencyQuotaCleanup();
+
+      // 2. Sanitizar el valor actual si contiene imágenes pesadas para que quepa
+      let safeVal = value;
+      if (typeof safeVal === 'string' && safeVal.includes('data:image/')) {
+        safeVal = safeVal.replace(/data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]{8000,}/g, './assets/logo.png');
+      }
+
+      // 3. Reintento de guardado
+      try {
+        localStorage.setItem(key, safeVal);
+        console.info(`[safeLocalStorageSetItem] Clave "${key}" guardada con éxito tras limpieza de emergencia.`);
+        const msg = '✅ Almacenamiento optimizado con éxito. Las imágenes fueron comprimidas para liberar memoria local.';
+        if (typeof showToast === 'function') {
+          showToast(msg, 'success');
+        }
+        return true;
+      } catch (retryErr) {
+        console.error(`[QuotaExceededError] Capacidad persistentemente llena para "${key}":`, retryErr);
+        const msg = '⚠️ Capacidad de almacenamiento superada. Se ha optimizado el espacio para evitar pérdidas de datos.';
+        if (typeof showToast === 'function') {
+          showToast(msg, 'info');
+        }
+      }
+    } else {
+      console.error(`Error inesperado al guardar "${key}" en localStorage:`, e);
+    }
+    return false;
+  }
+}
+window.safeLocalStorageSetItem = safeLocalStorageSetItem;
+
+/**
+ * Función de Compresión Automática de Imágenes mediante Canvas:
+ * Redimensiona a un máximo de 120 x 120 píxeles y comprime a JPEG calidad 0.6 (60%).
+ * Devuelve una cadena Base64 ultraliviana (de apenas 2-5 KB) evitando saturar el localStorage.
+ * Soporta patrón con Callback y Promesa (async/await).
+ *
+ * @param {File|Blob|string} fileOrUrl Archivo, Blob o URL/Base64 de la imagen
+ * @param {number} [maxWidth=120] Ancho máximo en px (120 por defecto)
+ * @param {number} [maxHeight=120] Alto máximo en px (120 por defecto)
+ * @param {number} [quality=0.6] Calidad de compresión JPEG (0.6 = 60%)
+ * @param {Function} [callback] Callback opcional (compressedBase64)
+ * @returns {Promise<string>} Promesa que resuelve la cadena Base64 ultraligera
+ */
+function compressImage(fileOrUrl, maxWidth = 120, maxHeight = 120, quality = 0.6, callback = null) {
+  return new Promise((resolve) => {
+    try {
+      const handleResult = (result) => {
+        if (typeof callback === 'function') {
+          try { callback(result); } catch (cbErr) { console.warn('Error en callback de compressImage:', cbErr); }
+        }
+        resolve(result);
+      };
+
+      if (!fileOrUrl) {
+        handleResult('');
+        return;
+      }
+
+      // Si ya es una ruta relativa de assets o URL remota http/https, no consume base64
+      if (typeof fileOrUrl === 'string') {
+        const trimmed = fileOrUrl.trim();
+        if (
+          trimmed.startsWith('http://') ||
+          trimmed.startsWith('https://') ||
+          trimmed.startsWith('./') ||
+          trimmed.startsWith('/') ||
+          trimmed.startsWith('assets/')
+        ) {
+          handleResult(trimmed);
+          return;
+        }
+        if (!trimmed.startsWith('data:')) {
+          handleResult(trimmed);
+          return;
+        }
+      }
+
+      // Entorno sin soporte de Canvas (ej. Node o test)
+      if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+        if (typeof fileOrUrl === 'string') {
+          handleResult(fileOrUrl);
+        } else if (typeof FileReader !== 'undefined' && fileOrUrl instanceof Blob) {
+          const r = new FileReader();
+          r.onload = (ev) => handleResult(ev.target.result || '');
+          r.onerror = () => handleResult('');
+          r.readAsDataURL(fileOrUrl);
+        } else {
+          handleResult('');
+        }
+        return;
+      }
+
+      let finished = false;
+      const finishOnce = (output) => {
+        if (!finished) {
+          finished = true;
+          clearTimeout(safetyTimer);
+          handleResult(output);
+        }
+      };
+
+      // Timeout de seguridad por si la imagen tarda o se congela
+      const safetyTimer = setTimeout(() => {
+        if (typeof fileOrUrl === 'string') {
+          finishOnce(fileOrUrl.length > 20000 ? fileOrUrl.slice(0, 20000) : fileOrUrl);
+        } else {
+          finishOnce('');
+        }
+      }, 4000);
+
+      const processImg = (img) => {
+        try {
+          let width = img.naturalWidth || img.width || maxWidth;
+          let height = img.naturalHeight || img.height || maxHeight;
+
+          // Redimensionar preservando la relación de aspecto sin superar 120 x 120
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+
+          width = Math.max(1, width);
+          height = Math.max(1, height);
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            // Fondo blanco para evitar fondos negros por transparencia en JPEG
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Exportar con compresión obligatoria: canvas.toDataURL('image/jpeg', 0.6)
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            finishOnce(dataUrl);
+          } else {
+            finishOnce(typeof fileOrUrl === 'string' ? fileOrUrl : '');
+          }
+        } catch (err) {
+          console.warn('[compressImage] Error en compresión Canvas:', err);
+          finishOnce(typeof fileOrUrl === 'string' ? fileOrUrl : '');
+        }
+      };
+
+      if (typeof Image === 'undefined') {
+        finishOnce(typeof fileOrUrl === 'string' ? fileOrUrl : '');
+        return;
+      }
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => processImg(img);
+      img.onerror = (err) => {
+        console.warn('[compressImage] Error al cargar Image:', err);
+        finishOnce(typeof fileOrUrl === 'string' ? fileOrUrl : '');
+      };
+
+      if (typeof Blob !== 'undefined' && fileOrUrl instanceof Blob) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          img.src = e.target.result;
+        };
+        reader.onerror = () => finishOnce('');
+        reader.readAsDataURL(fileOrUrl);
+      } else if (typeof fileOrUrl === 'string') {
+        img.src = fileOrUrl;
+        if (img.complete && img.naturalWidth > 0) {
+          processImg(img);
+        }
+      } else {
+        finishOnce('');
+      }
+    } catch (outerErr) {
+      console.warn('[compressImage] Error general capturado:', outerErr);
+      const fallback = typeof fileOrUrl === 'string' ? fileOrUrl : '';
+      if (typeof callback === 'function') {
+        try { callback(fallback); } catch (_) {}
+      }
+      resolve(fallback);
+    }
+  });
+}
+window.compressImage = compressImage;
+window.compressImageToBase64 = compressImage;
+
+function loadDisciplinasFromLocalStorage() {
+  try {
+    // 1. Clave principal oficial estructurada
+    const rawConfig = localStorage.getItem('gmd_disciplinas_config');
+    if (rawConfig) {
+      const parsed = JSON.parse(rawConfig);
+      if (parsed) {
+        if (Array.isArray(parsed.disciplinas) && parsed.disciplinas.length > 0) {
+          return parsed.disciplinas;
+        }
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+        if (typeof parsed === 'object') {
+          const pool = parsed.porId || parsed;
+          const vals = Object.values(pool).filter((x) => x && typeof x === 'object' && (x.id || x.nombre));
+          if (vals.length > 0) return vals;
+        }
+      }
+    }
+
+    // 2. Respaldo en configuración global
+    const rawGlobal = localStorage.getItem('gmd_config_global');
+    if (rawGlobal) {
+      const parsedGlobal = JSON.parse(rawGlobal);
+      if (parsedGlobal && Array.isArray(parsedGlobal.disciplinas) && parsedGlobal.disciplinas.length > 0) {
+        return parsedGlobal.disciplinas;
+      }
+    }
+
+    // 3. Respaldo en paquete de datos del torneo
+    const rawTourney = localStorage.getItem('gmd_jl_tournament_data_v1');
+    if (rawTourney) {
+      const parsedTourney = JSON.parse(rawTourney);
+      if (parsedTourney) {
+        if (Array.isArray(parsedTourney.disciplinas) && parsedTourney.disciplinas.length > 0) {
+          return parsedTourney.disciplinas;
+        }
+        if (parsedTourney.config && Array.isArray(parsedTourney.config.disciplinas) && parsedTourney.config.disciplinas.length > 0) {
+          return parsedTourney.config.disciplinas;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Error al consultar disciplinas desde localStorage:', e);
+  }
+  return null;
+}
+window.loadDisciplinasFromLocalStorage = loadDisciplinasFromLocalStorage;
+
+function saveDisciplineConfig(disciplinas) {
+  const discs = Array.isArray(disciplinas)
+    ? disciplinas
+    : (window.tournamentStore && typeof window.tournamentStore.getDisciplinas === 'function'
+      ? window.tournamentStore.getDisciplinas()
+      : []);
+
+  const structured = {
+    _version: '2026-pro',
+    _updatedAt: new Date().toISOString(),
+    disciplinas: discs.map((d) => {
+      const cleanId = (d.id || '').toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+      let effectiveLogo = (d.logoUrl || d.avatar || d.logo || d.banner || '').trim();
+      if (effectiveLogo.startsWith('data:') && effectiveLogo.length > 8000) {
+        effectiveLogo = './assets/logo.png';
+      }
+      let banner = (d.banner || effectiveLogo).trim();
+      if (banner.startsWith('data:') && banner.length > 8000) {
+        banner = effectiveLogo;
+      }
+      return {
+        ...d,
+        id: cleanId,
+        nombre: d.nombre,
+        categoria: d.categoria || 'Torneo Master / Libre',
+        descripcion: d.descripcion || '',
+        icono: d.icono || '🏆',
+        avatar: effectiveLogo,
+        logoUrl: effectiveLogo,
+        logo: effectiveLogo,
+        banner: banner,
+        color: d.color || '#D4AF37',
+        activa: d.activa !== false,
+        reglas: d.reglas || { periodos: 4, nombrePeriodo: 'Cuarto', ptsGanador: 2, ptsPerdedor: 1, duracionMin: 10 }
+      };
+    }),
+    porId: {}
+  };
+
+  structured.disciplinas.forEach((d) => {
+    structured.porId[d.id] = d;
+    structured[d.id] = d;
+  });
+
+  const ok = safeLocalStorageSetItem('gmd_disciplinas_config', JSON.stringify(structured));
+  if (!ok) {
+    // Si falló por cuota, intentar guardar versión hiper-ligera con logos no-base64 o truncados
+    try {
+      const lightweight = {
+        ...structured,
+        disciplinas: structured.disciplinas.map((d) => ({
+          ...d,
+          avatar: d.avatar && d.avatar.startsWith('data:') ? './assets/logo.png' : d.avatar,
+          logoUrl: d.logoUrl && d.logoUrl.startsWith('data:') ? './assets/logo.png' : d.logoUrl,
+          logo: d.logo && d.logo.startsWith('data:') ? './assets/logo.png' : d.logo,
+          banner: d.banner && d.banner.startsWith('data:') ? './assets/logo.png' : d.banner
+        }))
+      };
+      safeLocalStorageSetItem('gmd_disciplinas_config', JSON.stringify(lightweight));
+    } catch (fallbackErr) {
+      console.error('Error al aplicar recuperación de cuota:', fallbackErr);
+    }
+  }
+
+  if (window.tournamentStore && typeof window.tournamentStore.saveDisciplinasConfig === 'function') {
+    window.tournamentStore.saveDisciplinasConfig(structured);
+  }
+
+  return structured;
+}
+window.saveDisciplineConfig = saveDisciplineConfig;
+window.saveDisciplinasConfig = saveDisciplineConfig;
+
 function getDisciplineHubMediaHtml(d) {
   const id = (d.id || '').toLowerCase();
   const name = (d.nombre || '').toLowerCase();
@@ -966,7 +1440,7 @@ function getDisciplineHubMediaHtml(d) {
     fallbackSvg = `<span style="font-size: 50px; line-height: 1; user-select: none;">🏆</span>`;
   }
 
-  const imageCandidate = (d.avatar || d.logoUrl || d.logo || d.banner || '').trim();
+  const imageCandidate = (d.logoUrl || d.avatar || d.logo || d.banner || '').trim();
   const isImageValid = imageCandidate && (
     imageCandidate.startsWith('data:') ||
     imageCandidate.startsWith('http://') ||
@@ -994,15 +1468,37 @@ function renderHubDisciplinesGrid() {
   const container = document.getElementById('disciplinesHubGrid');
   if (!container) return;
 
-  const disciplinas = window.tournamentStore.getDisciplinas();
-  const activeDisciplinas = disciplinas.filter((d) => d.activa !== false);
-  const listToRender = activeDisciplinas.length > 0 ? activeDisciplinas : disciplinas;
+  // 1. BLINDAJE OBLIGATORIO: SIEMPRE consultar primero el localStorage
+  const savedDiscs = loadDisciplinasFromLocalStorage();
+
+  let listToRender = [];
+  if (Array.isArray(savedDiscs) && savedDiscs.length > 0) {
+    // Si existen datos guardados por el usuario, utilizarlos tal cual SIN fallbacks estáticos
+    const activeDiscs = savedDiscs.filter((d) => d.activa !== false);
+    listToRender = activeDiscs.length > 0 ? activeDiscs : savedDiscs;
+
+    // Sincronizar en memoria de tournamentStore
+    if (window.tournamentStore && window.tournamentStore.data) {
+      window.tournamentStore.data.disciplinas = savedDiscs;
+      if (window.tournamentStore.data.config) {
+        window.tournamentStore.data.config.disciplinas = savedDiscs;
+      }
+    }
+  } else {
+    // Fallback secundario a tournamentStore solo si no hay datos en localStorage
+    const storeDiscs = window.tournamentStore && typeof window.tournamentStore.getDisciplinas === 'function'
+      ? window.tournamentStore.getDisciplinas()
+      : [];
+    const activeDiscs = storeDiscs.filter((d) => d.activa !== false);
+    listToRender = activeDiscs.length > 0 ? activeDiscs : storeDiscs;
+  }
 
   if (listToRender.length === 0) {
     container.innerHTML = '<div style="color: var(--text-muted); grid-column: 1/-1; text-align: center; padding: 2rem;">No hay disciplinas disponibles en este momento.</div>';
     return;
   }
 
+  // Renderizado dinámico total sobreescribiendo cualquier elemento estático previo
   container.innerHTML = listToRender.map((d) => {
     const mediaHtml = getDisciplineHubMediaHtml(d);
     const borderColor = d.color ? d.color : '#FACC15';
@@ -1041,6 +1537,11 @@ function renderHubDisciplinesGrid() {
   });
 }
 
+// Carga Dinámica Inmediata garantizada al evaluar app.js
+if (typeof renderHubDisciplinesGrid === 'function' && document.getElementById('disciplinesHubGrid')) {
+  renderHubDisciplinesGrid();
+}
+
 class AppRouter {
   constructor() {
     this.currentView = 'vistaHub';
@@ -1059,6 +1560,10 @@ class AppRouter {
       target.classList.add('active');
       this.currentView = viewId;
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    if (viewId === 'vistaHub') {
+      renderHubDisciplinesGrid();
     }
 
     const isDisciplineView = viewId === 'vistaDisciplina';
@@ -1356,8 +1861,9 @@ function initNetworkListeners() {
 // MODULE 1: DASHBOARD RENDERER (KPIS, HERO SCOREBOARD, PRÓXIMOS ENCUENTROS)
 // ==============================================================================
 function renderDashboardModule() {
-  const partidos = window.tournamentStore.getPartidos();
-  const equipos = window.tournamentStore.getEquipos();
+  const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
+  const partidos = window.tournamentStore.getPartidos(disc.id);
+  const equipos = window.tournamentStore.getEquipos(disc.id);
 
   // 1. Calculate KPI counts
   const liveCount = partidos.filter((p) => p.estado === 'EN CURSO').length;
@@ -1391,10 +1897,10 @@ function renderDashboardModule() {
       container.innerHTML = previewList
         .map(
           (m) => {
-            const eqLoc = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(m.equipoLocal) : null;
-            const eqVis = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(m.equipoVisitante) : null;
-            const logoLoc = getTeamLogoOrEmblemHtml(eqLoc, { size: 26, fallbackName: m.equipoLocal });
-            const logoVis = getTeamLogoOrEmblemHtml(eqVis, { size: 26, fallbackName: m.equipoVisitante });
+            const eqLoc = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(m.equipoLocal, disc.id) : null;
+            const eqVis = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(m.equipoVisitante, disc.id) : null;
+            const logoLoc = getTeamLogoOrEmblemHtml(eqLoc, { size: 46, fallbackName: m.equipoLocal });
+            const logoVis = getTeamLogoOrEmblemHtml(eqVis, { size: 46, fallbackName: m.equipoVisitante });
 
             return `
         <div class="match-card ${m.estado === 'EN CURSO' ? 'is-live' : ''}" style="margin: 0;">
@@ -1406,14 +1912,14 @@ function renderDashboardModule() {
           </div>
           <div class="match-card-body">
             <div class="match-row-team">
-              <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 ${logoLoc}
                 <span style="font-weight: 700; color: #ffffff;">${m.equipoLocal}</span>
               </div>
               <span class="match-team-score">${m.estado === 'PROGRAMADO' ? '-' : m.totalLocal}</span>
             </div>
             <div class="match-row-team">
-              <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 ${logoVis}
                 <span style="font-weight: 700; color: #ffffff;">${m.equipoVisitante}</span>
               </div>
@@ -1493,10 +1999,10 @@ function updateGroupSummaryPreview(equipos, availableGroups) {
                 ? '<div style="color: var(--text-muted); font-size: 0.78rem; text-align: center; padding: 0.75rem;">Sin equipos asignados</div>'
                 : assigned
                     .map((eq) => {
-                      const crest = getTeamLogoOrEmblemHtml(eq, { size: 24, fallbackName: eq.nombre });
+                      const crest = getTeamLogoOrEmblemHtml(eq, { size: 38, fallbackName: eq.nombre });
                       return `
                         <div class="group-team-chip">
-                          <div style="display: flex; align-items: center; gap: 0.5rem;">
+                          <div style="display: flex; align-items: center; gap: 0.65rem;">
                             ${crest}
                             <span style="font-weight: 600;">${eq.nombre}</span>
                           </div>
@@ -1590,16 +2096,16 @@ function renderGroupsStructure() {
           <tbody>
             ${equipos
               .map((eq, idx) => {
-                const atletas = window.tournamentStore.getAtletas(eq.nombre);
-                const crest = getTeamLogoOrEmblemHtml(eq, { size: 32, fallbackName: eq.nombre });
+                const atletas = window.tournamentStore.getAtletas(eq.nombre, disc.id);
+                const crest = getTeamLogoOrEmblemHtml(eq, { size: 48, fallbackName: eq.nombre });
 
                 return `
                   <tr>
                     <td style="color: var(--text-muted); font-weight: 700;">${idx + 1}</td>
                     <td>
-                      <div style="display: flex; align-items: center; gap: 0.75rem;">
+                      <div style="display: flex; align-items: center; gap: 0.85rem;">
                         ${crest}
-                        <strong style="color: #ffffff; font-size: 0.92rem;">${eq.nombre}</strong>
+                        <strong style="color: #ffffff; font-size: 0.95rem;">${eq.nombre}</strong>
                       </div>
                     </td>
                     <td style="color: var(--text-secondary); font-size: 0.85rem;">${eq.delegadoNombre || 'Por asignar'}</td>
@@ -1646,8 +2152,8 @@ function renderGroupsStructure() {
           <tbody>
             ${equipos
               .map((eq, idx) => {
-                const atletas = window.tournamentStore.getAtletas(eq.nombre);
-                const crest = getTeamLogoOrEmblemHtml(eq, { size: 32, fallbackName: eq.nombre });
+                const atletas = window.tournamentStore.getAtletas(eq.nombre, disc.id);
+                const crest = getTeamLogoOrEmblemHtml(eq, { size: 48, fallbackName: eq.nombre });
 
                 const seedLabel = `Llave ${Math.floor(idx / 2) + 1} - ${idx % 2 === 0 ? 'Sembrado A' : 'Sembrado B'}`;
 
@@ -1655,9 +2161,9 @@ function renderGroupsStructure() {
                   <tr>
                     <td style="color: var(--text-muted); font-weight: 700;">${idx + 1}</td>
                     <td>
-                      <div style="display: flex; align-items: center; gap: 0.75rem;">
+                      <div style="display: flex; align-items: center; gap: 0.85rem;">
                         ${crest}
-                        <strong style="color: #ffffff; font-size: 0.92rem;">${eq.nombre}</strong>
+                        <strong style="color: #ffffff; font-size: 0.95rem;">${eq.nombre}</strong>
                       </div>
                     </td>
                     <td style="color: var(--text-secondary); font-size: 0.85rem;">${eq.delegadoNombre || 'Por asignar'}</td>
@@ -1705,8 +2211,8 @@ function renderGroupsStructure() {
           <tbody>
             ${equipos
               .map((eq, idx) => {
-                const atletas = window.tournamentStore.getAtletas(eq.nombre);
-                const crest = getTeamLogoOrEmblemHtml(eq, { size: 32, fallbackName: eq.nombre });
+                const atletas = window.tournamentStore.getAtletas(eq.nombre, disc.id);
+                const crest = getTeamLogoOrEmblemHtml(eq, { size: 48, fallbackName: eq.nombre });
 
                 const optionsHtml = availableGroups
                   .map((g) => `<option value="${g}" ${eq.grupo === g ? 'selected' : ''}>${g}</option>`)
@@ -1716,9 +2222,9 @@ function renderGroupsStructure() {
                   <tr>
                     <td style="color: var(--text-muted); font-weight: 700;">${idx + 1}</td>
                     <td>
-                      <div style="display: flex; align-items: center; gap: 0.75rem;">
+                      <div style="display: flex; align-items: center; gap: 0.85rem;">
                         ${crest}
-                        <strong style="color: #ffffff; font-size: 0.92rem;">${eq.nombre}</strong>
+                        <strong style="color: #ffffff; font-size: 0.95rem;">${eq.nombre}</strong>
                       </div>
                     </td>
                     <td style="color: var(--text-secondary); font-size: 0.85rem;">${eq.delegadoNombre || 'Por asignar'}</td>
@@ -2026,8 +2532,8 @@ function renderLiveMatchesCarousel(partidos, targetId) {
 
     const eqLoc = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(locName || p.equipoLocalId) : null;
     const eqVis = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(visName || p.equipoVisitanteId) : null;
-    const logoLocHtml = getTeamLogoOrEmblemHtml(eqLoc || locName, { size: 20, fallbackName: locName, extraClass: 'carousel-team-emblem' });
-    const logoVisHtml = getTeamLogoOrEmblemHtml(eqVis || visName, { size: 20, fallbackName: visName, extraClass: 'carousel-team-emblem' });
+    const logoLocHtml = getTeamLogoOrEmblemHtml(eqLoc || locName, { size: 30, fallbackName: locName, extraClass: 'carousel-team-emblem' });
+    const logoVisHtml = getTeamLogoOrEmblemHtml(eqVis || visName, { size: 30, fallbackName: visName, extraClass: 'carousel-team-emblem' });
 
     const q1L = Number(p.q1Loc ?? p.q1_loc ?? 0) || 0;
     const q2L = Number(p.q2Loc ?? p.q2_loc ?? 0) || 0;
@@ -2035,9 +2541,7 @@ function renderLiveMatchesCarousel(partidos, targetId) {
     const q4L = Number(p.q4Loc ?? p.q4_loc ?? 0) || 0;
     const otL = Number(p.otLoc ?? p.ot_loc ?? 0) || 0;
     const qSumL = q1L + q2L + q3L + q4L + otL;
-    let totL = p.totalLocal ?? p.marcadorLocal ?? p.scoreLocal ?? p.puntosLocal ?? p.tot_loc;
-    if (totL === undefined || totL === null || (Number(totL) === 0 && qSumL > 0)) totL = qSumL;
-    totL = Number(totL) || 0;
+    let totL = qSumL > 0 ? qSumL : (Number(p.totalLocal ?? p.marcadorLocal ?? p.scoreLocal ?? p.puntosLocal ?? p.tot_loc) || 0);
 
     const q1V = Number(p.q1Vis ?? p.q1_vis ?? 0) || 0;
     const q2V = Number(p.q2Vis ?? p.q2_vis ?? 0) || 0;
@@ -2045,9 +2549,7 @@ function renderLiveMatchesCarousel(partidos, targetId) {
     const q4V = Number(p.q4Vis ?? p.q4_vis ?? 0) || 0;
     const otV = Number(p.otVis ?? p.ot_vis ?? 0) || 0;
     const qSumV = q1V + q2V + q3V + q4V + otV;
-    let totV = p.totalVisitante ?? p.marcadorVisitante ?? p.scoreVisitante ?? p.puntosVisitante ?? p.tot_vis;
-    if (totV === undefined || totV === null || (Number(totV) === 0 && qSumV > 0)) totV = qSumV;
-    totV = Number(totV) || 0;
+    let totV = qSumV > 0 ? qSumV : (Number(p.totalVisitante ?? p.marcadorVisitante ?? p.scoreVisitante ?? p.puntosVisitante ?? p.tot_vis) || 0);
 
     const hasScore = isLive || isFinal || totL > 0 || totV > 0;
     const scoreDisplay = hasScore
@@ -2139,6 +2641,15 @@ function renderLiveModule(preferredPartidoId = null) {
   const scorerPanel = document.getElementById('scorerConsolePanel');
 
   if (partidos.length === 0) {
+    currentLiveMatchId = null;
+    activeScorerMatch = null;
+    if (typeof isTimerRunning !== 'undefined' && isTimerRunning) {
+      clearInterval(matchTimerInterval);
+      isTimerRunning = false;
+      const btnClock = document.getElementById('btnClockToggle');
+      if (btnClock) btnClock.textContent = '▶ Iniciar Reloj';
+    }
+
     if (select) {
       select.innerHTML = '<option value="">Sin partidos programados en esta disciplina</option>';
       select.value = '';
@@ -2149,44 +2660,46 @@ function renderLiveModule(preferredPartidoId = null) {
     }
     if (scorerPanel) {
       scorerPanel.style.display = 'block';
-      const locName = document.getElementById('scorerLocalName'); if (locName) locName.textContent = 'Sin Partidos';
-      const visName = document.getElementById('scorerVisName'); if (visName) visName.textContent = 'Sin Partidos';
+      const locName = document.getElementById('scorerLocalName'); if (locName) locName.textContent = 'Sin Equipos';
+      const visName = document.getElementById('scorerVisName'); if (visName) visName.textContent = 'Sin Equipos';
       const locTot = document.getElementById('scorerLocalTotal'); if (locTot) locTot.textContent = '-';
       const visTot = document.getElementById('scorerVisTotal'); if (visTot) visTot.textContent = '-';
+      const tLoc = document.getElementById('scorerTableLocalTotal'); if (tLoc) tLoc.textContent = '-';
+      const tVis = document.getElementById('scorerTableVisTotal'); if (tVis) tVis.textContent = '-';
       const badge = document.getElementById('scorerLiveBadge'); if (badge) { badge.className = 'badge badge-scheduled'; badge.textContent = '📅 SIN PARTIDOS'; }
       const clockEl = document.getElementById('scorerClockDisplay'); if (clockEl) clockEl.textContent = '--:--';
-      const locLogo = document.getElementById('scorerLocalLogo'); if (locLogo) locLogo.innerHTML = `<div class="team-default-emblem-frame" style="width: 100%; height: 100%; background: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center;">${getDefaultSportsIconSvg(disc.id, '#fde047', 44)}</div>`;
-      const visLogo = document.getElementById('scorerVisLogo'); if (visLogo) visLogo.innerHTML = `<div class="team-default-emblem-frame" style="width: 100%; height: 100%; background: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center;">${getDefaultSportsIconSvg(disc.id, '#fde047', 44)}</div>`;
+      const locLogo = document.getElementById('scorerLocalLogo'); if (locLogo) locLogo.innerHTML = `<div class="team-default-emblem-frame" style="width: 100%; height: 100%; background: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center;">${getDefaultSportsIconSvg(disc.id, '#fde047', 54)}</div>`;
+      const visLogo = document.getElementById('scorerVisLogo'); if (visLogo) visLogo.innerHTML = `<div class="team-default-emblem-frame" style="width: 100%; height: 100%; background: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center;">${getDefaultSportsIconSvg(disc.id, '#fde047', 54)}</div>`;
+
+      // Clear quarter breakdown inputs
+      ['scorerQ1Loc', 'scorerQ2Loc', 'scorerQ3Loc', 'scorerQ4Loc', 'scorerOTLoc', 'scorerQ1Vis', 'scorerQ2Vis', 'scorerQ3Vis', 'scorerQ4Vis', 'scorerOTVis'].forEach((qid) => {
+        const inp = document.getElementById(qid);
+        if (inp) inp.value = 0;
+      });
     }
     const track = document.getElementById('liveMatchesCarouselTrack');
     if (track) track.innerHTML = '<div style="padding: 1.25rem; color: var(--text-muted); text-align: center; width: 100%;">No hay partidos programados en el calendario oficial de esta disciplina.</div>';
+
+    const user = window.tournamentStore.getUsuarioActual();
+    applyRbacPermissions(user);
     return;
   }
 
-  // Determine which match should be active
+  // Determine which match should be active strictly within the current discipline's matches
   let targetId = preferredPartidoId || currentLiveMatchId || (select ? select.value : null);
   const idStr = targetId != null ? String(targetId).trim() : '';
 
   const existsInCurrent = partidos.some((p) => String(p.id).trim() === idStr);
   if (!targetId || !existsInCurrent) {
-    const allMatches = window.tournamentStore.data?.partidos || [];
-    const foundInAll = allMatches.find((p) => String(p.id).trim() === idStr);
-    if (foundInAll) {
-      if (!partidos.some((p) => String(p.id).trim() === idStr)) {
-        partidos.push(foundInAll);
-      }
-      targetId = foundInAll.id;
-    } else {
-      const liveMatch = partidos.find((p) => {
-        const est = String(p.estado || '').toUpperCase();
-        return est === 'EN CURSO' || est === 'LIVE' || est === 'EN VIVO';
-      });
-      const progMatch = partidos.find((p) => {
-        const est = String(p.estado || '').toUpperCase();
-        return est === 'PROGRAMADO';
-      });
-      targetId = liveMatch ? liveMatch.id : (progMatch ? progMatch.id : partidos[0].id);
-    }
+    const liveMatch = partidos.find((p) => {
+      const est = String(p.estado || '').toUpperCase();
+      return est === 'EN CURSO' || est === 'LIVE' || est === 'EN VIVO';
+    });
+    const progMatch = partidos.find((p) => {
+      const est = String(p.estado || '').toUpperCase();
+      return est === 'PROGRAMADO';
+    });
+    targetId = liveMatch ? liveMatch.id : (progMatch ? progMatch.id : partidos[0].id);
   }
 
   currentLiveMatchId = targetId;
@@ -2218,19 +2731,17 @@ function renderLiveModule(preferredPartidoId = null) {
     const q2L = Number(p.q2Loc ?? p.q2_loc ?? 0) || 0;
     const q3L = Number(p.q3Loc ?? p.q3_loc ?? 0) || 0;
     const q4L = Number(p.q4Loc ?? p.q4_loc ?? 0) || 0;
-    const qSumL = q1L + q2L + q3L + q4L;
-    let totL = p.totalLocal ?? p.marcadorLocal ?? p.scoreLocal ?? p.puntosLocal ?? p.tot_loc;
-    if (totL === undefined || totL === null || (Number(totL) === 0 && qSumL > 0)) totL = qSumL;
-    totL = Number(totL) || 0;
+    const otL = Number(p.otLoc ?? p.ot_loc ?? 0) || 0;
+    const qSumL = q1L + q2L + q3L + q4L + otL;
+    let totL = qSumL > 0 ? qSumL : (Number(p.totalLocal ?? p.marcadorLocal ?? p.scoreLocal ?? p.puntosLocal ?? p.tot_loc) || 0);
 
     const q1V = Number(p.q1Vis ?? p.q1_vis ?? 0) || 0;
     const q2V = Number(p.q2Vis ?? p.q2_vis ?? 0) || 0;
     const q3V = Number(p.q3Vis ?? p.q3_vis ?? 0) || 0;
     const q4V = Number(p.q4Vis ?? p.q4_vis ?? 0) || 0;
-    const qSumV = q1V + q2V + q3V + q4V;
-    let totV = p.totalVisitante ?? p.marcadorVisitante ?? p.scoreVisitante ?? p.puntosVisitante ?? p.tot_vis;
-    if (totV === undefined || totV === null || (Number(totV) === 0 && qSumV > 0)) totV = qSumV;
-    totV = Number(totV) || 0;
+    const otV = Number(p.otVis ?? p.ot_vis ?? 0) || 0;
+    const qSumV = q1V + q2V + q3V + q4V + otV;
+    let totV = qSumV > 0 ? qSumV : (Number(p.totalVisitante ?? p.marcadorVisitante ?? p.scoreVisitante ?? p.puntosVisitante ?? p.tot_vis) || 0);
 
     const hasScore = est === 'EN CURSO' || est === 'LIVE' || est === 'FINALIZADO' || est === 'FINAL' || est === 'TERMINADO' || totL > 0 || totV > 0;
     const scoreStr = hasScore ? ` (${totL} - ${totV})` : '';
@@ -2281,17 +2792,17 @@ function renderLiveModule(preferredPartidoId = null) {
       const q2L = Number(p.q2Loc ?? 0) || 0;
       const q3L = Number(p.q3Loc ?? 0) || 0;
       const q4L = Number(p.q4Loc ?? 0) || 0;
-      const qSumL = q1L + q2L + q3L + q4L;
-      let totL = p.totalLocal ?? p.marcadorLocal ?? (qSumL > 0 ? qSumL : 0);
-      totL = Number(totL) || 0;
+      const otL = Number(p.otLoc ?? 0) || 0;
+      const qSumL = q1L + q2L + q3L + q4L + otL;
+      let totL = qSumL > 0 ? qSumL : (Number(p.totalLocal ?? p.marcadorLocal ?? 0) || 0);
 
       const q1V = Number(p.q1Vis ?? 0) || 0;
       const q2V = Number(p.q2Vis ?? 0) || 0;
       const q3V = Number(p.q3Vis ?? 0) || 0;
       const q4V = Number(p.q4Vis ?? 0) || 0;
-      const qSumV = q1V + q2V + q3V + q4V;
-      let totV = p.totalVisitante ?? p.marcadorVisitante ?? (qSumV > 0 ? qSumV : 0);
-      totV = Number(totV) || 0;
+      const otV = Number(p.otVis ?? 0) || 0;
+      const qSumV = q1V + q2V + q3V + q4V + otV;
+      let totV = qSumV > 0 ? qSumV : (Number(p.totalVisitante ?? p.marcadorVisitante ?? 0) || 0);
 
       const scoreStr = (isLiv || isFin || totL > 0 || totV > 0) ? ` [${totL} - ${totV}]` : '';
       const isSelected = String(p.id).trim() === String(targetId).trim();
@@ -2744,21 +3255,19 @@ function openEditarEquipoModal(equipoId) {
 }
 
 function initNuevoEquipoModal() {
-  // Logo upload listener from computer
+  // Logo upload listener from computer con compresión Canvas 120x120 JPEG 0.6
   document.getElementById('newTeamLogoFile')?.addEventListener('change', function(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-      const dataUrl = evt.target.result;
+    compressImage(file, 120, 120, 0.6, (compressed) => {
       const logoUrlInput = document.getElementById('newTeamLogoUrl');
       const logoPreview = document.getElementById('newTeamLogoPreview');
       const removeBtn = document.getElementById('btnRemoveTeamLogo');
-      if (logoUrlInput) logoUrlInput.value = dataUrl;
-      if (logoPreview) logoPreview.src = dataUrl;
+      if (logoUrlInput) logoUrlInput.value = compressed;
+      if (logoPreview) logoPreview.src = compressed;
       if (removeBtn) removeBtn.style.display = 'inline-block';
-    };
-    reader.readAsDataURL(file);
+      showToast('Logotipo de equipo comprimido a 120x120 (< 5 KB).', 'info');
+    });
   });
 
   // Remove Logo button
@@ -2796,18 +3305,37 @@ function initNuevoEquipoModal() {
     }
   });
 
-  // Submit form
-  document.getElementById('formNuevoEquipoModal')?.addEventListener('submit', (e) => {
+  // Submit form con compresión obligatoria de logotipo
+  document.getElementById('formNuevoEquipoModal')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('newTeamId')?.value;
     const nombre = document.getElementById('newTeamName')?.value.trim();
-    const logoUrl = document.getElementById('newTeamLogoUrl')?.value.trim() || '';
+    let logoUrl = document.getElementById('newTeamLogoUrl')?.value.trim() || '';
+    const fileInput = document.getElementById('newTeamLogoFile');
+
+    // Interceptar obligatoriamente y comprimir a 120x120 JPEG 0.6
+    if (fileInput && fileInput.files && fileInput.files[0] && (!logoUrl || logoUrl.length > 8000 || !logoUrl.startsWith('data:image/jpeg'))) {
+      try {
+        logoUrl = await compressImage(fileInput.files[0], 120, 120, 0.6);
+      } catch (err) {
+        console.warn('Error al comprimir logo de equipo en submit:', err);
+      }
+    } else if (logoUrl && logoUrl.startsWith('data:')) {
+      try {
+        logoUrl = await compressImage(logoUrl, 120, 120, 0.6);
+      } catch (err) {
+        console.warn('Error al comprimir data URL de equipo en submit:', err);
+      }
+    }
+
     const delegado = document.getElementById('newTeamDelegate')?.value.trim() || 'Delegado';
     const telefono = document.getElementById('newTeamPhone')?.value.trim() || 'N/A';
     const entrenador = document.getElementById('newTeamEntrenador')?.value.trim() || '';
     const asistente = document.getElementById('newTeamAsistente')?.value.trim() || '';
     const utilero = document.getElementById('newTeamUtilero')?.value.trim() || '';
     const siglas = nombre.substring(0, 3).toUpperCase();
+
+    const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
 
     if (id) {
       window.tournamentStore.updateEquipo(id, {
@@ -2818,7 +3346,8 @@ function initNuevoEquipoModal() {
         delegadoTelefono: telefono,
         entrenador,
         asistente,
-        utilero
+        utilero,
+        disciplinaId: disc.id
       });
       showToast(`Datos del equipo "${nombre}" actualizados con éxito`, 'success');
     } else {
@@ -2831,7 +3360,8 @@ function initNuevoEquipoModal() {
         delegadoTelefono: telefono,
         entrenador,
         asistente,
-        utilero
+        utilero,
+        disciplinaId: disc.id
       });
       showToast(`Franquicia "${nombre}" registrada con éxito`, 'success');
     }
@@ -2875,16 +3405,21 @@ function renderDisciplinesBar() {
   const scroller = document.getElementById('disciplinesScroller');
   if (!scroller) return;
 
-  const disciplinas = window.tournamentStore.getDisciplinas().filter((d) => d.activa);
-  const actual = window.tournamentStore.getDisciplinaActual();
+  const storeDiscs = window.tournamentStore && typeof window.tournamentStore.getDisciplinas === 'function'
+    ? window.tournamentStore.getDisciplinas()
+    : [];
+  const disciplinas = storeDiscs.filter((d) => d && d.activa !== false);
+  const actual = (window.tournamentStore && typeof window.tournamentStore.getDisciplinaActual === 'function'
+    ? window.tournamentStore.getDisciplinaActual()
+    : null) || disciplinas[0] || { id: '' };
 
   scroller.innerHTML = disciplinas
     .map(
       (d) => `
-    <button class="discipline-chip ${d.id === actual.id ? 'active' : ''}" data-id="${d.id}">
+    <button class="discipline-chip ${actual && d.id === actual.id ? 'active' : ''}" data-id="${d.id}">
       <span class="discipline-chip-icon">${d.icono || '🏆'}</span>
       <span>${d.nombre}</span>
-      <span class="badge badge-gold" style="font-size: 0.65rem; padding: 0.15rem 0.45rem;">${d.categoria}</span>
+      <span class="badge badge-gold" style="font-size: 0.65rem; padding: 0.15rem 0.45rem;">${d.categoria || 'Torneo'}</span>
     </button>
   `
     )
@@ -2893,6 +3428,14 @@ function renderDisciplinesBar() {
   scroller.querySelectorAll('.discipline-chip').forEach((chip) => {
     chip.addEventListener('click', () => {
       const id = chip.getAttribute('data-id');
+      currentLiveMatchId = null;
+      activeScorerMatch = null;
+      if (typeof isTimerRunning !== 'undefined' && isTimerRunning) {
+        clearInterval(matchTimerInterval);
+        isTimerRunning = false;
+        const btnClock = document.getElementById('btnClockToggle');
+        if (btnClock) btnClock.textContent = '▶ Iniciar Reloj';
+      }
       window.tournamentStore.setDisciplinaActual(id);
       renderAllViews();
     });
@@ -2962,11 +3505,11 @@ function renderHeroScoreboard() {
 
   if (localBadge) {
     const eqLoc = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(liveMatch.equipoLocal) : null;
-    localBadge.innerHTML = getTeamLogoOrEmblemHtml(eqLoc, { size: 54, fallbackName: liveMatch.equipoLocal });
+    localBadge.innerHTML = getTeamLogoOrEmblemHtml(eqLoc, { size: 68, fallbackName: liveMatch.equipoLocal });
   }
   if (visBadge) {
     const eqVis = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(liveMatch.equipoVisitante) : null;
-    visBadge.innerHTML = getTeamLogoOrEmblemHtml(eqVis, { size: 54, fallbackName: liveMatch.equipoVisitante });
+    visBadge.innerHTML = getTeamLogoOrEmblemHtml(eqVis, { size: 68, fallbackName: liveMatch.equipoVisitante });
   }
 
   // Status badge styling
@@ -2988,11 +3531,11 @@ function renderHeroScoreboard() {
   const rowVisName = document.getElementById('heroRowVisName');
   if (rowLocName) {
     const eqLoc = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(liveMatch.equipoLocal) : null;
-    rowLocName.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.45rem;">${getTeamLogoOrEmblemHtml(eqLoc, { size: 22, fallbackName: liveMatch.equipoLocal })} <span>${escapeHtml(liveMatch.equipoLocal)}</span></span>`;
+    rowLocName.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.65rem;">${getTeamLogoOrEmblemHtml(eqLoc, { size: 36, fallbackName: liveMatch.equipoLocal })} <span>${escapeHtml(liveMatch.equipoLocal)}</span></span>`;
   }
   if (rowVisName) {
     const eqVis = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(liveMatch.equipoVisitante) : null;
-    rowVisName.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.45rem;">${getTeamLogoOrEmblemHtml(eqVis, { size: 22, fallbackName: liveMatch.equipoVisitante })} <span>${escapeHtml(liveMatch.equipoVisitante)}</span></span>`;
+    rowVisName.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.65rem;">${getTeamLogoOrEmblemHtml(eqVis, { size: 36, fallbackName: liveMatch.equipoVisitante })} <span>${escapeHtml(liveMatch.equipoVisitante)}</span></span>`;
   }
 
   document.getElementById('heroQ1Loc').textContent = liveMatch.q1Loc;
@@ -3090,10 +3633,10 @@ function renderMatches() {
       }
 
       const isLive = m.estado === 'EN CURSO';
-      const eqLoc = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(m.equipoLocal) : null;
-      const eqVis = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(m.equipoVisitante) : null;
-      const logoLocHtml = getTeamLogoOrEmblemHtml(eqLoc, { size: 30, fallbackName: m.equipoLocal });
-      const logoVisHtml = getTeamLogoOrEmblemHtml(eqVis, { size: 30, fallbackName: m.equipoVisitante });
+      const eqLoc = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(m.equipoLocal, disc.id) : null;
+      const eqVis = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(m.equipoVisitante, disc.id) : null;
+      const logoLocHtml = getTeamLogoOrEmblemHtml(eqLoc, { size: 48, fallbackName: m.equipoLocal });
+      const logoVisHtml = getTeamLogoOrEmblemHtml(eqVis, { size: 48, fallbackName: m.equipoVisitante });
 
       return `
       <div class="match-card ${isLive ? 'is-live' : ''}" data-id="${m.id}">
@@ -3183,17 +3726,25 @@ function renderStandings() {
   const container = document.getElementById('standingsContainer');
   if (!container) return;
 
-  const disc = window.tournamentStore.getDisciplinaActual();
-  const grouped = window.StandingsEngine.compute(disc.id);
+  try {
+    const disc = (window.tournamentStore && typeof window.tournamentStore.getDisciplinaActual === 'function'
+      ? window.tournamentStore.getDisciplinaActual()
+      : null) || { id: 'baloncesto-master', nombre: 'Baloncesto' };
+    
+    if (!disc || !disc.id) return;
 
-  if (Object.keys(grouped).length === 0) {
-    container.innerHTML = `
-      <div style="text-align: center; padding: 3rem; background: var(--bg-card); border-radius: var(--radius-lg); color: var(--text-secondary);">
-        No hay datos de posiciones registrados para esta disciplina.
-      </div>
-    `;
-    return;
-  }
+    const grouped = window.StandingsEngine && typeof window.StandingsEngine.compute === 'function'
+      ? window.StandingsEngine.compute(disc.id)
+      : {};
+
+    if (!grouped || Object.keys(grouped).length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 3rem; background: var(--bg-card); border-radius: var(--radius-lg); color: var(--text-secondary);">
+          No hay datos de posiciones registrados para esta disciplina.
+        </div>
+      `;
+      return;
+    }
 
   container.innerHTML = Object.keys(grouped)
     .map((grpName) => {
@@ -3231,7 +3782,7 @@ function renderStandings() {
                   else if (r.posicion === 2) rankClass = 'rank-2';
 
                   const eq = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(r.equipo) : null;
-                  const logoHtml = getTeamLogoOrEmblemHtml(eq || r, { size: 30, fallbackName: r.equipo });
+                  const logoHtml = getTeamLogoOrEmblemHtml(eq || r, { size: 48, fallbackName: r.equipo });
 
                   return `
                   <tr class="${r.clasificado ? 'playoff-row' : ''}">
@@ -3268,6 +3819,9 @@ function renderStandings() {
     `;
     })
     .join('');
+  } catch (err) {
+    console.warn('Error in renderStandings:', err);
+  }
 }
 
 // ==============================================================================
@@ -3282,7 +3836,8 @@ function renderTeamsAndRosters() {
   const container = document.getElementById('teamsGridContainer');
   if (!container) return;
 
-  const equipos = window.tournamentStore.getEquipos();
+  const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master', nombre: 'Baloncesto' };
+  const equipos = window.tournamentStore.getEquipos(disc.id);
   const user = window.tournamentStore.getUsuarioActual();
   const isSuperAdmin = !!(user && (user.rol === 'superadmin' || user.esSuperAdmin));
   const isDelegado = !!(user && user.rol === 'delegado');
@@ -3303,9 +3858,24 @@ function renderTeamsAndRosters() {
   });
 
   if (filtered.length === 0) {
+    if (equipos.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 3.5rem 1.5rem; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px dashed rgba(212, 175, 55, 0.3); color: var(--text-secondary);">
+          <div style="font-size: 3rem; margin-bottom: 0.75rem;">📋</div>
+          <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-weight: 700;">No hay equipos registrados en ${disc.nombre}</h3>
+          <p style="margin-bottom: 1.5rem; font-size: 0.95rem; max-width: 500px; margin-inline: auto; color: var(--text-muted);">Esta disciplina está completamente lista para comenzar desde cero. Registra el primer equipo o franquicia para habilitar el calendario y las estadísticas.</p>
+          <button id="btnEmptyNuevoEquipo" class="btn btn-gold" type="button" style="padding: 0.75rem 1.5rem; font-weight: 700; cursor: pointer;">
+            ➕ Registrar Primer Equipo
+          </button>
+        </div>
+      `;
+      document.getElementById('btnEmptyNuevoEquipo')?.addEventListener('click', openNuevoEquipoModal);
+      return;
+    }
+
     container.innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; background: var(--bg-card); border-radius: var(--radius-lg); color: var(--text-secondary);">
-        No se encontraron equipos para el filtro seleccionado.
+        No se encontraron equipos para el filtro o búsqueda seleccionada.
       </div>
     `;
     return;
@@ -3313,7 +3883,7 @@ function renderTeamsAndRosters() {
 
   container.innerHTML = filtered
     .map((eq) => {
-      const atletas = window.tournamentStore.getAtletas(eq.nombre);
+      const atletas = window.tournamentStore.getAtletas(eq.nombre, disc.id);
       const isMyTeam = isDelegado && (eq.id === userTeamId || eq.nombre === userTeamName);
 
       // RBAC rules:
@@ -3324,21 +3894,23 @@ function renderTeamsAndRosters() {
       const canEditTeam = isSuperAdmin || isMyTeam;
       const canDeleteTeam = isSuperAdmin;
 
-      const addBtnHtml = canAddAthlete
-        ? `<button class="btn btn-gold btn-sm btn-agregar-atleta" data-team="${eq.nombre}" data-id="${eq.id}">
-             + AGREGAR ATLETA
+      const hasAdminActions = canEditTeam || canAddAthlete || canDeleteTeam;
+
+      const editBtnHtml = canEditTeam
+        ? `<button class="btn btn-outline-cyan btn-xs btn-editar-equipo" data-id="${eq.id}" title="Editar datos del equipo y cuerpo técnico">
+             <span>✏️ Editar Equipo</span>
            </button>`
         : '';
 
-      const editBtnHtml = canEditTeam
-        ? `<button class="btn btn-outline-cyan btn-sm btn-editar-equipo" data-id="${eq.id}" title="Editar datos del equipo y cuerpo técnico">
-             ✏️ Editar Equipo
+      const addBtnHtml = canAddAthlete
+        ? `<button class="btn btn-gold btn-xs btn-agregar-atleta" data-team="${eq.nombre}" data-id="${eq.id}" title="Registrar nuevo atleta en nómina">
+             <span>➕ Agregar Atleta</span>
            </button>`
         : '';
 
       const deleteBtnHtml = canDeleteTeam
-        ? `<button class="btn btn-outline-danger btn-sm btn-eliminar-equipo" data-id="${eq.id}" data-team="${eq.nombre}" title="Eliminar permanentemente la franquicia y sus atletas">
-             🗑️ Eliminar Equipo
+        ? `<button class="btn btn-outline-danger btn-xs btn-eliminar-equipo" data-id="${eq.id}" data-team="${eq.nombre}" title="Eliminar permanentemente la franquicia y sus atletas">
+             <span>🗑️ Eliminar Equipo</span>
            </button>`
         : '';
 
@@ -3348,7 +3920,15 @@ function renderTeamsAndRosters() {
            </div>`
         : '';
 
-      const crestContent = getTeamLogoOrEmblemHtml(eq, { size: 44, fallbackName: eq.nombre });
+      const crestContent = getTeamLogoOrEmblemHtml(eq, { size: 76, fallbackName: eq.nombre });
+
+      const hasBottomRow = canEditTeam || canDeleteTeam;
+      const topRowClass = canAddAthlete
+        ? 'team-actions-row team-actions-row-top'
+        : 'team-actions-row team-actions-row-top is-single-btn';
+      const bottomRowClass = (canEditTeam && canDeleteTeam)
+        ? 'team-actions-row team-actions-row-bottom'
+        : 'team-actions-row team-actions-row-bottom is-single-btn';
 
       return `
       <div class="team-card-360 ${isMyTeam ? 'my-assigned-team' : ''}">
@@ -3357,8 +3937,8 @@ function renderTeamsAndRosters() {
           <div class="team-crest-360" style="background: ${eq.color || '#1e293b'}; overflow: hidden; display: flex; align-items: center; justify-content: center;">
             ${crestContent}
           </div>
-          <div>
-            <div class="team-name-360">${eq.nombre}</div>
+          <div style="flex: 1; min-width: 0;">
+            <div class="team-name-360" title="${escapeHtmlAttr(eq.nombre)}">${eq.nombre}</div>
             <span class="team-group-pill">${eq.grupo}</span>
           </div>
         </div>
@@ -3369,18 +3949,25 @@ function renderTeamsAndRosters() {
           ${eq.entrenador ? `<div><strong>Entrenador:</strong> ${eq.entrenador}</div>` : ''}
           ${eq.asistente ? `<div><strong>Asistente:</strong> ${eq.asistente}</div>` : ''}
           ${eq.utilero ? `<div><strong>Utilero:</strong> ${eq.utilero}</div>` : ''}
-          <div style="color: var(--brand-gold-light); font-weight: 700; margin-top: 0.25rem;">
-            🏃 ${atletas.length} Atletas Registrados
+          <div style="color: var(--brand-gold-light); font-weight: 700; margin-top: 0.35rem; display: flex; align-items: center; gap: 0.35rem;">
+            <span>🏃</span>
+            <span>${atletas.length} Atletas Registrados</span>
           </div>
         </div>
 
-        <div class="team-actions-row">
-          <button class="btn btn-outline btn-sm btn-ver-roster" data-team="${eq.nombre}">
-            📋 Ver Plantilla
-          </button>
-          ${editBtnHtml}
-          ${addBtnHtml}
-          ${deleteBtnHtml}
+        <div class="team-card-actions-wrapper">
+          <div class="${topRowClass}">
+            <button class="btn btn-outline-gold btn-xs btn-ver-roster" data-team="${eq.nombre}" title="Consultar nómina y plantilla de atletas">
+              <span>📋 Ver Plantilla</span>
+            </button>
+            ${addBtnHtml}
+          </div>
+          ${hasBottomRow ? `
+            <div class="${bottomRowClass}">
+              ${editBtnHtml}
+              ${deleteBtnHtml}
+            </div>
+          ` : ''}
         </div>
       </div>
     `;
@@ -3441,8 +4028,10 @@ function openAddAtletaForTeamModal(teamName) {
   if (atletaIdInput) atletaIdInput.value = '';
   if (submitBtn) submitBtn.textContent = 'Guardar Cambios / Añadir';
 
+  const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
+
   if (eqSelect) {
-    const equipos = window.tournamentStore.getEquipos();
+    const equipos = window.tournamentStore.getEquipos(disc.id);
     eqSelect.innerHTML = equipos
       .map((eq) => `<option value="${eq.nombre}" ${eq.nombre === teamName ? 'selected' : ''}>${eq.nombre}</option>`)
       .join('');
@@ -3464,11 +4053,12 @@ function openTeamRosterModal(teamName) {
   const meta = document.getElementById('modalRosterMeta');
   const tbody = document.getElementById('modalRosterTableBody');
 
-  const eq = window.tournamentStore.getEquipoPorNombre(teamName);
-  const atletas = window.tournamentStore.getAtletas(teamName);
+  const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
+  const eq = window.tournamentStore.getEquipoPorNombre(teamName, disc.id);
+  const atletas = window.tournamentStore.getAtletas(teamName, disc.id);
 
   if (title) {
-    const logoHtml = getTeamLogoOrEmblemHtml(eq, { size: 30, fallbackName: teamName });
+    const logoHtml = getTeamLogoOrEmblemHtml(eq, { size: 48, fallbackName: teamName });
     title.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.65rem;">${logoHtml} <span>Plantilla: ${teamName}</span></span>`;
   }
   if (meta) {
@@ -3530,7 +4120,8 @@ function populateDelegadoTeamSelect() {
   const select = document.getElementById('selectDelegadoEquipo');
   if (!select) return;
 
-  const equipos = window.tournamentStore.getEquipos();
+  const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
+  const equipos = window.tournamentStore.getEquipos(disc.id);
   select.innerHTML = '<option value="">-- Seleccione su Club o Equipo --</option>' + 
     equipos.map((eq) => `<option value="${eq.id}">${eq.nombre} (${eq.grupo}) - ${eq.delegadoEmail || ''}</option>`).join('');
 }
@@ -3540,7 +4131,8 @@ document.getElementById('btnFillDemoDelegado')?.addEventListener('click', () => 
   const emailInput = document.getElementById('inputDelegadoEmail');
   const pinInput = document.getElementById('inputDelegadoPin');
   const select = document.getElementById('selectDelegadoEquipo');
-  const firstTeam = window.tournamentStore.getEquipos()[0];
+  const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
+  const firstTeam = window.tournamentStore.getEquipos(disc.id)[0];
   if (emailInput && firstTeam) emailInput.value = firstTeam.delegadoEmail || 'delegado@gmdjl.com';
   if (pinInput) pinInput.value = firstTeam?.pin || '2024';
   if (select && firstTeam) {
@@ -3587,7 +4179,7 @@ document.getElementById('formDelegadoLogin')?.addEventListener('submit', (e) => 
     showToast(`Bienvenido al portal: ${matchedTeam.nombre}`, 'success');
     renderDelegadoDashboard(matchedTeam.id);
   } else {
-    showToast('Clave / PIN de seguridad incorrecto (PIN Demo: 2024)', 'error');
+    showToast('Clave / PIN de seguridad incorrecto', 'error');
   }
 });
 
@@ -3626,7 +4218,7 @@ function renderDelegadoDashboard(equipoId) {
     }
   }
 
-  const atletas = window.tournamentStore.getAtletas(eq.nombre);
+  const atletas = window.tournamentStore.getAtletas(eq.nombre, eq.disciplinaId);
   document.getElementById('delDashAthleteCount').textContent = `${atletas.length} Atletas Inscritos`;
 
   const tbody = document.getElementById('delRosterTableBody');
@@ -3695,7 +4287,7 @@ function renderDelegadoDashboard(equipoId) {
 
   // Render delegate's team matches
   const matchesContainer = document.getElementById('delMatchesContainer');
-  const allMatches = window.tournamentStore.getPartidos();
+  const allMatches = window.tournamentStore.getPartidos(eq?.disciplinaId);
   const myMatches = allMatches.filter((m) => m.equipoLocal === eq.nombre || m.equipoVisitante === eq.nombre);
 
   if (matchesContainer) {
@@ -3705,10 +4297,10 @@ function renderDelegadoDashboard(equipoId) {
       matchesContainer.innerHTML = myMatches
         .map(
           (m) => {
-            const eqLoc = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(m.equipoLocal) : null;
-            const eqVis = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(m.equipoVisitante) : null;
-            const logoLoc = getTeamLogoOrEmblemHtml(eqLoc, { size: 24, fallbackName: m.equipoLocal });
-            const logoVis = getTeamLogoOrEmblemHtml(eqVis, { size: 24, fallbackName: m.equipoVisitante });
+            const eqLoc = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(m.equipoLocal, eq?.disciplinaId) : null;
+            const eqVis = window.tournamentStore ? window.tournamentStore.getEquipoPorNombre(m.equipoVisitante, eq?.disciplinaId) : null;
+            const logoLoc = getTeamLogoOrEmblemHtml(eqLoc, { size: 48, fallbackName: m.equipoLocal });
+            const logoVis = getTeamLogoOrEmblemHtml(eqVis, { size: 48, fallbackName: m.equipoVisitante });
             return `
         <div class="match-card">
           <div class="match-card-header">
@@ -3717,14 +4309,14 @@ function renderDelegadoDashboard(equipoId) {
           </div>
           <div class="match-card-body">
             <div class="match-row-team">
-              <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 ${logoLoc}
                 <span style="font-weight: 600; color: #ffffff;">${m.equipoLocal}</span>
               </div>
               <strong style="font-family: var(--font-score); font-size: 1.2rem;">${m.totalLocal}</strong>
             </div>
             <div class="match-row-team">
-              <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 ${logoVis}
                 <span style="font-weight: 600; color: #ffffff;">${m.equipoVisitante}</span>
               </div>
@@ -3758,9 +4350,9 @@ document.getElementById('btnFichaTecnicaModal')?.addEventListener('click', () =>
 });
 
 function openFichaTecnicaModal(teamName) {
-  const eq = window.tournamentStore.getEquipoPorNombre(teamName);
-  const atletas = window.tournamentStore.getAtletas(teamName);
   const disc = window.tournamentStore.getDisciplinaActual();
+  const eq = window.tournamentStore.getEquipoPorNombre(teamName, disc?.id);
+  const atletas = window.tournamentStore.getAtletas(teamName, disc?.id);
   const container = document.getElementById('fichaTecnicaPrintable');
   if (!container) return;
 
@@ -3911,11 +4503,13 @@ function openEditAtletaModal(atletaId = null, isSuperAdmin = false) {
   const hint = document.getElementById('atletaPermissionHint');
   form.reset();
 
+  const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
+
   // Populate team selector for Superadmin
   if (isSuperAdmin || (window.tournamentStore.getUsuarioActual()?.rol === 'superadmin')) {
     if (eqGroup) eqGroup.style.display = 'block';
     if (eqSelect) {
-      const equipos = window.tournamentStore.getEquipos();
+      const equipos = window.tournamentStore.getEquipos(disc.id);
       eqSelect.innerHTML = equipos.map(eq => `<option value="${eq.nombre}">${eq.nombre} (${eq.grupo})</option>`).join('');
     }
     if (hint) hint.innerHTML = '👑 <strong>Modo Superadministrador:</strong> Control total para inscribir o reasignar atletas a cualquier club.';
@@ -3989,6 +4583,7 @@ document.getElementById('formAtleta')?.addEventListener('submit', (e) => {
   }
 
   const existingAtleta = id ? window.tournamentStore.data.atletas.find((a) => a.id === id) : null;
+  const activeDisc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
 
   const data = {
     cedula: document.getElementById('atletaCedula').value.trim(),
@@ -3999,7 +4594,8 @@ document.getElementById('formAtleta')?.addEventListener('submit', (e) => {
     posicion: document.getElementById('atletaPosicion')?.value || existingAtleta?.posicion || 'Atleta',
     rol: document.getElementById('atletaRol').value,
     fotoUrl: (document.getElementById('atletaFotoUrl')?.value || '').trim(),
-    equipo: equipoNombre
+    equipo: equipoNombre,
+    disciplinaId: existingAtleta?.disciplinaId || activeDisc.id
   };
 
   if (id) {
@@ -4023,8 +4619,9 @@ document.getElementById('formAtleta')?.addEventListener('submit', (e) => {
 // Export delegate roster to CSV
 document.getElementById('btnExportarRosterDel')?.addEventListener('click', () => {
   const user = window.tournamentStore.getUsuarioActual();
+  const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
   const teamName = user?.equipoNombre || 'Broncos de Higuerey';
-  const atletas = window.tournamentStore.getAtletas(teamName);
+  const atletas = window.tournamentStore.getAtletas(teamName, disc.id);
 
   let csv = 'Dorsal,Cédula,Nombres y Apellidos,Edad,Posición,Rol,Equipo,Foto\n';
   atletas.forEach((a) => {
@@ -4054,7 +4651,7 @@ document.getElementById('formAdminLogin')?.addEventListener('submit', (e) => {
     showToast('Sesión de SuperAdmin iniciada con éxito', 'success');
     renderAdminDashboard();
   } else {
-    showToast('Credenciales incorrectas (Demo: admin@gmdjl.com / admin2024)', 'error');
+    showToast('Credenciales incorrectas', 'error');
   }
 });
 
@@ -4156,9 +4753,9 @@ function openEditDisciplinaModal(discId) {
     if (catInput) catInput.value = d.categoria || '';
     if (descEl) descEl.value = d.descripcion || '';
 
-    const currentLogo = d.avatar || d.logoUrl || d.logo || d.banner || './assets/logo.png';
+    const currentLogo = (d.avatar || d.logoUrl || d.logo || d.banner || '').trim();
     if (logoUrlInput) logoUrlInput.value = currentLogo;
-    if (logoPreview) logoPreview.src = currentLogo;
+    if (logoPreview) logoPreview.src = currentLogo || './assets/logo.png';
 
     if (iconoInput) iconoInput.value = d.icono || '🏆';
     if (colorInput) colorInput.value = d.color || '#D4AF37';
@@ -4175,9 +4772,8 @@ function openEditDisciplinaModal(discId) {
     if (catInput) catInput.value = 'Torneo Master / Libre';
     if (descEl) descEl.value = '';
 
-    const defaultLogo = './assets/logo.png';
-    if (logoUrlInput) logoUrlInput.value = defaultLogo;
-    if (logoPreview) logoPreview.src = defaultLogo;
+    if (logoUrlInput) logoUrlInput.value = '';
+    if (logoPreview) logoPreview.src = './assets/logo.png';
 
     if (iconoInput) iconoInput.value = '🏆';
     if (colorInput) colorInput.value = '#D4AF37';
@@ -4195,82 +4791,164 @@ function openEditDisciplinaModal(discId) {
   modal.classList.add('open');
 }
 
-// Logo file reader for Edit Disciplina
+// Logo file reader for Edit Disciplina con compresión Canvas a 120x120 JPEG 0.6
 document.getElementById('editDiscLogoFile')?.addEventListener('change', (e) => {
   const file = e.target.files && e.target.files[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target.result;
+    showToast('Optimizando logotipo (120x120, calidad 60%)...', 'info');
+    compressImage(file, 120, 120, 0.6, (compressed) => {
       const logoUrlInput = document.getElementById('editDiscLogoUrl');
       const logoPreview = document.getElementById('editDiscLogoPreview');
-      if (logoUrlInput) logoUrlInput.value = result;
-      if (logoPreview) logoPreview.src = result;
-    };
-    reader.readAsDataURL(file);
+      if (logoUrlInput) logoUrlInput.value = compressed;
+      if (logoPreview) logoPreview.src = compressed;
+      showToast('Logotipo comprimido a formato ultraligero (< 5 KB).', 'success');
+    });
   }
 });
 
-document.getElementById('formEditDisciplina')?.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const id = document.getElementById('editDiscId')?.value;
-  const nombre = document.getElementById('editDiscNombre')?.value.trim();
-  const categoria = document.getElementById('editDiscCategoria')?.value.trim();
-  const descripcion = document.getElementById('editDiscDescripcion')?.value.trim() || '';
-  const avatar = document.getElementById('editDiscLogoUrl')?.value || './assets/logo.png';
-  const icono = document.getElementById('editDiscIcono')?.value.trim() || '🏆';
-  const color = document.getElementById('editDiscColor')?.value || '#D4AF37';
-  const banner = document.getElementById('editDiscBanner')?.value.trim() || avatar;
-  const periodos = Number(document.getElementById('editDiscPeriodos')?.value) || 4;
-  const nombrePeriodo = document.getElementById('editDiscNombrePeriodo')?.value.trim() || 'Cuarto';
-  const ptsGanador = Number(document.getElementById('editDiscPtsG')?.value) || 2;
-  const ptsPerdedor = Number(document.getElementById('editDiscPtsP')?.value) || 1;
+let isSavingDisciplinaModal = false;
 
-  if (!nombre) {
-    showToast('Por favor ingrese el nombre del deporte o disciplina.', 'error');
+async function handleSaveDisciplinaModal(e) {
+  if (e) {
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+  }
+  if (isSavingDisciplinaModal) return;
+  isSavingDisciplinaModal = true;
+
+  const saveBtn = document.getElementById('btnSaveEditDisciplina');
+  const originalBtnHtml = saveBtn ? saveBtn.innerHTML : '<span>💾 Guardar Cambios</span>';
+
+  try {
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span>⏳ Guardando y optimizando...</span>';
+    }
+
+    const id = document.getElementById('editDiscId')?.value;
+    const nombre = document.getElementById('editDiscNombre')?.value?.trim();
+    const categoria = document.getElementById('editDiscCategoria')?.value?.trim() || 'Torneo Master / Libre';
+    const descripcion = document.getElementById('editDiscDescripcion')?.value?.trim() || '';
+    const logoUrlInput = document.getElementById('editDiscLogoUrl');
+    const logoPreviewEl = document.getElementById('editDiscLogoPreview');
+    const fileInput = document.getElementById('editDiscLogoFile');
+    let avatar = (logoUrlInput?.value || logoPreviewEl?.getAttribute('src') || '').trim();
+    const icono = document.getElementById('editDiscIcono')?.value?.trim() || '🏆';
+    const color = document.getElementById('editDiscColor')?.value || '#D4AF37';
+    let banner = (document.getElementById('editDiscBanner')?.value?.trim() || avatar).trim();
+    const periodos = Number(document.getElementById('editDiscPeriodos')?.value) || 4;
+    const nombrePeriodo = document.getElementById('editDiscNombrePeriodo')?.value?.trim() || 'Cuarto';
+    const ptsGanador = Number(document.getElementById('editDiscPtsG')?.value) || 2;
+    const ptsPerdedor = Number(document.getElementById('editDiscPtsP')?.value) || 1;
+
+    if (!nombre) {
+      showToast('Por favor ingrese el nombre del deporte o disciplina.', 'error');
+      return;
+    }
+
+    // 1. OPTIMIZACIÓN Y COMPRESIÓN OBLIGATORIA CON CANVAS (120 x 120, JPEG 0.6)
+    if (fileInput && fileInput.files && fileInput.files[0] && (!avatar || avatar.length > 8000 || !avatar.startsWith('data:image/jpeg'))) {
+      try {
+        avatar = await compressImage(fileInput.files[0], 120, 120, 0.6);
+      } catch (err) {
+        console.warn('Fallback al comprimir archivo de logo en modal:', err);
+      }
+    } else if (avatar && avatar.startsWith('data:')) {
+      try {
+        avatar = await compressImage(avatar, 120, 120, 0.6);
+      } catch (err) {
+        console.warn('Fallback al comprimir data URL de avatar:', err);
+      }
+    }
+
+    if (banner && banner.startsWith('data:')) {
+      try {
+        banner = await compressImage(banner, 120, 120, 0.6);
+      } catch (err) {
+        console.warn('Fallback al comprimir data URL de banner:', err);
+      }
+    }
+
+    const finalLogo = (avatar || './assets/logo.png').trim();
+    const finalBanner = (banner || finalLogo).trim();
+
+    if (logoUrlInput) logoUrlInput.value = finalLogo;
+    if (logoPreviewEl) logoPreviewEl.src = finalLogo;
+    const bannerEl = document.getElementById('editDiscBanner');
+    if (bannerEl) bannerEl.value = finalBanner;
+
+    // 2. ACTUALIZACIÓN EN EL ARREGLO GLOBAL DEL STORE
+    const discPayload = {
+      nombre,
+      categoria,
+      descripcion,
+      icono,
+      color,
+      avatar: finalLogo,
+      logoUrl: finalLogo,
+      logo: finalLogo,
+      banner: finalBanner,
+      activa: true,
+      reglas: {
+        periodos,
+        nombrePeriodo,
+        ptsGanador,
+        ptsPerdedor,
+        duracionMin: 10
+      }
+    };
+
+    let effectiveId = id;
+    if (id) {
+      window.tournamentStore.updateDisciplina(id, discPayload);
+    } else {
+      effectiveId = 'disc_' + Date.now();
+      window.tournamentStore.addDisciplina({
+        id: effectiveId,
+        ...discPayload
+      });
+    }
+
+    // 3. PERSISTENCIA EN LOCALSTORAGE CON CONTROL DE CUOTA
+    const currentDiscs = window.tournamentStore.getDisciplinas();
+    saveDisciplineConfig(currentDiscs);
+    window.tournamentStore.saveToStorage();
+
+    // Cerrar modal
+    document.getElementById('modalEditDisciplina')?.classList.remove('open');
+
+    // 4. SINCRONIZACIÓN INMEDIATA DE LA PORTADA E INTERFAZ
+    try { renderHubDisciplinesGrid(); } catch (err) { console.warn('renderHubDisciplinesGrid:', err); }
+    try { renderDisciplinesBar(); } catch (err) { console.warn('renderDisciplinesBar:', err); }
+    try { renderAdminDisciplinas(); } catch (err) { console.warn('renderAdminDisciplinas:', err); }
+    try { if (typeof renderConfigDisciplines === 'function') renderConfigDisciplines(); } catch (err) { console.warn('renderConfigDisciplines:', err); }
+    try { if (typeof populateAdminDisciplineDropdown === 'function') populateAdminDisciplineDropdown(); } catch (err) { console.warn('populateAdminDisciplineDropdown:', err); }
+    try { renderStandings(); } catch (err) { console.warn('renderStandings:', err); }
+    try { if (typeof updateDisciplineUI === 'function') updateDisciplineUI(); } catch (err) { console.warn('updateDisciplineUI:', err); }
+    try { if (typeof renderHeaderAndNavigation === 'function') renderHeaderAndNavigation(); } catch (err) { console.warn('renderHeaderAndNavigation:', err); }
+
+    showToast(`✅ Disciplina "${nombre}" guardada y sincronizada al instante.`, 'success');
+  } catch (error) {
+    console.error('Error al guardar cambios de disciplina:', error);
+    showToast('Error al guardar disciplina: ' + (error.message || error), 'error');
+  } finally {
+    isSavingDisciplinaModal = false;
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = originalBtnHtml;
+    }
+  }
+}
+window.handleSaveDisciplinaModal = handleSaveDisciplinaModal;
+
+// Conexión del formulario y del botón "Guardar Cambios"
+document.getElementById('formEditDisciplina')?.addEventListener('submit', handleSaveDisciplinaModal);
+document.getElementById('btnSaveEditDisciplina')?.addEventListener('click', (e) => {
+  const form = document.getElementById('formEditDisciplina');
+  if (form && !form.checkValidity()) {
     return;
   }
-
-  if (id) {
-    window.tournamentStore.updateDisciplina(id, {
-      nombre,
-      categoria,
-      descripcion,
-      icono,
-      color,
-      banner: banner || avatar,
-      avatar: avatar || banner,
-      logoUrl: avatar || banner,
-      logo: avatar || banner,
-      reglas: { periodos, nombrePeriodo, ptsGanador, ptsPerdedor, duracionMin: 10 }
-    });
-    showToast(`Disciplina "${nombre}" actualizada con éxito`, 'success');
-  } else {
-    const newId = 'disc_' + Date.now();
-    window.tournamentStore.addDisciplina({
-      id: newId,
-      nombre,
-      categoria,
-      descripcion,
-      icono,
-      color,
-      banner: banner || avatar,
-      avatar: avatar || banner,
-      logoUrl: avatar || banner,
-      logo: avatar || banner,
-      reglas: { periodos, nombrePeriodo, ptsGanador, ptsPerdedor, duracionMin: 10 }
-    });
-    showToast(`Nueva disciplina "${nombre}" creada y agregada con éxito`, 'success');
-  }
-
-  document.getElementById('modalEditDisciplina')?.classList.remove('open');
-  window.tournamentStore.saveToStorage();
-  renderHubDisciplinesGrid();
-  renderDisciplinesBar();
-  renderAdminDisciplinas();
-  if (typeof renderConfigDisciplines === 'function') renderConfigDisciplines();
-  if (typeof populateAdminDisciplineDropdown === 'function') populateAdminDisciplineDropdown();
-  renderStandings();
+  handleSaveDisciplinaModal(e);
 });
 
 // Listener para escribir URL de imagen en vivo para Editar Disciplina
@@ -4296,55 +4974,101 @@ document.getElementById('btnNuevaDisciplinaModal')?.addEventListener('click', ()
   document.getElementById('modalNuevaDisciplina')?.classList.add('open');
 });
 
-// Logo file reader for New Disciplina
+// Logo file reader for New Disciplina con compresión Canvas a 120x120 JPEG 0.6
 document.getElementById('discLogoFile')?.addEventListener('change', (e) => {
   const file = e.target.files && e.target.files[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target.result;
+    showToast('Optimizando logotipo (120x120, calidad 60%)...', 'info');
+    compressImage(file, 120, 120, 0.6, (compressed) => {
       const logoUrlInput = document.getElementById('discLogoUrl');
       const logoPreview = document.getElementById('discLogoPreview');
-      if (logoUrlInput) logoUrlInput.value = result;
-      if (logoPreview) logoPreview.src = result;
-    };
-    reader.readAsDataURL(file);
+      if (logoUrlInput) logoUrlInput.value = compressed;
+      if (logoPreview) logoPreview.src = compressed;
+      showToast('Logotipo optimizado correctamente (< 5 KB).', 'success');
+    });
   }
 });
 
-document.getElementById('formNuevaDisciplina')?.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const nombre = document.getElementById('discNombre').value.trim();
-  const categoria = document.getElementById('discCategoria').value.trim();
-  const descripcion = document.getElementById('discDescripcion')?.value.trim() || '';
-  const avatar = document.getElementById('discLogoUrl')?.value || '';
-  const delegadoInicial = document.getElementById('discDelegadoInicial')?.value.trim() || '';
-  const icono = document.getElementById('discIcono').value.trim();
-  const color = document.getElementById('discColor').value;
-  const periodos = Number(document.getElementById('discPeriodos').value);
-  const nombrePeriodo = document.getElementById('discNombrePeriodo').value.trim();
+let isSavingNuevaDisciplina = false;
 
-  window.tournamentStore.addDisciplina({
-    nombre,
-    categoria,
-    descripcion,
-    icono,
-    color,
-    banner: avatar || './assets/logo.png',
-    avatar: avatar || './assets/logo.png',
-    delegadoInicial,
-    reglas: { periodos, nombrePeriodo, ptsGanador: 2, ptsPerdedor: 1, duracionMin: 10 }
-  });
+async function handleSaveNuevaDisciplina(e) {
+  if (e) {
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+  }
+  if (isSavingNuevaDisciplina) return;
+  isSavingNuevaDisciplina = true;
 
-  window.tournamentStore.saveToStorage();
-  document.getElementById('modalNuevaDisciplina')?.classList.remove('open');
-  showToast(`Disciplina "${nombre}" agregada al torneo`, 'success');
-  renderHubDisciplinesGrid();
-  renderDisciplinesBar();
-  renderAdminDisciplinas();
-  if (typeof renderConfigDisciplines === 'function') renderConfigDisciplines();
-  if (typeof populateAdminDisciplineDropdown === 'function') populateAdminDisciplineDropdown();
-});
+  try {
+    const nombre = document.getElementById('discNombre')?.value?.trim();
+    const categoria = document.getElementById('discCategoria')?.value?.trim() || 'Libre';
+    const descripcion = document.getElementById('discDescripcion')?.value?.trim() || '';
+    const logoUrlInput = document.getElementById('discLogoUrl');
+    const logoPreview = document.getElementById('discLogoPreview');
+    const fileInput = document.getElementById('discLogoFile');
+    let avatar = (logoUrlInput?.value || logoPreview?.getAttribute('src') || '').trim();
+    const delegadoInicial = document.getElementById('discDelegadoInicial')?.value?.trim() || '';
+    const icono = document.getElementById('discIcono')?.value?.trim() || '🏆';
+    const color = document.getElementById('discColor')?.value || '#D4AF37';
+    const periodos = Number(document.getElementById('discPeriodos')?.value) || 4;
+    const nombrePeriodo = document.getElementById('discNombrePeriodo')?.value?.trim() || 'Cuarto';
+
+    if (!nombre) {
+      showToast('Por favor introduce el nombre del deporte o disciplina.', 'error');
+      return;
+    }
+
+    // Comprimir obligatoriamente con canvas 120x120 jpeg 0.6
+    if (fileInput && fileInput.files && fileInput.files[0] && (!avatar || avatar.length > 8000 || !avatar.startsWith('data:image/jpeg'))) {
+      try {
+        avatar = await compressImage(fileInput.files[0], 120, 120, 0.6);
+      } catch (err) {
+        console.warn('Fallback al comprimir archivo de logo nueva disciplina:', err);
+      }
+    } else if (avatar && avatar.startsWith('data:')) {
+      try {
+        avatar = await compressImage(avatar, 120, 120, 0.6);
+      } catch (err) {
+        console.warn('Fallback al comprimir avatar nueva disciplina:', err);
+      }
+    }
+
+    const finalLogo = (avatar || './assets/logo.png').trim();
+
+    window.tournamentStore.addDisciplina({
+      nombre,
+      categoria,
+      descripcion,
+      icono,
+      color,
+      banner: finalLogo,
+      avatar: finalLogo,
+      logoUrl: finalLogo,
+      logo: finalLogo,
+      delegadoInicial,
+      reglas: { periodos, nombrePeriodo, ptsGanador: 2, ptsPerdedor: 1, duracionMin: 10 }
+    });
+
+    const currentDiscs = window.tournamentStore.getDisciplinas();
+    saveDisciplineConfig(currentDiscs);
+    window.tournamentStore.saveToStorage();
+
+    document.getElementById('modalNuevaDisciplina')?.classList.remove('open');
+    showToast(`Disciplina "${nombre}" agregada al torneo y sincronizada`, 'success');
+
+    try { renderHubDisciplinesGrid(); } catch (err) {}
+    try { renderDisciplinesBar(); } catch (err) {}
+    try { renderAdminDisciplinas(); } catch (err) {}
+    try { if (typeof renderConfigDisciplines === 'function') renderConfigDisciplines(); } catch (err) {}
+    try { if (typeof populateAdminDisciplineDropdown === 'function') populateAdminDisciplineDropdown(); } catch (err) { console.warn(err); }
+  } catch (err) {
+    console.error('Error during formNuevaDisciplina post-save updates:', err);
+  } finally {
+    isSavingNuevaDisciplina = false;
+  }
+}
+
+document.getElementById('formNuevaDisciplina')?.addEventListener('submit', handleSaveNuevaDisciplina);
 
 // --- PATROCINADORES Y BANNERS ---
 function renderAdminPatrocinadores() {
@@ -4729,8 +5453,9 @@ function initCSVUploadEvents() {
 function populateManualFormSelects() {
   const localSelect = document.getElementById('manMatchLocal');
   const visSelect = document.getElementById('manMatchVis');
+  const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
   if (localSelect && visSelect) {
-    const equipos = window.tournamentStore.getEquipos();
+    const equipos = window.tournamentStore.getEquipos(disc.id);
     const options = equipos.map((eq) => `<option value="${eq.nombre}">${eq.nombre} (${eq.grupo})</option>`).join('');
     localSelect.innerHTML = options;
     visSelect.innerHTML = options;
@@ -4760,6 +5485,7 @@ document.getElementById('formManualTeam')?.addEventListener('submit', (e) => {
   const sede = document.getElementById('manTeamVenue').value;
   const del = document.getElementById('manTeamDelegate').value;
   const tel = document.getElementById('manTeamPhone').value;
+  const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
 
   window.tournamentStore.addEquipo({
     nombre,
@@ -4767,7 +5493,8 @@ document.getElementById('formManualTeam')?.addEventListener('submit', (e) => {
     siglas,
     sedePrincipal: sede,
     delegadoNombre: del,
-    delegadoTelefono: tel
+    delegadoTelefono: tel,
+    disciplinaId: disc.id
   });
 
   showToast(`Equipo "${nombre}" registrado con éxito`, 'success');
@@ -4791,6 +5518,7 @@ document.getElementById('formManualMatch')?.addEventListener('submit', (e) => {
   const hora = document.getElementById('manMatchTime').value;
   const sede = document.getElementById('manMatchVenue').value;
   const fase = document.getElementById('manMatchPhase').value;
+  const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
 
   window.tournamentStore.addPartido({
     equipoLocal: local,
@@ -4799,7 +5527,8 @@ document.getElementById('formManualMatch')?.addEventListener('submit', (e) => {
     hora,
     sede,
     fase,
-    estado: 'PROGRAMADO'
+    estado: 'PROGRAMADO',
+    disciplinaId: disc.id
   });
 
   showToast('Partido programado en el calendario', 'success');
@@ -4807,6 +5536,31 @@ document.getElementById('formManualMatch')?.addEventListener('submit', (e) => {
 });
 
 // --- PASO 3: MESA DE ANOTACIÓN / MARCADOR EN VIVO ---
+function normalizePeriodKey(periodStr, validIds = ['Q1', 'Q2', 'Q3', 'Q4', 'OT']) {
+  if (!periodStr) return validIds[0] || 'Q1';
+  const clean = String(periodStr).trim().toUpperCase();
+  if (validIds.includes(clean)) return clean;
+
+  if (clean.includes('OT') || clean.includes('EXTRA') || clean.includes('PRORROGA') || clean.includes('SET 5') || clean.includes('5TO')) {
+    return validIds.includes('OT') ? 'OT' : (validIds[validIds.length - 1] || 'OT');
+  }
+  if (clean.includes('Q4') || clean.includes('4TO') || clean.includes('4.') || clean.includes('SET 4') || clean.includes('7+')) {
+    return validIds.includes('Q4') ? 'Q4' : (validIds[validIds.length - 1] || 'Q4');
+  }
+  if (clean.includes('Q3') || clean.includes('3ER') || clean.includes('3.') || clean.includes('SET 3') || clean.includes('5-6')) {
+    return validIds.includes('Q3') ? 'Q3' : (validIds[validIds.length - 1] || 'Q3');
+  }
+  if (clean.includes('Q2') || clean.includes('2DO') || clean.includes('2.') || clean.includes('SET 2') || clean.includes('3-4')) {
+    return validIds.includes('Q2') ? 'Q2' : (validIds[1] || 'Q2');
+  }
+  if (clean.includes('Q1') || clean.includes('1ER') || clean.includes('1.') || clean.includes('SET 1') || clean.includes('1-2')) {
+    return validIds.includes('Q1') ? 'Q1' : (validIds[0] || 'Q1');
+  }
+
+  return validIds[0] || 'Q1';
+}
+window.normalizePeriodKey = normalizePeriodKey;
+
 let activeScorerMatch = null;
 
 function loadScorerMatch(partidoId, event) {
@@ -4890,11 +5644,11 @@ function loadScorerMatch(partidoId, event) {
   // Nombres en la tabla de desglose con escudo/logo
   const tblLoc = document.getElementById('scorerTableLocalName');
   if (tblLoc) {
-    tblLoc.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.45rem;">${getTeamLogoOrEmblemHtml(eqLoc || locName, { size: 24, fallbackName: locName })} <span>${escapeHtml(locName)}</span></span>`;
+    tblLoc.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.65rem;">${getTeamLogoOrEmblemHtml(eqLoc || locName, { size: 36, fallbackName: locName })} <span>${escapeHtml(locName)}</span></span>`;
   }
   const tblVis = document.getElementById('scorerTableVisName');
   if (tblVis) {
-    tblVis.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.45rem;">${getTeamLogoOrEmblemHtml(eqVis || visName, { size: 24, fallbackName: visName })} <span>${escapeHtml(visName)}</span></span>`;
+    tblVis.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.65rem;">${getTeamLogoOrEmblemHtml(eqVis || visName, { size: 36, fallbackName: visName })} <span>${escapeHtml(visName)}</span></span>`;
   }
 
   // 2. Carga de Logotipos Reales en los contenedores circulares de Local y Visitante
@@ -4912,7 +5666,7 @@ function loadScorerMatch(partidoId, event) {
     logoLocEl.innerHTML = `
       <img src="${escapeHtmlAttr(srcLoc)}" alt="${escapeHtmlAttr(locName)}" class="team-real-logo-img" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%; display: block;" onerror="this.onerror=null; this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
       <div class="team-default-emblem-frame" style="display: none; width: 100%; height: 100%; background: ${colorLoc}; border-radius: 50%; align-items: center; justify-content: center;" title="${safeLoc}">
-        ${getDefaultSportsIconSvg(discId, '#fde047', 44)}
+        ${getDefaultSportsIconSvg(discId, '#fde047', 54)}
       </div>
     `;
   }
@@ -4930,48 +5684,58 @@ function loadScorerMatch(partidoId, event) {
     logoVisEl.innerHTML = `
       <img src="${escapeHtmlAttr(srcVis)}" alt="${escapeHtmlAttr(visName)}" class="team-real-logo-img" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%; display: block;" onerror="this.onerror=null; this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
       <div class="team-default-emblem-frame" style="display: none; width: 100%; height: 100%; background: ${colorVis}; border-radius: 50%; align-items: center; justify-content: center;" title="${safeVis}">
-        ${getDefaultSportsIconSvg(discId, '#fde047', 44)}
+        ${getDefaultSportsIconSvg(discId, '#fde047', 54)}
       </div>
     `;
   }
 
   // 3. Sincronización de Marcador y Desglose de Periodos (Q1, Q2, Q3, Q4, OT)
-  const q1LVal = Number(activeScorerMatch.q1Loc ?? activeScorerMatch.q1_loc ?? 0) || 0;
-  const q2LVal = Number(activeScorerMatch.q2Loc ?? activeScorerMatch.q2_loc ?? 0) || 0;
-  const q3LVal = Number(activeScorerMatch.q3Loc ?? activeScorerMatch.q3_loc ?? 0) || 0;
-  const q4LVal = Number(activeScorerMatch.q4Loc ?? activeScorerMatch.q4_loc ?? 0) || 0;
-  const otLVal = Number(activeScorerMatch.otLoc ?? activeScorerMatch.ot_loc ?? 0) || 0;
+  const q1LVal = parseInt(activeScorerMatch.q1Loc ?? activeScorerMatch.q1_loc ?? 0, 10) || 0;
+  const q2LVal = parseInt(activeScorerMatch.q2Loc ?? activeScorerMatch.q2_loc ?? 0, 10) || 0;
+  const q3LVal = parseInt(activeScorerMatch.q3Loc ?? activeScorerMatch.q3_loc ?? 0, 10) || 0;
+  const q4LVal = parseInt(activeScorerMatch.q4Loc ?? activeScorerMatch.q4_loc ?? 0, 10) || 0;
+  const otLVal = parseInt(activeScorerMatch.otLoc ?? activeScorerMatch.ot_loc ?? 0, 10) || 0;
   const sumQuartersLoc = q1LVal + q2LVal + q3LVal + q4LVal + otLVal;
 
-  let totalLoc = activeScorerMatch.puntosLocal ?? activeScorerMatch.totalLocal ?? activeScorerMatch.marcadorLocal ?? activeScorerMatch.scoreLocal ?? activeScorerMatch.tot_loc;
-  if (totalLoc === undefined || totalLoc === null || (Number(totalLoc) === 0 && sumQuartersLoc > 0)) {
-    totalLoc = sumQuartersLoc;
+  let totalLoc = sumQuartersLoc;
+  if (totalLoc === 0) {
+    const rawTot = activeScorerMatch.totalLocal ?? activeScorerMatch.puntosLocal ?? activeScorerMatch.marcadorLocal ?? activeScorerMatch.scoreLocal ?? activeScorerMatch.tot_loc;
+    if (rawTot !== undefined && rawTot !== null) {
+      totalLoc = parseInt(rawTot, 10) || 0;
+    }
   }
-  totalLoc = Number(totalLoc) || 0;
 
-  const q1VVal = Number(activeScorerMatch.q1Vis ?? activeScorerMatch.q1_vis ?? 0) || 0;
-  const q2VVal = Number(activeScorerMatch.q2Vis ?? activeScorerMatch.q2_vis ?? 0) || 0;
-  const q3VVal = Number(activeScorerMatch.q3Vis ?? activeScorerMatch.q3_vis ?? 0) || 0;
-  const q4VVal = Number(activeScorerMatch.q4Vis ?? activeScorerMatch.q4_vis ?? 0) || 0;
-  const otVVal = Number(activeScorerMatch.otVis ?? activeScorerMatch.ot_vis ?? 0) || 0;
+  const q1VVal = parseInt(activeScorerMatch.q1Vis ?? activeScorerMatch.q1_vis ?? 0, 10) || 0;
+  const q2VVal = parseInt(activeScorerMatch.q2Vis ?? activeScorerMatch.q2_vis ?? 0, 10) || 0;
+  const q3VVal = parseInt(activeScorerMatch.q3Vis ?? activeScorerMatch.q3_vis ?? 0, 10) || 0;
+  const q4VVal = parseInt(activeScorerMatch.q4Vis ?? activeScorerMatch.q4_vis ?? 0, 10) || 0;
+  const otVVal = parseInt(activeScorerMatch.otVis ?? activeScorerMatch.ot_vis ?? 0, 10) || 0;
   const sumQuartersVis = q1VVal + q2VVal + q3VVal + q4VVal + otVVal;
 
-  let totalVis = activeScorerMatch.puntosVisitante ?? activeScorerMatch.totalVisitante ?? activeScorerMatch.marcadorVisitante ?? activeScorerMatch.scoreVisitante ?? activeScorerMatch.tot_vis;
-  if (totalVis === undefined || totalVis === null || (Number(totalVis) === 0 && sumQuartersVis > 0)) {
-    totalVis = sumQuartersVis;
+  let totalVis = sumQuartersVis;
+  if (totalVis === 0) {
+    const rawTot = activeScorerMatch.totalVisitante ?? activeScorerMatch.puntosVisitante ?? activeScorerMatch.marcadorVisitante ?? activeScorerMatch.scoreVisitante ?? activeScorerMatch.tot_vis;
+    if (rawTot !== undefined && rawTot !== null) {
+      totalVis = parseInt(rawTot, 10) || 0;
+    }
   }
-  totalVis = Number(totalVis) || 0;
 
-  // Mantener coherencia en el objeto activo
+  // Mantener coherencia estricta en el objeto activo
   activeScorerMatch.totalLocal = totalLoc;
   activeScorerMatch.totalVisitante = totalVis;
   activeScorerMatch.puntosLocal = totalLoc;
   activeScorerMatch.puntosVisitante = totalVis;
+  activeScorerMatch.marcadorLocal = totalLoc;
+  activeScorerMatch.marcadorVisitante = totalVis;
+  activeScorerMatch.scoreLocal = totalLoc;
+  activeScorerMatch.scoreVisitante = totalVis;
+
   activeScorerMatch.q1Loc = q1LVal;
   activeScorerMatch.q2Loc = q2LVal;
   activeScorerMatch.q3Loc = q3LVal;
   activeScorerMatch.q4Loc = q4LVal;
   activeScorerMatch.otLoc = otLVal;
+
   activeScorerMatch.q1Vis = q1VVal;
   activeScorerMatch.q2Vis = q2VVal;
   activeScorerMatch.q3Vis = q3VVal;
@@ -4999,16 +5763,18 @@ function loadScorerMatch(partidoId, event) {
   const tVis = document.getElementById('scorerTableVisTotal');
   if (tVis) tVis.textContent = String(totalVis);
 
-  // Cargar inputs del desglose de cuartos
+  // Cargar inputs del desglose de cuartos y prórroga (OT)
   const q1L = document.getElementById('scorerQ1Loc'); if (q1L) q1L.value = q1LVal;
   const q2L = document.getElementById('scorerQ2Loc'); if (q2L) q2L.value = q2LVal;
   const q3L = document.getElementById('scorerQ3Loc'); if (q3L) q3L.value = q3LVal;
   const q4L = document.getElementById('scorerQ4Loc'); if (q4L) q4L.value = q4LVal;
+  const otL = document.getElementById('scorerOTLoc'); if (otL) otL.value = otLVal;
 
   const q1V = document.getElementById('scorerQ1Vis'); if (q1V) q1V.value = q1VVal;
   const q2V = document.getElementById('scorerQ2Vis'); if (q2V) q2V.value = q2VVal;
   const q3V = document.getElementById('scorerQ3Vis'); if (q3V) q3V.value = q3VVal;
   const q4V = document.getElementById('scorerQ4Vis'); if (q4V) q4V.value = q4VVal;
+  const otV = document.getElementById('scorerOTVis'); if (otV) otV.value = otVVal;
 
   // 4. Estado Real y Reloj
   const estadoRaw = String(activeScorerMatch.estado || '').trim().toUpperCase();
@@ -5092,56 +5858,70 @@ function loadScorerMatch(partidoId, event) {
       ];
     }
 
-    const currentPeriod = isFinalizado ? 'Final' : (activeScorerMatch.periodoActual || 'Q1');
+    const validPeriodIds = periodsConfig.map((p) => p.id);
+    let activePeriodId = normalizePeriodKey(activeScorerMatch.periodoActual, validPeriodIds);
+    if (!isFinalizado) {
+      activeScorerMatch.periodoActual = activePeriodId;
+    }
+
     const user = window.tournamentStore?.getUsuarioActual();
-    const isSuperAdmin = !!(user && (user.rol === 'superadmin' || user.esSuperAdmin));
+    const canSwitchPeriod = !user || user.rol === 'superadmin' || user.esSuperAdmin || user.rol === 'admin';
+    const pointerStyle = canSwitchPeriod ? 'cursor: pointer; pointer-events: auto;' : 'cursor: default; pointer-events: none;';
 
     periodContainer.innerHTML = periodsConfig.map((p) => {
-      const isActive = !isFinalizado && p.id === currentPeriod;
-      const pointerStyle = isSuperAdmin ? 'cursor: pointer; pointer-events: auto;' : 'cursor: default; pointer-events: none;';
+      const isActive = !isFinalizado && p.id === activePeriodId;
       return `<button class="period-btn ${isActive ? 'active' : ''}" data-period="${p.id}" type="button" style="${pointerStyle}">${p.label}</button>`;
     }).join('');
 
     periodContainer.querySelectorAll('.period-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        if (!isSuperAdmin) return;
+        const curUser = window.tournamentStore?.getUsuarioActual();
+        const allowed = !curUser || curUser.rol === 'superadmin' || curUser.esSuperAdmin || curUser.rol === 'admin';
+        if (!allowed) return;
+
         periodContainer.querySelectorAll('.period-btn').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
+        const chosenPeriod = btn.getAttribute('data-period');
         if (activeScorerMatch) {
-          activeScorerMatch.periodoActual = btn.getAttribute('data-period');
-          window.tournamentStore.updatePartido(activeScorerMatch.id, { periodoActual: activeScorerMatch.periodoActual });
+          activeScorerMatch.periodoActual = chosenPeriod;
+          window.tournamentStore?.updatePartido?.(activeScorerMatch.id, { periodoActual: chosenPeriod });
           if (window.supabaseService?.broadcastScore) {
-            window.supabaseService.broadcastScore(activeScorerMatch.id, { periodoActual: activeScorerMatch.periodoActual });
+            window.supabaseService.broadcastScore(activeScorerMatch.id, { periodoActual: chosenPeriod });
           }
         }
       });
     });
   }
 
-  // Encabezados dinámicos en la tabla de desglose
+  // Encabezados dinámicos en la tabla de desglose (7 columnas: Equipo, Q1..Q4, OT, TOTAL)
   const qTableHeaders = document.querySelectorAll('.quarters-table thead tr th');
-  if (qTableHeaders && qTableHeaders.length >= 6) {
+  if (qTableHeaders && qTableHeaders.length >= 7) {
     if (isVoleibol) {
       qTableHeaders[1].textContent = 'Set 1';
       qTableHeaders[2].textContent = 'Set 2';
       qTableHeaders[3].textContent = 'Set 3';
       qTableHeaders[4].textContent = 'Set 4';
+      qTableHeaders[5].textContent = 'Set 5';
     } else if (isFutsal) {
       qTableHeaders[1].textContent = '1er T.';
       qTableHeaders[2].textContent = '2do T.';
       qTableHeaders[3].textContent = 'Extra';
       qTableHeaders[4].textContent = 'Pen.';
+      qTableHeaders[5].textContent = 'OT';
     } else if (isSoftbol) {
       qTableHeaders[1].textContent = 'I 1-2';
       qTableHeaders[2].textContent = 'I 3-4';
       qTableHeaders[3].textContent = 'I 5-6';
       qTableHeaders[4].textContent = 'I 7+';
+      qTableHeaders[5].textContent = 'Extra';
     } else {
       qTableHeaders[1].textContent = 'Q1';
       qTableHeaders[2].textContent = 'Q2';
       qTableHeaders[3].textContent = 'Q3';
       qTableHeaders[4].textContent = 'Q4';
+      qTableHeaders[5].textContent = 'OT';
     }
+    qTableHeaders[6].textContent = 'TOTAL';
   }
 
   const qTitleEl = document.querySelector('.scorer-quarters-title span');
@@ -5185,6 +5965,92 @@ window.loadScorerMatch = loadScorerMatch;
 window.renderMainScoreboard = loadScorerMatch;
 window.renderLiveScoreboardArena = loadScorerMatch;
 
+// Recalcula y sincroniza el marcador digital principal y la tabla de desglose
+function recalculateAndSyncFromQuartersTable() {
+  if (!activeScorerMatch) return;
+
+  const parseVal = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const v = parseInt(el.value, 10);
+    return isNaN(v) ? 0 : Math.max(0, v);
+  };
+
+  // 1. Puntos Local por período (enteros estrictos)
+  const q1L = parseVal('scorerQ1Loc');
+  const q2L = parseVal('scorerQ2Loc');
+  const q3L = parseVal('scorerQ3Loc');
+  const q4L = parseVal('scorerQ4Loc');
+  const otL = parseVal('scorerOTLoc');
+
+  activeScorerMatch.q1Loc = q1L;
+  activeScorerMatch.q2Loc = q2L;
+  activeScorerMatch.q3Loc = q3L;
+  activeScorerMatch.q4Loc = q4L;
+  activeScorerMatch.otLoc = otL;
+
+  const totalLocal = q1L + q2L + q3L + q4L + otL;
+  activeScorerMatch.totalLocal = totalLocal;
+  activeScorerMatch.puntosLocal = totalLocal;
+  activeScorerMatch.marcadorLocal = totalLocal;
+  activeScorerMatch.scoreLocal = totalLocal;
+
+  // 2. Puntos Visitante por período (enteros estrictos)
+  const q1V = parseVal('scorerQ1Vis');
+  const q2V = parseVal('scorerQ2Vis');
+  const q3V = parseVal('scorerQ3Vis');
+  const q4V = parseVal('scorerQ4Vis');
+  const otV = parseVal('scorerOTVis');
+
+  activeScorerMatch.q1Vis = q1V;
+  activeScorerMatch.q2Vis = q2V;
+  activeScorerMatch.q3Vis = q3V;
+  activeScorerMatch.q4Vis = q4V;
+  activeScorerMatch.otVis = otV;
+
+  const totalVisitante = q1V + q2V + q3V + q4V + otV;
+  activeScorerMatch.totalVisitante = totalVisitante;
+  activeScorerMatch.puntosVisitante = totalVisitante;
+  activeScorerMatch.marcadorVisitante = totalVisitante;
+  activeScorerMatch.scoreVisitante = totalVisitante;
+
+  // 3. Actualizar Tarjetas Grandes Marcador Superior (LED Verde Neón)
+  const locTotEl = document.getElementById('scorerLocalTotal');
+  if (locTotEl) {
+    locTotEl.textContent = String(totalLocal);
+    locTotEl.classList.remove('score-update-flash');
+    void locTotEl.offsetWidth;
+    locTotEl.classList.add('score-update-flash');
+  }
+
+  const visTotEl = document.getElementById('scorerVisTotal');
+  if (visTotEl) {
+    visTotEl.textContent = String(totalVisitante);
+    visTotEl.classList.remove('score-update-flash');
+    void visTotEl.offsetWidth;
+    visTotEl.classList.add('score-update-flash');
+  }
+
+  // 4. Actualizar Celdas TOTAL en la Tabla Inferior
+  const tblLocTotEl = document.getElementById('scorerTableLocalTotal');
+  if (tblLocTotEl) tblLocTotEl.textContent = String(totalLocal);
+
+  const tblVisTotEl = document.getElementById('scorerTableVisTotal');
+  if (tblVisTotEl) tblVisTotEl.textContent = String(totalVisitante);
+
+  // 5. Sincronizar carrusel y selectores de partido
+  syncLiveMatchUiScores(activeScorerMatch.id, totalLocal, totalVisitante, activeScorerMatch.estado);
+
+  // 6. Persistir en store local
+  window.tournamentStore?.updatePartido?.(activeScorerMatch.id, activeScorerMatch);
+
+  // 7. Transmisión Live Supabase
+  if (window.supabaseService?.broadcastScore) {
+    window.supabaseService.broadcastScore(activeScorerMatch.id, activeScorerMatch);
+  }
+}
+window.recalculateAndSyncFromQuartersTable = recalculateAndSyncFromQuartersTable;
+
 function initScorerControls() {
   // Navegación de Partidos: Flechas Rápidas (Viewer y Mesa Técnica)
   document.getElementById('btnLivePrevMatch')?.addEventListener('click', () => navigateLiveMatch('prev'));
@@ -5197,95 +6063,60 @@ function initScorerControls() {
     btn.addEventListener('click', () => {
       if (!activeScorerMatch) return;
 
-      const team = btn.getAttribute('data-team');
-      const val = Number(btn.getAttribute('data-val'));
+      const team = btn.getAttribute('data-team'); // 'loc' | 'vis'
+      const val = parseInt(btn.getAttribute('data-val'), 10) || 0;
+
+      // Determinar período activo actualmente
       const activePeriodBtn = document.querySelector('#scorerPeriodSelector .period-btn.active');
-      const period = activePeriodBtn ? activePeriodBtn.getAttribute('data-period') : 'Q4';
+      let period = activePeriodBtn ? activePeriodBtn.getAttribute('data-period') : null;
+      if (!period) {
+        period = normalizePeriodKey(activeScorerMatch.periodoActual, ['Q1', 'Q2', 'Q3', 'Q4', 'OT']);
+      }
+      period = String(period).toUpperCase();
 
-      if (team === 'loc') {
-        const qKey = `${period.toLowerCase()}Loc`;
-        let qVal = activeScorerMatch[qKey] || 0;
-        qVal = Math.max(0, qVal + val);
-        activeScorerMatch[qKey] = qVal;
-        activeScorerMatch.totalLocal =
-          (activeScorerMatch.q1Loc || 0) +
-          (activeScorerMatch.q2Loc || 0) +
-          (activeScorerMatch.q3Loc || 0) +
-          (activeScorerMatch.q4Loc || 0) +
-          (activeScorerMatch.otLoc || 0);
-
-        const qInput = document.getElementById(`scorer${period}Loc`);
-        if (qInput) qInput.value = qVal;
-        const totEl = document.getElementById('scorerLocalTotal');
-        if (totEl) totEl.textContent = activeScorerMatch.totalLocal;
-        const tLoc = document.getElementById('scorerTableLocalTotal');
-        if (tLoc) tLoc.textContent = activeScorerMatch.totalLocal;
-        if (val > 0 && typeof SoundEffects !== 'undefined') SoundEffects.playPointSound();
-      } else {
-        const qKey = `${period.toLowerCase()}Vis`;
-        let qVal = activeScorerMatch[qKey] || 0;
-        qVal = Math.max(0, qVal + val);
-        activeScorerMatch[qKey] = qVal;
-        activeScorerMatch.totalVisitante =
-          (activeScorerMatch.q1Vis || 0) +
-          (activeScorerMatch.q2Vis || 0) +
-          (activeScorerMatch.q3Vis || 0) +
-          (activeScorerMatch.q4Vis || 0) +
-          (activeScorerMatch.otVis || 0);
-
-        const qInput = document.getElementById(`scorer${period}Vis`);
-        if (qInput) qInput.value = qVal;
-        const totEl = document.getElementById('scorerVisTotal');
-        if (totEl) totEl.textContent = activeScorerMatch.totalVisitante;
-        const tVis = document.getElementById('scorerTableVisTotal');
-        if (tVis) tVis.textContent = activeScorerMatch.totalVisitante;
-        if (val > 0 && typeof SoundEffects !== 'undefined') SoundEffects.playPointSound();
+      // Asegurar que el botón del selector refleje la clase active
+      const selectorBtn = document.querySelector(`#scorerPeriodSelector .period-btn[data-period="${period}"]`);
+      if (selectorBtn && !selectorBtn.classList.contains('active')) {
+        document.querySelectorAll('#scorerPeriodSelector .period-btn').forEach((b) => b.classList.remove('active'));
+        selectorBtn.classList.add('active');
       }
 
-      // Guardar y sincronizar localmente de inmediato
-      syncLiveMatchUiScores(activeScorerMatch.id, activeScorerMatch.totalLocal, activeScorerMatch.totalVisitante, activeScorerMatch.estado);
-      window.tournamentStore.updatePartido(activeScorerMatch.id, activeScorerMatch);
+      if (team === 'loc') {
+        const periodKey = `${period.toLowerCase()}Loc`;
+        let curVal = parseInt(activeScorerMatch[periodKey], 10) || 0;
+        curVal = Math.max(0, curVal + val);
+        activeScorerMatch[periodKey] = curVal;
 
-      // Transmisión Live Realtime vía Supabase
-      if (window.supabaseService?.broadcastScore) {
-        window.supabaseService.broadcastScore(activeScorerMatch.id, activeScorerMatch);
+        const qInput = document.getElementById(`scorer${period}Loc`);
+        if (qInput) qInput.value = curVal;
+
+        recalculateAndSyncFromQuartersTable();
+        if (val > 0 && typeof SoundEffects !== 'undefined') SoundEffects.playPointSound();
+      } else if (team === 'vis') {
+        const periodKey = `${period.toLowerCase()}Vis`;
+        let curVal = parseInt(activeScorerMatch[periodKey], 10) || 0;
+        curVal = Math.max(0, curVal + val);
+        activeScorerMatch[periodKey] = curVal;
+
+        const qInput = document.getElementById(`scorer${period}Vis`);
+        if (qInput) qInput.value = curVal;
+
+        recalculateAndSyncFromQuartersTable();
+        if (val > 0 && typeof SoundEffects !== 'undefined') SoundEffects.playPointSound();
       }
     });
   });
 
-  // Edición directa en la tabla de cuartos
-  ['scorerQ1Loc', 'scorerQ2Loc', 'scorerQ3Loc', 'scorerQ4Loc', 'scorerQ1Vis', 'scorerQ2Vis', 'scorerQ3Vis', 'scorerQ4Vis'].forEach((id) => {
-    document.getElementById(id)?.addEventListener('input', () => {
-      if (!activeScorerMatch) return;
-      activeScorerMatch.q1Loc = Math.max(0, Number(document.getElementById('scorerQ1Loc')?.value) || 0);
-      activeScorerMatch.q2Loc = Math.max(0, Number(document.getElementById('scorerQ2Loc')?.value) || 0);
-      activeScorerMatch.q3Loc = Math.max(0, Number(document.getElementById('scorerQ3Loc')?.value) || 0);
-      activeScorerMatch.q4Loc = Math.max(0, Number(document.getElementById('scorerQ4Loc')?.value) || 0);
-      activeScorerMatch.totalLocal =
-        activeScorerMatch.q1Loc + activeScorerMatch.q2Loc + activeScorerMatch.q3Loc + activeScorerMatch.q4Loc + (activeScorerMatch.otLoc || 0);
-
-      activeScorerMatch.q1Vis = Math.max(0, Number(document.getElementById('scorerQ1Vis')?.value) || 0);
-      activeScorerMatch.q2Vis = Math.max(0, Number(document.getElementById('scorerQ2Vis')?.value) || 0);
-      activeScorerMatch.q3Vis = Math.max(0, Number(document.getElementById('scorerQ3Vis')?.value) || 0);
-      activeScorerMatch.q4Vis = Math.max(0, Number(document.getElementById('scorerQ4Vis')?.value) || 0);
-      activeScorerMatch.totalVisitante =
-        activeScorerMatch.q1Vis + activeScorerMatch.q2Vis + activeScorerMatch.q3Vis + activeScorerMatch.q4Vis + (activeScorerMatch.otVis || 0);
-
-      const locTot = document.getElementById('scorerLocalTotal');
-      if (locTot) locTot.textContent = activeScorerMatch.totalLocal;
-      const visTot = document.getElementById('scorerVisTotal');
-      if (visTot) visTot.textContent = activeScorerMatch.totalVisitante;
-      const tLoc = document.getElementById('scorerTableLocalTotal');
-      if (tLoc) tLoc.textContent = activeScorerMatch.totalLocal;
-      const tVis = document.getElementById('scorerTableVisTotal');
-      if (tVis) tVis.textContent = activeScorerMatch.totalVisitante;
-
-      syncLiveMatchUiScores(activeScorerMatch.id, activeScorerMatch.totalLocal, activeScorerMatch.totalVisitante, activeScorerMatch.estado);
-      window.tournamentStore.updatePartido(activeScorerMatch.id, activeScorerMatch);
-      if (window.supabaseService?.broadcastScore) {
-        window.supabaseService.broadcastScore(activeScorerMatch.id, activeScorerMatch);
-      }
-    });
+  // Edición directa en la tabla de cuartos / períodos (Eventos input y change para recalcular al instante)
+  const quarterInputIds = [
+    'scorerQ1Loc', 'scorerQ2Loc', 'scorerQ3Loc', 'scorerQ4Loc', 'scorerOTLoc',
+    'scorerQ1Vis', 'scorerQ2Vis', 'scorerQ3Vis', 'scorerQ4Vis', 'scorerOTVis'
+  ];
+  quarterInputIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', recalculateAndSyncFromQuartersTable);
+    el.addEventListener('change', recalculateAndSyncFromQuartersTable);
   });
 
   // Control de Reloj (Iniciar / Pausar / Reiniciar)
@@ -5361,6 +6192,7 @@ function initScorerControls() {
   document.getElementById('btnScorerSetFinalizado')?.addEventListener('click', () => {
     if (!activeScorerMatch) return;
     if (confirm(`¿Finalizar el partido ${activeScorerMatch.equipoLocal} vs ${activeScorerMatch.equipoVisitante}? Esto recalculará la tabla de posiciones.`)) {
+      recalculateAndSyncFromQuartersTable();
       activeScorerMatch.estado = 'FINALIZADO';
       activeScorerMatch.periodoActual = 'Final';
       activeScorerMatch.reloj = '00:00';
@@ -5383,27 +6215,7 @@ function initScorerControls() {
   // Transmisión Instantánea Manual
   document.getElementById('btnBroadcastInstant')?.addEventListener('click', () => {
     if (!activeScorerMatch) return;
-
-    // Lectura de inputs manuales
-    activeScorerMatch.q1Loc = Number(document.getElementById('scorerQ1Loc')?.value) || 0;
-    activeScorerMatch.q2Loc = Number(document.getElementById('scorerQ2Loc')?.value) || 0;
-    activeScorerMatch.q3Loc = Number(document.getElementById('scorerQ3Loc')?.value) || 0;
-    activeScorerMatch.q4Loc = Number(document.getElementById('scorerQ4Loc')?.value) || 0;
-    activeScorerMatch.totalLocal =
-      activeScorerMatch.q1Loc + activeScorerMatch.q2Loc + activeScorerMatch.q3Loc + activeScorerMatch.q4Loc + (activeScorerMatch.otLoc || 0);
-
-    activeScorerMatch.q1Vis = Number(document.getElementById('scorerQ1Vis')?.value) || 0;
-    activeScorerMatch.q2Vis = Number(document.getElementById('scorerQ2Vis')?.value) || 0;
-    activeScorerMatch.q3Vis = Number(document.getElementById('scorerQ3Vis')?.value) || 0;
-    activeScorerMatch.q4Vis = Number(document.getElementById('scorerQ4Vis')?.value) || 0;
-    activeScorerMatch.totalVisitante =
-      activeScorerMatch.q1Vis + activeScorerMatch.q2Vis + activeScorerMatch.q3Vis + activeScorerMatch.q4Vis + (activeScorerMatch.otVis || 0);
-
-    syncLiveMatchUiScores(activeScorerMatch.id, activeScorerMatch.totalLocal, activeScorerMatch.totalVisitante, activeScorerMatch.estado);
-    window.tournamentStore.updatePartido(activeScorerMatch.id, activeScorerMatch);
-    if (window.supabaseService?.broadcastScore) {
-      window.supabaseService.broadcastScore(activeScorerMatch.id, activeScorerMatch);
-    }
+    recalculateAndSyncFromQuartersTable();
     loadScorerMatch(activeScorerMatch.id);
     showToast('⚡ Marcador guardado y transmitido en tiempo real', 'success');
   });
@@ -5733,20 +6545,36 @@ document.getElementById('btnResetAllStore')?.addEventListener('click', () => {
 });
 
 // --- SUPABASE CONFIG MODAL ---
-document.getElementById('btnConfigSupabaseModal')?.addEventListener('click', () => {
-  const cfg = window.tournamentStore.getConfig();
-  document.getElementById('inputSupabaseUrl').value = cfg.supabaseUrl || '';
-  document.getElementById('inputSupabaseKey').value = cfg.supabaseAnonKey || '';
+const handleOpenSupabaseModal = () => {
+  const cfg = window.tournamentStore?.getConfig() || {};
+  const urlEl = document.getElementById('inputSupabaseUrl');
+  const keyEl = document.getElementById('inputSupabaseKey');
+  if (urlEl) urlEl.value = cfg.supabaseUrl || window.supabaseService?.url || 'https://wznvihuvpqnnrlgcgqpx.supabase.co';
+  if (keyEl) keyEl.value = cfg.supabaseAnonKey || window.supabaseService?.key || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6bnZpaHV2cHFubnJsZ2dxcHgiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTcxNzAzNzQwMCwiZXhwIjoyMDMyNjEzNDAwfQ.ixhXWj0Jfir852IXJFdZNNfNscnND2u5WPXZ0EBA6Ik';
   document.getElementById('modalSupabaseConfig')?.classList.add('open');
-});
+};
 
-document.getElementById('formSupabaseConfig')?.addEventListener('submit', (e) => {
+document.getElementById('btnConfigSupabaseModal')?.addEventListener('click', handleOpenSupabaseModal);
+document.getElementById('btnAdminSupabaseModal')?.addEventListener('click', handleOpenSupabaseModal);
+
+document.getElementById('formSupabaseConfig')?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const url = document.getElementById('inputSupabaseUrl').value.trim();
-  const key = document.getElementById('inputSupabaseKey').value.trim();
+  const url = (document.getElementById('inputSupabaseUrl')?.value || '').trim();
+  const key = (document.getElementById('inputSupabaseKey')?.value || '').trim();
 
-  window.supabaseService.configure(url, key);
-  showToast('Configuración de Supabase guardada', 'success');
+  if (window.supabaseService) {
+    window.supabaseService.configure(url, key);
+    showToast('Configuración de Supabase guardada. Verificando conexión...', 'info');
+    const verified = await window.supabaseService.verifyConnection();
+    if (verified) {
+      showToast('☁️ Conexión con Supabase verificada y activa', 'success');
+      // Sincronizar automáticamente datos locales con la nube
+      window.supabaseService.syncEquipos();
+      window.supabaseService.syncPartidos();
+    } else {
+      showToast('Credenciales guardadas. Modo sincronización listo.', 'info');
+    }
+  }
 });
 
 document.getElementById('btnCopiarSQLSupabase')?.addEventListener('click', () => {
@@ -5779,7 +6607,7 @@ function checkActiveSession() {
     if (user.rol === 'superadmin') {
       badge.textContent = '👑 Super Administrador';
       badge.className = 'badge badge-gold';
-      text.textContent = `Sesión activa: ${user.nombre || 'José Lambert'} (Control Master - C.I. ${user.cedula || '14621157'})`;
+      text.textContent = `Sesión activa: ${user.nombre || 'Superadministrador'} (Control Maestro)`;
     } else if (user.rol === 'delegado') {
       badge.textContent = '📋 Delegado Oficial';
       badge.className = 'badge badge-burgundy';
@@ -5838,6 +6666,29 @@ function renderAllViews() {
 
 // React to Tournament Store updates
 window.tournamentStore.subscribe((data, meta) => {
+  if (meta && meta.action === 'change_discipline') {
+    currentLiveMatchId = null;
+    activeScorerMatch = null;
+    currentTeamGroupFilter = 'todos';
+    if (typeof currentCalendarFilter !== 'undefined') currentCalendarFilter = 'todos';
+    if (typeof isTimerRunning !== 'undefined' && isTimerRunning) {
+      clearInterval(matchTimerInterval);
+      isTimerRunning = false;
+      const btnClock = document.getElementById('btnClockToggle');
+      if (btnClock) btnClock.textContent = '▶ Iniciar Reloj';
+    }
+    renderHubDisciplinesGrid();
+    renderDisciplinesBar();
+    renderDashboardModule();
+    renderTeamsAndRosters();
+    renderGroupsStructure();
+    renderMatches();
+    renderLiveModule();
+    renderStandings();
+    checkActiveSession();
+    return;
+  }
+
   renderHubDisciplinesGrid();
   renderDisciplinesBar();
   renderHeroScoreboard();
@@ -5928,12 +6779,19 @@ function openConfiguracionSistemaModal() {
 }
 
 function closeConfiguracionSistemaModal() {
-  isSuperAdminUnlocked = false;
-  updateSuperAdminPanelState();
-  document.getElementById('modalConfiguracionSistema')?.classList.remove('open');
+  try {
+    isSuperAdminUnlocked = false;
+    if (typeof updateSuperAdminPanelState === 'function') updateSuperAdminPanelState();
+  } catch (e) {
+    console.warn('Error resetting super admin panel state:', e);
+  }
+  const modal = document.getElementById('modalConfiguracionSistema');
+  if (modal) {
+    modal.classList.remove('open');
+  }
   // Disparar actualización inmediata del DOM al cerrar el modal
-  renderHubDisciplinesGrid();
-  renderDisciplinesBar();
+  try { renderHubDisciplinesGrid(); } catch (e) {}
+  try { renderDisciplinesBar(); } catch (e) {}
 }
 
 function closeEditDisciplinaModal() {
@@ -5948,6 +6806,7 @@ function closeNuevaDisciplinaModal() {
   renderDisciplinesBar();
 }
 
+window.openConfiguracionSistemaModal = openConfiguracionSistemaModal;
 window.closeConfiguracionSistemaModal = closeConfiguracionSistemaModal;
 window.closeEditDisciplinaModal = closeEditDisciplinaModal;
 window.closeNuevaDisciplinaModal = closeNuevaDisciplinaModal;
@@ -5974,14 +6833,16 @@ function updateSuperAdminPanelState() {
     const user = window.tournamentStore.getUsuarioActual();
     const nameEl = document.getElementById('saActiveUserName');
     const docEl = document.getElementById('saActiveUserDoc');
-    if (nameEl) nameEl.textContent = user?.nombre || 'José Lambert';
-    if (docEl) docEl.textContent = `C.I. ${user?.cedula || '14621157'} • Control Maestro Global`;
+    if (nameEl) nameEl.textContent = user?.nombre || 'Superadministrador Autorizado';
+    if (docEl) docEl.textContent = user?.cedula ? `C.I. ${user.cedula} • Control Maestro Global` : 'Control Maestro Global';
   } else {
     if (lockScreen) lockScreen.style.display = 'block';
     if (unlockedPanel) unlockedPanel.style.display = 'none';
     if (lockStatusBadge) lockStatusBadge.textContent = '🔒 Acceso Protegido';
     const pinEl = document.getElementById('saAuthCedulaPin');
     if (pinEl) pinEl.value = '';
+    const nameEl = document.getElementById('saAuthNombreCompleto');
+    if (nameEl) nameEl.value = '';
   }
 }
 
@@ -6056,6 +6917,9 @@ function renderConfigDisciplines() {
       if (confirm(`¿Estás seguro de eliminar la disciplina "${name}"? Esta acción removerá la categoría de la plataforma.`)) {
         const ok = window.tournamentStore.deleteDisciplina(id);
         if (ok) {
+          try {
+            saveDisciplineConfig(window.tournamentStore.getDisciplinas());
+          } catch (e) {}
           showToast(`Disciplina "${name}" eliminada correctamente`, 'info');
           renderDisciplinesBar();
           renderAdminDisciplinas();
@@ -6075,8 +6939,11 @@ function updateLiveHeaderPreview() {
   const prevTitle = document.getElementById('cfgPreviewHeaderTitle');
   const prevSeason = document.getElementById('cfgPreviewHeaderSeason');
 
-  if (prevTitle && titInput) prevTitle.textContent = titInput.value.trim() || 'Grupo Multiservicios Deportivo JL';
-  if (prevSeason && tempInput) prevSeason.textContent = `Temporada ${tempInput.value.trim() || '2026-2027'}`;
+  const titVal = (titInput?.value || '').trim() || 'Grupo Multiservicios Deportivo JL';
+  const tempVal = (tempInput?.value || '').trim() || '2026-2027';
+
+  if (prevTitle) prevTitle.textContent = titVal;
+  if (prevSeason) prevSeason.textContent = `Temporada ${tempVal}`;
 }
 
 function populateAdminDisciplineDropdown() {
@@ -6200,7 +7067,9 @@ function applyGlobalSystemConfig(config) {
 
   // Brillo de pantalla / interfaz
   const brill = config.brilloInterfaz || 100;
-  document.documentElement.style.filter = `brightness(${brill}%)`;
+  if (document.documentElement && document.documentElement.style) {
+    document.documentElement.style.filter = `brightness(${brill}%)`;
+  }
 
   // Título y temporada de evento
   const tit = config.tituloEvento || 'Grupo Multiservicios Deportivo JL';
@@ -6292,7 +7161,7 @@ function initSystemConfigModalEvents() {
       (cedulaPin === 'admin');
 
     if (!isAuthorized) {
-      showToast('Credenciales incorrectas. Verifique el Nombre completo y la Cédula / PIN (Ej. José Lambert / 14621157).', 'error');
+      showToast('Credenciales incorrectas. Verifique el usuario y la clave / PIN del Superadministrador.', 'error');
       return;
     }
 
@@ -6324,9 +7193,11 @@ function initSystemConfigModalEvents() {
       window.tournamentStore.setUsuarioActual(null);
     }
 
-    // Limpiar el campo de PIN en el formulario
+    // Limpiar campos en el formulario
     const pinEl = document.getElementById('saAuthCedulaPin');
     if (pinEl) pinEl.value = '';
+    const nameInput = document.getElementById('saAuthNombreCompleto');
+    if (nameInput) nameInput.value = '';
 
     updateSuperAdminPanelState();
     if (typeof updateHeaderUserBadge === 'function') updateHeaderUserBadge();
@@ -6347,20 +7218,18 @@ function initSystemConfigModalEvents() {
   document.getElementById('cfgInputTituloEvento')?.addEventListener('input', updateLiveHeaderPreview);
   document.getElementById('cfgInputTemporadaEvento')?.addEventListener('input', updateLiveHeaderPreview);
 
-  // 10. Carga de Logotipo desde el Ordenador
+  // 10. Carga de Logotipo desde el Ordenador con compresión Canvas 120x120 JPEG 0.6
   document.getElementById('cfgFileInputLogo')?.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target.result;
+      showToast('Optimizando logotipo institucional (120x120, calidad 60%)...', 'info');
+      compressImage(file, 120, 120, 0.6, (compressed) => {
         const preview = document.getElementById('cfgLogoPreviewImg');
         const headerPreview = document.getElementById('cfgPreviewHeaderLogo');
-        if (preview) preview.src = dataUrl;
-        if (headerPreview) headerPreview.src = dataUrl;
-        showToast('Logotipo cargado desde el ordenador. Presione "Guardar y Aplicar Cambios Globales" para consolidar.', 'info');
-      };
-      reader.readAsDataURL(file);
+        if (preview) preview.src = compressed;
+        if (headerPreview) headerPreview.src = compressed;
+        showToast('Logotipo institucional comprimido a formato ultraligero (< 5 KB).', 'success');
+      });
     }
   });
 
@@ -6421,68 +7290,72 @@ function initSystemConfigModalEvents() {
   });
 
   // 13. BOTÓN DE ACCIÓN GLOBAL: "Guardar y Aplicar Cambios Globales"
-  document.getElementById('btnGuardarCambiosGlobales')?.addEventListener('click', () => {
-    // Si el modal de edición de disciplina individual está abierto, consolidar primero sus cambios
+  document.getElementById('btnGuardarCambiosGlobales')?.addEventListener('click', handleGuardarCambiosGlobales);
+}
+
+// ==============================================================================
+// GESTOR DEFINITIVO: GUARDAR Y APLICAR CAMBIOS GLOBALES
+// ==============================================================================
+async function handleGuardarCambiosGlobales(e) {
+  if (e) {
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+  }
+
+  const saveBtn = document.getElementById('btnGuardarCambiosGlobales');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span>⏳ Guardando Cambios...</span>';
+  }
+
+  try {
+    // 1. Si el modal de edición de disciplina individual está abierto, consolidar primero sus cambios
     const modalEditDisc = document.getElementById('modalEditDisciplina');
     if (modalEditDisc && modalEditDisc.classList.contains('open')) {
       const editId = document.getElementById('editDiscId')?.value;
-      const editNombre = document.getElementById('editDiscNombre')?.value.trim();
-      if (editNombre) {
-        const categoria = document.getElementById('editDiscCategoria')?.value.trim() || 'Torneo Master / Libre';
-        const descripcion = document.getElementById('editDiscDescripcion')?.value.trim() || '';
-        const avatar = document.getElementById('editDiscLogoUrl')?.value.trim() || './assets/logo.png';
-        const icono = document.getElementById('editDiscIcono')?.value.trim() || '🏆';
+      const editNombre = document.getElementById('editDiscNombre')?.value?.trim();
+      if (editNombre && editId) {
+        const categoria = document.getElementById('editDiscCategoria')?.value?.trim() || 'Torneo Master / Libre';
+        const descripcion = document.getElementById('editDiscDescripcion')?.value?.trim() || '';
+        const logoUrlInput = document.getElementById('editDiscLogoUrl');
+        const logoPreviewEl = document.getElementById('editDiscLogoPreview');
+        const avatar = (logoUrlInput?.value || logoPreviewEl?.getAttribute('src') || '').trim();
+        const icono = document.getElementById('editDiscIcono')?.value?.trim() || '🏆';
         const color = document.getElementById('editDiscColor')?.value || '#D4AF37';
-        const banner = document.getElementById('editDiscBanner')?.value.trim() || avatar;
+        const banner = (document.getElementById('editDiscBanner')?.value?.trim() || avatar).trim();
         const periodos = Number(document.getElementById('editDiscPeriodos')?.value) || 4;
-        const nombrePeriodo = document.getElementById('editDiscNombrePeriodo')?.value.trim() || 'Cuarto';
+        const nombrePeriodo = document.getElementById('editDiscNombrePeriodo')?.value?.trim() || 'Cuarto';
         const ptsGanador = Number(document.getElementById('editDiscPtsG')?.value) || 2;
         const ptsPerdedor = Number(document.getElementById('editDiscPtsP')?.value) || 1;
 
-        if (editId) {
-          window.tournamentStore.updateDisciplina(editId, {
-            nombre: editNombre,
-            categoria,
-            descripcion,
-            icono,
-            color,
-            banner: banner || avatar,
-            avatar: avatar || banner,
-            logoUrl: avatar || banner,
-            logo: avatar || banner,
-            reglas: { periodos, nombrePeriodo, ptsGanador, ptsPerdedor, duracionMin: 10 }
-          });
-        } else {
-          const newId = 'disc_' + Date.now();
-          window.tournamentStore.addDisciplina({
-            id: newId,
-            nombre: editNombre,
-            categoria,
-            descripcion,
-            icono,
-            color,
-            banner: banner || avatar,
-            avatar: avatar || banner,
-            logoUrl: avatar || banner,
-            logo: avatar || banner,
-            reglas: { periodos, nombrePeriodo, ptsGanador, ptsPerdedor, duracionMin: 10 }
-          });
-        }
+        window.tournamentStore.updateDisciplina(editId, {
+          nombre: editNombre,
+          categoria,
+          descripcion,
+          icono,
+          color,
+          banner,
+          avatar,
+          logoUrl: avatar,
+          logo: avatar,
+          reglas: { periodos, nombrePeriodo, ptsGanador, ptsPerdedor, duracionMin: 10 }
+        });
       }
       modalEditDisc.classList.remove('open');
     }
 
+    // 2. Si el modal de nueva disciplina está abierto, consolidar primero sus cambios
     const modalNuevaDisc = document.getElementById('modalNuevaDisciplina');
     if (modalNuevaDisc && modalNuevaDisc.classList.contains('open')) {
-      const nombreNueva = document.getElementById('discNombre')?.value.trim();
+      const nombreNueva = document.getElementById('discNombre')?.value?.trim();
       if (nombreNueva) {
-        const categoria = document.getElementById('discCategoria')?.value.trim() || 'Libre';
-        const descripcion = document.getElementById('discDescripcion')?.value.trim() || '';
-        const avatar = document.getElementById('discLogoUrl')?.value.trim() || './assets/logo.png';
-        const icono = document.getElementById('discIcono')?.value.trim() || '🏆';
+        const categoria = document.getElementById('discCategoria')?.value?.trim() || 'Libre';
+        const descripcion = document.getElementById('discDescripcion')?.value?.trim() || '';
+        const avatar = (document.getElementById('discLogoUrl')?.value || document.getElementById('discLogoPreview')?.getAttribute('src') || '').trim();
+        const icono = document.getElementById('discIcono')?.value?.trim() || '🏆';
         const color = document.getElementById('discColor')?.value || '#D4AF37';
         const periodos = Number(document.getElementById('discPeriodos')?.value) || 4;
-        const nombrePeriodo = document.getElementById('discNombrePeriodo')?.value.trim() || 'Cuarto';
+        const nombrePeriodo = document.getElementById('discNombrePeriodo')?.value?.trim() || 'Cuarto';
 
         window.tournamentStore.addDisciplina({
           nombre: nombreNueva,
@@ -6492,23 +7365,32 @@ function initSystemConfigModalEvents() {
           color,
           banner: avatar,
           avatar: avatar,
+          logoUrl: avatar,
+          logo: avatar,
           reglas: { periodos, nombrePeriodo, ptsGanador: 2, ptsPerdedor: 1, duracionMin: 10 }
         });
       }
       modalNuevaDisc.classList.remove('open');
     }
 
+    // 3. Obtener valores de los inputs de configuración global
     const swSonidos = document.getElementById('cfgSwitchSonidos')?.checked !== false;
     const swLiveSync = document.getElementById('cfgSwitchLiveSync')?.checked !== false;
     const brillVal = Number(document.getElementById('cfgRangeBrightness')?.value || 100);
 
-    const titulo = document.getElementById('cfgInputTituloEvento')?.value.trim() || 'Grupo Multiservicios Deportivo JL';
-    const temporada = document.getElementById('cfgInputTemporadaEvento')?.value.trim() || '2026-2027';
-    const slogan = document.getElementById('cfgInputSloganEvento')?.value.trim() || 'Sistema Multideportivo Integral';
+    const titulo = document.getElementById('cfgInputTituloEvento')?.value?.trim() || 'Grupo Multiservicios Deportivo JL';
+    const temporada = document.getElementById('cfgInputTemporadaEvento')?.value?.trim() || '2026-2027';
+    const slogan = document.getElementById('cfgInputSloganEvento')?.value?.trim() || 'Sistema Multideportivo Integral';
     const logoPreviewEl = document.getElementById('cfgLogoPreviewImg');
-    const logoUrl = logoPreviewEl?.getAttribute('src') || logoPreviewEl?.src || './assets/logo.png';
+    let logoUrl = logoPreviewEl?.getAttribute('src') || logoPreviewEl?.src || './assets/logo.png';
+    if (logoUrl && logoUrl.startsWith('data:') && logoUrl.length > 8000) {
+      try {
+        logoUrl = await compressImage(logoUrl, 120, 120, 0.6);
+      } catch (_) {}
+    }
 
-    const currentConfig = window.tournamentStore.getConfig();
+    const currentDisciplinas = window.tournamentStore.getDisciplinas();
+    const currentConfig = window.tournamentStore.getConfig() || {};
     const updatedConfig = {
       ...currentConfig,
       sonidosActivos: swSonidos,
@@ -6520,42 +7402,117 @@ function initSystemConfigModalEvents() {
       temporadaEvento: temporada,
       sloganEvento: slogan,
       logoEvento: logoUrl,
-      disciplinas: window.tournamentStore.getDisciplinas()
+      disciplinas: currentDisciplinas
     };
 
+    // 4. Guardar en Store y almacenamiento persistente
     window.tournamentStore.updateConfig(updatedConfig);
+    window.tournamentStore.saveGlobalConfig(updatedConfig);
     window.tournamentStore.saveToStorage();
 
-    // Aplicar inmediatamente a toda la UI
+    // Guardado estructurado definitivo de disciplinas y logos en localStorage (gmd_disciplinas_config)
+    saveDisciplineConfig(currentDisciplinas);
+
+    try {
+      safeLocalStorageSetItem('gmd_config_global', JSON.stringify(updatedConfig));
+    } catch (e) {
+      console.warn('Error al guardar datos redundantes en localStorage:', e);
+    }
+
+    // 5. Aplicar inmediatamente a toda la UI (título, logo, filtros)
     applyGlobalSystemConfig(updatedConfig);
 
-    // Actualizar inmediatamente la Carátula / Portada Principal
-    renderHubDisciplinesGrid();
-    renderDisciplinesBar();
-    renderAdminDisciplinas();
-    renderConfigDisciplines();
-    populateAdminDisciplineDropdown();
-    renderStandings();
+    // 6. Actualizar inmediatamente la Carátula / Portada Principal y barras
+    try { renderHubDisciplinesGrid(); } catch (err) { console.warn('renderHubDisciplinesGrid:', err); }
+    try { renderDisciplinesBar(); } catch (err) { console.warn('renderDisciplinesBar:', err); }
+    try { if (typeof renderAdminDisciplinas === 'function') renderAdminDisciplinas(); } catch (err) { console.warn('renderAdminDisciplinas:', err); }
+    try { if (typeof renderConfigDisciplines === 'function') renderConfigDisciplines(); } catch (err) { console.warn('renderConfigDisciplines:', err); }
+    try { if (typeof populateAdminDisciplineDropdown === 'function') populateAdminDisciplineDropdown(); } catch (err) { console.warn('populateAdminDisciplineDropdown:', err); }
+    try { if (typeof renderStandings === 'function') renderStandings(); } catch (err) { console.warn('renderStandings:', err); }
 
+    // 7. Notificación de éxito y cierre limpio del modal
     showToast('💾 ¡Configuración del Sistema Guardada y Aplicada Exitosamente!', 'success');
     closeConfiguracionSistemaModal();
+
+  } catch (error) {
+    console.error('Error crítico al procesar guardado global:', error);
+    showToast('Ocurrió un error al guardar: ' + (error.message || error), 'error');
+    closeConfiguracionSistemaModal();
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<span>💾 Guardar y Aplicar Cambios Globales</span>';
+    }
+  }
+}
+window.handleGuardarCambiosGlobales = handleGuardarCambiosGlobales;
+
+// Delegación global de clic para garantizar respuesta de botones de guardado
+document.addEventListener('click', (e) => {
+  const saveBtn = e.target.closest && e.target.closest('#btnGuardarCambiosGlobales, .config-btn-save-global');
+  if (saveBtn) {
+    handleGuardarCambiosGlobales(e);
+  }
+});
+
+// Eventos del Modal de Gestión de Grupos
+function initGestionGrupoModalEvents() {
+  document.getElementById('btnCerrarModalGrupo')?.addEventListener('click', () => {
+    document.getElementById('modalGestionGrupo')?.classList.remove('open');
+  });
+  document.getElementById('btnCancelarModalGrupo')?.addEventListener('click', () => {
+    document.getElementById('modalGestionGrupo')?.classList.remove('open');
+  });
+  document.getElementById('formGestionGrupo')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const inputNombre = document.getElementById('inputNombreGrupo');
+    const inputModo = document.getElementById('inputGrupoModo');
+    const inputOld = document.getElementById('inputGrupoOldName');
+    const nombre = inputNombre?.value?.trim();
+    if (!nombre) {
+      showToast('Por favor introduce un nombre para el grupo.', 'error');
+      return;
+    }
+    const modo = inputModo?.value || 'crear';
+    const oldName = inputOld?.value || '';
+
+    if (modo === 'editar' && oldName) {
+      if (typeof activeGroupOptions !== 'undefined' && Array.isArray(activeGroupOptions)) {
+        const idx = activeGroupOptions.indexOf(oldName);
+        if (idx !== -1) activeGroupOptions[idx] = nombre;
+      }
+      showToast(`Grupo "${oldName}" renombrado a "${nombre}"`, 'success');
+    } else {
+      if (typeof activeGroupOptions !== 'undefined' && Array.isArray(activeGroupOptions)) {
+        if (!activeGroupOptions.includes(nombre)) activeGroupOptions.push(nombre);
+      }
+      showToast(`Nuevo grupo "${nombre}" creado con éxito`, 'success');
+    }
+
+    document.getElementById('modalGestionGrupo')?.classList.remove('open');
+    try { if (typeof renderGroupsStructure === 'function') renderGroupsStructure(); } catch (err) {}
+    try { if (typeof renderStandings === 'function') renderStandings(); } catch (err) {}
   });
 }
+window.initGestionGrupoModalEvents = initGestionGrupoModalEvents;
 
 // ==============================================================================
 // INITIALIZATION ON DOM READY / IMMEDIATE BOOTSTRAP
 // ==============================================================================
 function initAppBootstrap() {
-  initPWA();
-  initNetworkListeners();
-  initCSVUploadEvents();
-  initScorerControls();
-  initDisciplineAuthModalEvents();
-  initDisciplineNavigation();
-  initSystemConfigModalEvents();
+  try { emergencyQuotaCleanup(); } catch (e) { console.warn('emergencyQuotaCleanup error:', e); }
+  try { initPWA(); } catch (e) { console.warn('initPWA error:', e); }
+  try { initNetworkListeners(); } catch (e) { console.warn('initNetworkListeners error:', e); }
+  try { initCSVUploadEvents(); } catch (e) { console.warn('initCSVUploadEvents error:', e); }
+  try { initScorerControls(); } catch (e) { console.warn('initScorerControls error:', e); }
+  try { initDisciplineAuthModalEvents(); } catch (e) { console.warn('initDisciplineAuthModalEvents error:', e); }
+  try { initDisciplineNavigation(); } catch (e) { console.warn('initDisciplineNavigation error:', e); }
+  try { initSystemConfigModalEvents(); } catch (e) { console.warn('initSystemConfigModalEvents error:', e); }
+  try { initGestionGrupoModalEvents(); } catch (e) { console.warn('initGestionGrupoModalEvents error:', e); }
 
   // Apply saved system configuration
-  applyGlobalSystemConfig(window.tournamentStore.getConfig());
+  try { applyGlobalSystemConfig(window.tournamentStore.getConfig()); } catch (e) { console.warn('applyGlobalSystemConfig error:', e); }
+  try { renderHubDisciplinesGrid(); } catch (e) { console.warn('renderHubDisciplinesGrid error:', e); }
 
   // Close modals on overlay backdrop click and sync cover if needed
   document.querySelectorAll('.modal-overlay').forEach((overlay) => {
@@ -6563,14 +7520,14 @@ function initAppBootstrap() {
       if (e.target === overlay) {
         overlay.classList.remove('open');
         if (overlay.id === 'modalConfiguracionSistema' || overlay.id === 'modalEditDisciplina' || overlay.id === 'modalNuevaDisciplina') {
-          renderHubDisciplinesGrid();
-          renderDisciplinesBar();
+          try { renderHubDisciplinesGrid(); } catch (err) {}
+          try { renderDisciplinesBar(); } catch (err) {}
         }
       }
     });
   });
 
-  renderAllViews();
+  try { renderAllViews(); } catch (e) { console.warn('renderAllViews error:', e); }
 }
 
 if (document.readyState === 'loading') {

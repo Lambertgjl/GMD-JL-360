@@ -948,11 +948,11 @@ body.inside-discipline-view .discipline-sidebar {
 
 .scoreboard-card {
   position: relative;
-  background: #0f172a;
+  background: linear-gradient(135deg, #1e293b 0%, #151e2e 45%, rgba(15, 23, 42, 0.75) 85%, rgba(10, 15, 29, 0.95) 100%);
   border: 1.5px solid var(--brand-gold);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   transition: all var(--transition-normal);
 }
 
@@ -1037,34 +1037,52 @@ body.inside-discipline-view .discipline-sidebar {
 }
 
 .team-badge-circle {
-  width: 58px;
-  height: 58px;
+  width: 72px;
+  height: 72px;
+  min-width: 72px;
+  min-height: 72px;
   border-radius: 50%;
   background: #0f172a;
-  border: 2px solid var(--brand-gold);
+  border: 2.5px solid var(--brand-gold);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-heading);
   font-weight: 800;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   color: #ffffff;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
   margin-bottom: 0.5rem;
   overflow: hidden;
-  padding: 2px;
+  padding: 3px;
+  flex-shrink: 0;
 }
 
-.team-badge-circle img {
+.team-badge-circle img,
+.team-badge-circle .team-real-logo-img {
   width: 100%;
   height: 100%;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  object-position: center;
   border-radius: 50%;
   display: block;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.team-badge-circle .team-logo-frame {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 
 .team-name-lg {
@@ -1258,11 +1276,11 @@ body.inside-discipline-view .discipline-sidebar {
 }
 
 .standings-card {
-  background: #0f172a;
-  border: 1.5px solid #1e293b;
+  background: linear-gradient(135deg, #1e293b 0%, #151e2e 45%, rgba(15, 23, 42, 0.75) 85%, rgba(10, 15, 29, 0.95) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .standings-card-header {
@@ -1330,9 +1348,10 @@ body.inside-discipline-view .discipline-sidebar {
 .team-cell {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.85rem;
   text-align: left;
-  font-weight: 600;
+  font-weight: 700;
+  min-height: 52px;
 }
 
 /* ==============================================================================
@@ -1340,22 +1359,23 @@ body.inside-discipline-view .discipline-sidebar {
    ============================================================================== */
 .team-avatar-mini,
 .team-logo-frame {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   border-radius: 50%;
   background: #0f172a;
-  border: 1.5px solid var(--border-gold);
+  border: 2px solid var(--border-gold);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
   vertical-align: middle;
-  padding: 1.5px;
+  padding: 2.5px;
   position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .team-avatar-mini img,
@@ -1365,10 +1385,13 @@ body.inside-discipline-view .discipline-sidebar {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  object-position: center;
   border-radius: 50%;
   display: block;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .team-default-emblem-frame {
@@ -1509,27 +1532,28 @@ body.inside-discipline-view .discipline-sidebar {
 }
 
 .match-card {
-  background: #0f172a;
-  border: 1.5px solid #1e293b;
+  background: linear-gradient(135deg, #1e293b 0%, #162033 45%, rgba(15, 23, 42, 0.75) 85%, rgba(10, 15, 29, 0.92) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   padding: 1.15rem;
   transition: all var(--transition-fast);
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .match-card:hover {
-  background: #162033;
+  background: linear-gradient(135deg, #253349 0%, #1a253a 45%, rgba(15, 23, 42, 0.7) 85%, rgba(10, 15, 29, 0.85) 100%);
   border-color: var(--brand-gold);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .match-card.is-live {
+  background: linear-gradient(135deg, #450a0a 0%, #2b0b11 45%, rgba(15, 23, 42, 0.75) 85%, rgba(10, 15, 29, 0.95) 100%);
   border-color: #ef4444;
-  box-shadow: 0 0 18px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .match-card-header {
@@ -1551,23 +1575,25 @@ body.inside-discipline-view .discipline-sidebar {
 .match-card-body {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.75rem;
 }
 
 .match-row-team {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0.2rem 0;
 }
 
 .match-team-info {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.75rem;
   font-family: var(--font-heading);
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.98rem;
   color: #ffffff;
+  min-height: 48px;
 }
 
 .match-team-score {
@@ -1646,18 +1672,46 @@ body.inside-discipline-view .discipline-sidebar {
 }
 
 .team-crest {
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
+  min-width: 60px;
+  min-height: 60px;
   border-radius: 50%;
-  background: var(--bg-primary);
-  border: 2px solid var(--brand-gold);
+  background: #0f172a;
+  border: 2.5px solid var(--brand-gold);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-heading);
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 800;
   color: #ffffff;
+  overflow: hidden;
+  padding: 2.5px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.team-crest img,
+.team-crest .team-real-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 50%;
+  display: block;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+.team-crest .team-logo-frame {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 
 .team-details h3 {
@@ -1990,10 +2044,10 @@ body.inside-discipline-view .discipline-sidebar {
 
 /* Logos de Equipos: Tamaño original grande y bien visible (NO reducir) */
 .team-logo-display {
-  width: 68px;
-  height: 68px;
-  min-width: 68px;
-  min-height: 68px;
+  width: 78px;
+  height: 78px;
+  min-width: 78px;
+  min-height: 78px;
   border-radius: 50%;
   overflow: hidden;
   display: flex;
@@ -2003,13 +2057,32 @@ body.inside-discipline-view .discipline-sidebar {
   background: #0f172a;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
   margin: 0.15rem 0;
+  padding: 2.5px;
   flex-shrink: 0;
 }
 
-.team-logo-display img {
+.team-logo-display img,
+.team-logo-display .team-real-logo-img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center;
+  border-radius: 50%;
+  display: block;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  transform: translateZ(0);
+}
+
+.team-logo-display .team-logo-frame {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 
 /* Nombres de Equipos: Fuente ligeramente reducida y compacta */
@@ -3260,39 +3333,7 @@ body.inside-discipline-view .discipline-sidebar {
 }
 
 .sidebar-rbac-footer {
-  margin-top: 1.25rem;
-  padding: 0.85rem;
-  background: #1e293b;
-  border: 1.5px solid #334155;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
-}
-
-.rbac-indicator-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent-cyan);
-  box-shadow: 0 0 8px var(--accent-cyan);
-  flex-shrink: 0;
-}
-
-.rbac-role-name {
-  font-family: var(--font-heading);
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: #ffffff;
-  line-height: 1;
-}
-
-.rbac-role-scope {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #fde047;
-  margin-top: 0.15rem;
+  display: none !important;
 }
 
 /* ==============================================================================
@@ -3347,23 +3388,33 @@ body.inside-discipline-view .discipline-sidebar {
    ============================================================================== */
 .kpis-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
   margin-bottom: 1.5rem;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .kpis-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
 }
 
 .kpi-card {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1.15rem 1.25rem;
-  background: #0f172a;
-  border: 1.5px solid #1e293b;
+  gap: 0.85rem;
+  padding: 0.95rem 1rem;
+  min-width: 0;
+  background: linear-gradient(135deg, #1e293b 0%, #162033 45%, rgba(15, 23, 42, 0.65) 85%, rgba(10, 15, 29, 0.9) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-lg);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
+  backdrop-filter: blur(8px);
 }
 
 .kpi-card::before {
@@ -3372,75 +3423,131 @@ body.inside-discipline-view .discipline-sidebar {
   top: 0;
   left: 0;
   bottom: 0;
-  width: 4px;
+  width: 5px;
+  border-radius: 4px 0 0 4px;
+}
+
+/* 1. Equipos Inscritos (Cyan / Deep Teal Gradient Fade) */
+.kpi-card.kpi-cyan {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 45%, rgba(15, 23, 42, 0.55) 85%, rgba(2, 6, 23, 0.85) 100%);
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .kpi-card.kpi-cyan::before {
-  background: var(--accent-cyan);
-  box-shadow: 0 0 10px var(--accent-cyan);
+  background: #38bdf8;
+  box-shadow: 0 0 12px #38bdf8;
 }
+
 .kpi-card.kpi-cyan:hover {
-  background: #1e293b;
-  border-color: var(--border-cyan);
-  box-shadow: 0 8px 24px rgba(0, 229, 255, 0.15);
+  background: linear-gradient(135deg, #0369a1 0%, #0284c7 48%, rgba(15, 23, 42, 0.45) 85%, rgba(2, 6, 23, 0.8) 100%);
+  border-color: #38bdf8;
+  box-shadow: 0 12px 30px rgba(2, 132, 199, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* 2. Juegos en Vivo (Red / Crimson Gradient Fade) */
+.kpi-card.kpi-red {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 45%, rgba(15, 23, 42, 0.55) 85%, rgba(2, 6, 23, 0.85) 100%);
+  border-color: rgba(239, 68, 68, 0.45);
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .kpi-card.kpi-red::before {
-  background: var(--accent-live);
-  box-shadow: 0 0 10px var(--accent-live);
+  background: #ef4444;
+  box-shadow: 0 0 12px #ef4444;
 }
+
 .kpi-card.kpi-red:hover {
-  background: #1e293b;
-  border-color: rgba(239, 68, 68, 0.4);
-  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.15);
+  background: linear-gradient(135deg, #b91c1c 0%, #dc2626 48%, rgba(15, 23, 42, 0.45) 85%, rgba(2, 6, 23, 0.8) 100%);
+  border-color: #ef4444;
+  box-shadow: 0 12px 30px rgba(220, 38, 38, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* 3. Juegos Finalizados (Green / Emerald Gradient Fade) */
+.kpi-card.kpi-green {
+  background: linear-gradient(135deg, #059669 0%, #047857 45%, rgba(15, 23, 42, 0.55) 85%, rgba(2, 6, 23, 0.85) 100%);
+  border-color: rgba(16, 185, 129, 0.45);
+  box-shadow: 0 8px 24px rgba(5, 150, 105, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .kpi-card.kpi-green::before {
-  background: var(--accent-success);
-  box-shadow: 0 0 10px var(--accent-success);
+  background: #10b981;
+  box-shadow: 0 0 12px #10b981;
 }
+
 .kpi-card.kpi-green:hover {
-  background: #1e293b;
-  border-color: rgba(16, 185, 129, 0.4);
-  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
+  background: linear-gradient(135deg, #047857 0%, #059669 48%, rgba(15, 23, 42, 0.45) 85%, rgba(2, 6, 23, 0.8) 100%);
+  border-color: #10b981;
+  box-shadow: 0 12px 30px rgba(5, 150, 105, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* 4. Juegos Pendientes (Gold / Amber Gradient Fade) */
+.kpi-card.kpi-gold {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 45%, rgba(15, 23, 42, 0.55) 85%, rgba(2, 6, 23, 0.85) 100%);
+  border-color: rgba(245, 158, 11, 0.45);
+  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .kpi-card.kpi-gold::before {
-  background: var(--brand-gold);
-  box-shadow: 0 0 10px var(--brand-gold);
-}
-.kpi-card.kpi-gold:hover {
-  background: #1e293b;
-  border-color: var(--border-gold);
-  box-shadow: 0 8px 24px rgba(212, 175, 55, 0.15);
+  background: #f59e0b;
+  box-shadow: 0 0 12px #f59e0b;
 }
 
+.kpi-card.kpi-gold:hover {
+  background: linear-gradient(135deg, #b45309 0%, #d97706 48%, rgba(15, 23, 42, 0.45) 85%, rgba(2, 6, 23, 0.8) 100%);
+  border-color: #f59e0b;
+  box-shadow: 0 12px 30px rgba(217, 119, 6, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Typography, Contrast & Legibility */
 .kpi-icon-wrap {
-  font-size: 2rem;
+  font-size: 1.95rem;
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.65));
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.kpi-card:hover .kpi-icon-wrap {
+  transform: scale(1.08);
 }
 
 .kpi-info {
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .kpi-val {
   font-family: var(--font-score);
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: #ffffff;
-  line-height: 1;
+  font-size: 1.85rem;
+  font-weight: 900;
+  color: #ffffff !important;
+  line-height: 1.05;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.95);
+  letter-spacing: 0.5px;
 }
 
 .kpi-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffffff !important;
   margin-top: 0.25rem;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.85), 0 1px 2px rgba(0, 0, 0, 0.95);
+  letter-spacing: 0.2px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dashboard-featured-row {
@@ -3472,35 +3579,51 @@ body.inside-discipline-view .discipline-sidebar {
    ============================================================================== */
 .teams-grid-360 {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.15rem;
+  width: 100%;
+}
+
+@media (max-width: 1080px) and (min-width: 680px) {
+  .teams-grid-360 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 679px) {
+  .teams-grid-360 {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
 }
 
 .team-card-360 {
-  background: #0f172a;
-  border: 1.5px solid #1e293b;
+  background: linear-gradient(135deg, #1e293b 0%, #162033 45%, rgba(15, 23, 42, 0.75) 85%, rgba(10, 15, 29, 0.92) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
-  padding: 1.25rem;
+  padding: 1.15rem;
   display: flex;
   flex-direction: column;
   transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  min-width: 0;
 }
 
 .team-card-360:hover {
-  background: #162033;
-  border-color: rgba(0, 229, 255, 0.35);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  background: linear-gradient(135deg, #253349 0%, #1a253a 45%, rgba(15, 23, 42, 0.7) 85%, rgba(10, 15, 29, 0.85) 100%);
+  border-color: rgba(0, 229, 255, 0.45);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transform: translateY(-2px);
 }
 
 /* Highlights the user's assigned team for Delegados */
 .team-card-360.my-assigned-team {
   border-color: var(--accent-cyan);
-  box-shadow: 0 0 24px rgba(0, 229, 255, 0.25);
-  background: #0f172a;
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #075985 0%, #0369a1 45%, rgba(15, 23, 42, 0.75) 85%, rgba(10, 15, 29, 0.9) 100%);
 }
 
 .team-card-360.my-assigned-team::after {
@@ -3521,28 +3644,35 @@ body.inside-discipline-view .discipline-sidebar {
 .team-card-header-360 {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 0.95rem;
   margin-bottom: 0.85rem;
 }
 
 .team-crest-360 {
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
-  min-height: 48px;
+  width: 78px;
+  height: 78px;
+  min-width: 78px;
+  min-height: 78px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-heading);
   font-weight: 900;
-  font-size: 1.1rem;
+  font-size: 1.5rem;
   color: #ffffff;
   background: #1e293b;
-  border: 2px solid var(--brand-gold);
+  border: 2.5px solid var(--brand-gold);
   flex-shrink: 0;
   overflow: hidden;
-  padding: 2px;
+  padding: 3px;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.55), 0 0 10px rgba(212, 175, 55, 0.2);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+
+.team-card-360:hover .team-crest-360 {
+  transform: scale(1.05);
+  box-shadow: 0 8px 22px rgba(212, 175, 55, 0.45);
 }
 
 .team-crest-360 img,
@@ -3550,8 +3680,12 @@ body.inside-discipline-view .discipline-sidebar {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center;
   border-radius: var(--radius-sm);
   display: block;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  transform: translateZ(0);
 }
 
 .team-crest-360 .team-logo-frame {
@@ -3568,9 +3702,11 @@ body.inside-discipline-view .discipline-sidebar {
 .team-name-360 {
   font-family: var(--font-heading);
   font-weight: 800;
-  font-size: 1.1rem;
+  font-size: 1.12rem;
   color: #ffffff;
-  line-height: 1.2;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  word-break: break-word;
 }
 
 .team-group-pill {
@@ -3582,36 +3718,136 @@ body.inside-discipline-view .discipline-sidebar {
   border: 1.5px solid #eab308;
   color: #fde047;
   display: inline-block;
-  margin-top: 0.2rem;
+  margin-top: 0.3rem;
 }
 
 .team-meta-box {
-  background: #1e293b;
-  border: 1px solid #334155;
-  padding: 0.75rem;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 0.75rem 0.85rem;
   border-radius: var(--radius-md);
   font-size: 0.8rem;
   color: #ffffff;
-  line-height: 1.6;
-  margin-bottom: 1rem;
+  line-height: 1.55;
+  margin-bottom: 0.85rem;
+}
+
+.team-card-actions-wrapper {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .team-actions-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
-  margin-top: auto;
-  flex-wrap: wrap;
+  width: 100%;
+}
+
+.team-actions-row.is-single-btn {
+  display: flex;
+  justify-content: center;
+}
+
+.team-actions-row.is-single-btn > .btn,
+.team-actions-row.is-single-btn > button {
+  width: auto;
+  min-width: 140px;
+  max-width: 200px;
+}
+
+.team-actions-row .btn {
+  width: 100%;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.45rem 0.35rem;
+  white-space: nowrap;
+  letter-spacing: 0.15px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.team-actions-row .btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Fila Superior: Ver Plantilla */
+.team-actions-row .btn-ver-roster {
+  background: rgba(212, 175, 55, 0.1);
+  border: 1.5px solid rgba(212, 175, 55, 0.55);
+  color: #ffffff;
+}
+
+.team-actions-row .btn-ver-roster:hover {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: var(--brand-gold);
+  color: #fde047;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.28);
+}
+
+/* Fila Superior: + Agregar Atleta */
+.team-actions-row .btn-agregar-atleta {
+  background: rgba(212, 175, 55, 0.18);
+  color: #fde047;
+  border: 1.5px solid var(--brand-gold);
+}
+
+.team-actions-row .btn-agregar-atleta:hover {
+  background: var(--brand-gold);
+  color: #0f172a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.35);
+}
+
+/* Fila Inferior: Editar Equipo */
+.team-actions-row .btn-editar-equipo {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  color: #38bdf8;
+}
+
+.team-actions-row .btn-editar-equipo:hover {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: #38bdf8;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+}
+
+/* Fila Inferior: Eliminar Equipo */
+.team-actions-row .btn-eliminar-equipo {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #f87171;
+}
+
+.team-actions-row .btn-eliminar-equipo:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: #ef4444;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
 }
 
 /* ==============================================================================
    MODULE 3: CONFIG. GRUPOS STYLES
    ============================================================================== */
 .competition-format-bar {
-  background: #0f172a;
+  background: linear-gradient(135deg, #1e293b 0%, #172033 45%, rgba(15, 23, 42, 0.75) 85%, rgba(10, 15, 29, 0.95) 100%);
   border: 1.5px solid var(--brand-gold);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-lg);
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.75rem;
@@ -3681,12 +3917,12 @@ body.inside-discipline-view .discipline-sidebar {
 }
 
 .centralized-assignment-box {
-  background: #0f172a;
-  border: 1.5px solid #1e293b;
+  background: linear-gradient(135deg, #1e293b 0%, #162033 45%, rgba(15, 23, 42, 0.75) 85%, rgba(10, 15, 29, 0.95) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
   margin-bottom: 2rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .assignment-toolbar {
@@ -3778,11 +4014,11 @@ body.inside-discipline-view .discipline-sidebar {
 }
 
 .group-summary-card {
-  background: #0f172a;
-  border: 1.5px solid #1e293b;
+  background: linear-gradient(135deg, #1e293b 0%, #162033 45%, rgba(15, 23, 42, 0.75) 85%, rgba(10, 15, 29, 0.95) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-md);
   padding: 1.15rem;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .group-summary-header {
@@ -4057,12 +4293,12 @@ body.inside-discipline-view .discipline-sidebar {
 }
 
 .carousel-team-emblem {
-  width: 20px !important;
-  height: 20px !important;
-  min-width: 20px !important;
-  min-height: 20px !important;
-  border-width: 1px !important;
-  padding: 1px !important;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  border-width: 1.5px !important;
+  padding: 1.5px !important;
 }
 
 .carousel-vs {

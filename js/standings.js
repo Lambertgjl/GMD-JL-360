@@ -10,14 +10,18 @@ class StandingsEngine {
    * @returns {Object} { 'Grupo A': [...], 'Grupo B': [...] }
    */
   static compute(disciplinaId, store = window.tournamentStore) {
-    const disc = store.getDisciplinas().find((d) => d.id === disciplinaId) || store.getDisciplinaActual();
-    const equipos = store.getEquipos(disciplinaId);
-    const partidos = store.getPartidos(disciplinaId);
+    if (!store) return {};
+    const disc = (typeof store.getDisciplinas === 'function' ? store.getDisciplinas() : []).find((d) => d && d.id === disciplinaId) ||
+                 (typeof store.getDisciplinaActual === 'function' ? store.getDisciplinaActual() : null) ||
+                 { id: disciplinaId || 'baloncesto-master', nombre: 'Baloncesto', reglas: { ptsGanador: 2, ptsPerdedor: 1, ptsEmpate: 0 } };
+    const targetDiscId = disc?.id || disciplinaId || 'baloncesto-master';
+    const equipos = typeof store.getEquipos === 'function' ? (store.getEquipos(targetDiscId) || []) : [];
+    const partidos = typeof store.getPartidos === 'function' ? (store.getPartidos(targetDiscId) || []) : [];
 
-    const isFutsal = disc.id.includes('futsal') || disc.nombre.toLowerCase().includes('fútbol');
-    const ptsGanador = disc.reglas?.ptsGanador ?? (isFutsal ? 3 : 2);
-    const ptsPerdedor = disc.reglas?.ptsPerdedor ?? (isFutsal ? 0 : 1);
-    const ptsEmpate = disc.reglas?.ptsEmpate ?? (isFutsal ? 1 : 0);
+    const isFutsal = (disc?.id || '').includes('futsal') || (disc?.nombre || '').toLowerCase().includes('fútbol');
+    const ptsGanador = disc?.reglas?.ptsGanador ?? (isFutsal ? 3 : 2);
+    const ptsPerdedor = disc?.reglas?.ptsPerdedor ?? (isFutsal ? 0 : 1);
+    const ptsEmpate = disc?.reglas?.ptsEmpate ?? (isFutsal ? 1 : 0);
 
     // Initial table map by team name
     const tableMap = {};
@@ -54,7 +58,7 @@ class StandingsEngine {
 
       // Ensure teams exist in map even if added dynamically
       if (!tableMap[loc]) {
-        const foundEq = typeof store.getEquipoPorNombre === 'function' ? store.getEquipoPorNombre(loc) : null;
+        const foundEq = typeof store.getEquipoPorNombre === 'function' ? store.getEquipoPorNombre(loc, disciplinaId) : null;
         tableMap[loc] = {
           id: foundEq?.id || `EQ-AUTO-${loc}`,
           equipo: loc,
@@ -68,7 +72,7 @@ class StandingsEngine {
       }
 
       if (!tableMap[vis]) {
-        const foundEq = typeof store.getEquipoPorNombre === 'function' ? store.getEquipoPorNombre(vis) : null;
+        const foundEq = typeof store.getEquipoPorNombre === 'function' ? store.getEquipoPorNombre(vis, disciplinaId) : null;
         tableMap[vis] = {
           id: foundEq?.id || `EQ-AUTO-${vis}`,
           equipo: vis,

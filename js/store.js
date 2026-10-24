@@ -1,10 +1,287 @@
 // store.js - Gestor de Estado Local y Sincronización para Grupo Multiservicios Deportivo JL
 
 const STORAGE_KEY = 'gmd_jl_tournament_data_v1';
+const DISCIPLINAS_CONFIG_KEY = 'gmd_disciplinas_config';
+const GLOBAL_CONFIG_KEY = 'gmd_config_global';
 const CHANNEL_NAME = 'gmd_jl_broadcast_bus';
 
 // BroadcastChannel for instant inter-tab/inter-window realtime synchronization
 const broadcast = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CHANNEL_NAME) : null;
+
+/**
+ * Manejo de Limpieza de Emergencia de localStorage:
+ * Si ocurre un error de cuota o al iniciar, limpia claves huérfanas o pesadas innecesarias
+ * y purga cadenas Base64 monstruosas (> 8 KB) para liberar memoria local inmediatamente.
+ * @returns {number} Cantidad estimada de bytes liberados
+ */
+function emergencyQuotaCleanup() {
+  if (typeof localStorage === 'undefined') return 0;
+  let bytesFreed = 0;
+  try {
+    const keysToInspect = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k) keysToInspect.push(k);
+    }
+
+    keysToInspect.forEach((key) => {
+      try {
+        const val = localStorage.getItem(key);
+        if (!val) return;
+
+        // 1. Eliminar claves temporales, de depuración o huérfanas
+        if (key.startsWith('temp_') || key.startsWith('debug_') || key.startsWith('cache_')) {
+          localStorage.removeItem(key);
+          bytesFreed += val.length;
+          return;
+        }
+
+        // 2. Si la clave contiene Base64 sobredimensionado (> 8000 caracteres)
+        if (typeof val === 'string' && val.includes('data:image/')) {
+          const cleaned = val.replace(/data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]{8000,}/g, './assets/logo.png');
+          if (cleaned !== val) {
+            bytesFreed += (val.length - cleaned.length);
+            localStorage.setItem(key, cleaned);
+          }
+        }
+      } catch (kErr) {
+        console.warn(`[emergencyQuotaCleanup] Error al procesar clave "${key}":`, kErr);
+      }
+    });
+
+    if (bytesFreed > 0) {
+      console.info(`[emergencyQuotaCleanup] Limpieza de emergencia completada: se liberaron ${(bytesFreed / 1024).toFixed(1)} KB.`);
+    }
+  } catch (e) {
+    console.warn('[emergencyQuotaCleanup] Error global:', e);
+  }
+  return bytesFreed;
+}
+if (typeof window !== 'undefined') {
+  window.emergencyQuotaCleanup = emergencyQuotaCleanup;
+}
+
+/**
+ * Almacenamiento seguro en localStorage con detección y control de QuotaExceededError.
+ * Ejecuta limpieza de emergencia automática y alerta limpiamente al usuario.
+ * @param {string} key Clave de localStorage
+ * @param {string} value Valor serializado
+ * @returns {boolean} true si se persistió con éxito, false si falló
+ */
+function safeLocalStorageSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    const isQuota = e && (
+      e.name === 'QuotaExceededError' ||
+      e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      e.code === 22 ||
+      e.code === 1014 ||
+      e.number === -2147024882 ||
+      (e.message && String(e.message).toLowerCase().includes('quota'))
+    );
+
+    if (isQuota) {
+      console.warn(`[QuotaExceededError] Capacidad superada en localStorage para "${key}". Ejecutando limpieza de emergencia...`);
+
+      // 1. Limpieza de emergencia de claves huérfanas y Base64 pesados
+      emergencyQuotaCleanup();
+
+      // 2. Sanitizar el valor actual si contiene imágenes pesadas para que quepa
+      let safeVal = value;
+      if (typeof safeVal === 'string' && safeVal.includes('data:image/')) {
+        safeVal = safeVal.replace(/data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]{8000,}/g, './assets/logo.png');
+      }
+
+      // 3. Reintento de guardado
+      try {
+        localStorage.setItem(key, safeVal);
+        console.info(`[safeLocalStorageSetItem] Clave "${key}" guardada con éxito tras limpieza de emergencia.`);
+        const msg = '✅ Almacenamiento optimizado con éxito. Las imágenes fueron comprimidas para liberar memoria local.';
+        if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+          window.showToast(msg, 'success');
+        }
+        return true;
+      } catch (retryErr) {
+        console.error(`[QuotaExceededError] Capacidad persistentemente llena para "${key}":`, retryErr);
+        const msg = '⚠️ Capacidad de almacenamiento superada. Se ha optimizado el espacio para evitar pérdidas de datos.';
+        if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+          window.showToast(msg, 'info');
+        }
+      }
+    } else {
+      console.error(`Error inesperado al guardar "${key}" en localStorage:`, e);
+    }
+    return false;
+  }
+}
+if (typeof window !== 'undefined') {
+  window.safeLocalStorageSetItem = safeLocalStorageSetItem;
+}
+
+/**
+ * Función de Compresión Automática de Imágenes mediante Canvas:
+ * Redimensiona a un máximo de 120 x 120 píxeles y comprime a JPEG calidad 0.6 (60%).
+ * Devuelve una cadena Base64 ultraliviana (de apenas unos cuantos KB) evitando saturar el localStorage.
+ * Soporta patrón con Callback y Promesa (async/await).
+ *
+ * @param {File|Blob|string} fileOrUrl Archivo, Blob o URL/Base64 de la imagen
+ * @param {number} [maxWidth=120] Ancho máximo en px (120 por defecto)
+ * @param {number} [maxHeight=120] Alto máximo en px (120 por defecto)
+ * @param {number} [quality=0.6] Calidad de compresión JPEG (0.6 = 60%)
+ * @param {Function} [callback] Callback opcional (compressedBase64)
+ * @returns {Promise<string>} Promesa que resuelve la cadena Base64 ultraligera
+ */
+function compressImage(fileOrUrl, maxWidth = 120, maxHeight = 120, quality = 0.6, callback = null) {
+  return new Promise((resolve) => {
+    try {
+      const handleResult = (result) => {
+        if (typeof callback === 'function') {
+          try { callback(result); } catch (cbErr) { console.warn('Error en callback de compressImage:', cbErr); }
+        }
+        resolve(result);
+      };
+
+      if (!fileOrUrl) {
+        handleResult('');
+        return;
+      }
+
+      // Si ya es una ruta relativa de assets o URL remota http/https, no consume base64
+      if (typeof fileOrUrl === 'string') {
+        const trimmed = fileOrUrl.trim();
+        if (
+          trimmed.startsWith('http://') ||
+          trimmed.startsWith('https://') ||
+          trimmed.startsWith('./') ||
+          trimmed.startsWith('/') ||
+          trimmed.startsWith('assets/')
+        ) {
+          handleResult(trimmed);
+          return;
+        }
+        if (!trimmed.startsWith('data:')) {
+          handleResult(trimmed);
+          return;
+        }
+      }
+
+      // Entorno sin soporte de Canvas (ej. Node o test)
+      if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+        if (typeof fileOrUrl === 'string') {
+          handleResult(fileOrUrl);
+        } else if (typeof FileReader !== 'undefined' && fileOrUrl instanceof Blob) {
+          const r = new FileReader();
+          r.onload = (ev) => handleResult(ev.target.result || '');
+          r.onerror = () => handleResult('');
+          r.readAsDataURL(fileOrUrl);
+        } else {
+          handleResult('');
+        }
+        return;
+      }
+
+      let finished = false;
+      const finishOnce = (output) => {
+        if (!finished) {
+          finished = true;
+          clearTimeout(safetyTimer);
+          handleResult(output);
+        }
+      };
+
+      // Timeout de seguridad por si la imagen tarda o se congela
+      const safetyTimer = setTimeout(() => {
+        if (typeof fileOrUrl === 'string') {
+          finishOnce(fileOrUrl.length > 20000 ? fileOrUrl.slice(0, 20000) : fileOrUrl);
+        } else {
+          finishOnce('');
+        }
+      }, 4000);
+
+      const processImg = (img) => {
+        try {
+          let width = img.naturalWidth || img.width || maxWidth;
+          let height = img.naturalHeight || img.height || maxHeight;
+
+          // Redimensionar preservando la relación de aspecto sin superar 120 x 120
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+
+          width = Math.max(1, width);
+          height = Math.max(1, height);
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            // Fondo blanco para evitar fondos negros por transparencia en JPEG
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Exportar con compresión obligatoria: canvas.toDataURL('image/jpeg', 0.6)
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            finishOnce(dataUrl);
+          } else {
+            finishOnce(typeof fileOrUrl === 'string' ? fileOrUrl : '');
+          }
+        } catch (err) {
+          console.warn('[compressImage] Error en compresión Canvas:', err);
+          finishOnce(typeof fileOrUrl === 'string' ? fileOrUrl : '');
+        }
+      };
+
+      if (typeof Image === 'undefined') {
+        finishOnce(typeof fileOrUrl === 'string' ? fileOrUrl : '');
+        return;
+      }
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => processImg(img);
+      img.onerror = (err) => {
+        console.warn('[compressImage] Error al cargar Image:', err);
+        finishOnce(typeof fileOrUrl === 'string' ? fileOrUrl : '');
+      };
+
+      if (typeof Blob !== 'undefined' && fileOrUrl instanceof Blob) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          img.src = e.target.result;
+        };
+        reader.onerror = () => finishOnce('');
+        reader.readAsDataURL(fileOrUrl);
+      } else if (typeof fileOrUrl === 'string') {
+        img.src = fileOrUrl;
+        if (img.complete && img.naturalWidth > 0) {
+          processImg(img);
+        }
+      } else {
+        finishOnce('');
+      }
+    } catch (outerErr) {
+      console.warn('[compressImage] Error general capturado:', outerErr);
+      const fallback = typeof fileOrUrl === 'string' ? fileOrUrl : '';
+      if (typeof callback === 'function') {
+        try { callback(fallback); } catch (_) {}
+      }
+      resolve(fallback);
+    }
+  });
+}
+if (typeof window !== 'undefined') {
+  window.compressImage = compressImage;
+  window.compressImageToBase64 = compressImage;
+}
 
 // Initial Seed Data matching the user's Excel specifications
 const DEFAULT_SEED_DATA = {
@@ -148,24 +425,24 @@ const DEFAULT_SEED_DATA = {
   ],
 
   atletas: [
-    { id: 'ATL-001', cedula: 'V-24589123', nombres: 'Carlos Eduardo Mendoza', fechaNacimiento: '1996-05-14', edad: 28, camiseta: '7', posicion: 'Base', equipo: 'Gigantes de Caripito', rol: 'Atleta', fotoUrl: '' },
-    { id: 'ATL-002', cedula: 'V-26102948', nombres: 'José Alejandro Salazar', fechaNacimiento: '1998-11-20', edad: 26, camiseta: '11', posicion: 'Escolta', equipo: 'Gigantes de Caripito', rol: 'Atleta', fotoUrl: '' },
-    { id: 'ATL-003', cedula: 'V-22441902', nombres: 'Miguel Ángel Rondón', fechaNacimiento: '1994-03-08', edad: 30, camiseta: '15', posicion: 'Alero', equipo: 'Gigantes de Caripito', rol: 'Capitán', fotoUrl: '' },
-    { id: 'ATL-004', cedula: 'V-25890124', nombres: 'David Jesús Marcano', fechaNacimiento: '1997-09-12', edad: 27, camiseta: '23', posicion: 'Ala-Pívot', equipo: 'Gigantes de Caripito', rol: 'Atleta', fotoUrl: '' },
-    { id: 'ATL-005', cedula: 'V-21394850', nombres: 'Luis Fernando Cedeño', fechaNacimiento: '1993-01-30', edad: 31, camiseta: '33', posicion: 'Pívot', equipo: 'Gigantes de Caripito', rol: 'Atleta', fotoUrl: '' },
+    { id: 'ATL-001', disciplinaId: 'baloncesto-master', cedula: 'V-24589123', nombres: 'Carlos Eduardo Mendoza', fechaNacimiento: '1996-05-14', edad: 28, camiseta: '7', posicion: 'Base', equipo: 'Gigantes de Caripito', rol: 'Atleta', fotoUrl: '' },
+    { id: 'ATL-002', disciplinaId: 'baloncesto-master', cedula: 'V-26102948', nombres: 'José Alejandro Salazar', fechaNacimiento: '1998-11-20', edad: 26, camiseta: '11', posicion: 'Escolta', equipo: 'Gigantes de Caripito', rol: 'Atleta', fotoUrl: '' },
+    { id: 'ATL-003', disciplinaId: 'baloncesto-master', cedula: 'V-22441902', nombres: 'Miguel Ángel Rondón', fechaNacimiento: '1994-03-08', edad: 30, camiseta: '15', posicion: 'Alero', equipo: 'Gigantes de Caripito', rol: 'Capitán', fotoUrl: '' },
+    { id: 'ATL-004', disciplinaId: 'baloncesto-master', cedula: 'V-25890124', nombres: 'David Jesús Marcano', fechaNacimiento: '1997-09-12', edad: 27, camiseta: '23', posicion: 'Ala-Pívot', equipo: 'Gigantes de Caripito', rol: 'Atleta', fotoUrl: '' },
+    { id: 'ATL-005', disciplinaId: 'baloncesto-master', cedula: 'V-21394850', nombres: 'Luis Fernando Cedeño', fechaNacimiento: '1993-01-30', edad: 31, camiseta: '33', posicion: 'Pívot', equipo: 'Gigantes de Caripito', rol: 'Atleta', fotoUrl: '' },
     
-    { id: 'ATL-006', cedula: 'V-23948102', nombres: 'Gabriel Antonio Ramos', fechaNacimiento: '1995-07-22', edad: 29, camiseta: '5', posicion: 'Base', equipo: 'Tigres de la Sabana', rol: 'Atleta', fotoUrl: '' },
-    { id: 'ATL-007', cedula: 'V-25019284', nombres: 'Javier Alexander Pinto', fechaNacimiento: '1997-04-18', edad: 27, camiseta: '10', posicion: 'Escolta', equipo: 'Tigres de la Sabana', rol: 'Capitán', fotoUrl: '' },
-    { id: 'ATL-008', cedula: 'V-24102948', nombres: 'Andrés Eloy Rivas', fechaNacimiento: '1996-08-05', edad: 28, camiseta: '12', posicion: 'Alero', equipo: 'Tigres de la Sabana', rol: 'Atleta', fotoUrl: '' },
-    { id: 'ATL-009', cedula: 'V-22940182', nombres: 'Jesús Manuel Torres', fechaNacimiento: '1994-12-19', edad: 30, camiseta: '21', posicion: 'Ala-Pívot', equipo: 'Tigres de la Sabana', rol: 'Atleta', fotoUrl: '' },
-    { id: 'ATL-010', cedula: 'V-20891274', nombres: 'Víctor Alfonso Silva', fechaNacimiento: '1992-06-11', edad: 32, camiseta: '34', posicion: 'Pívot', equipo: 'Tigres de la Sabana', rol: 'Atleta', fotoUrl: '' },
+    { id: 'ATL-006', disciplinaId: 'baloncesto-master', cedula: 'V-23948102', nombres: 'Gabriel Antonio Ramos', fechaNacimiento: '1995-07-22', edad: 29, camiseta: '5', posicion: 'Base', equipo: 'Tigres de la Sabana', rol: 'Atleta', fotoUrl: '' },
+    { id: 'ATL-007', disciplinaId: 'baloncesto-master', cedula: 'V-25019284', nombres: 'Javier Alexander Pinto', fechaNacimiento: '1997-04-18', edad: 27, camiseta: '10', posicion: 'Escolta', equipo: 'Tigres de la Sabana', rol: 'Capitán', fotoUrl: '' },
+    { id: 'ATL-008', disciplinaId: 'baloncesto-master', cedula: 'V-24102948', nombres: 'Andrés Eloy Rivas', fechaNacimiento: '1996-08-05', edad: 28, camiseta: '12', posicion: 'Alero', equipo: 'Tigres de la Sabana', rol: 'Atleta', fotoUrl: '' },
+    { id: 'ATL-009', disciplinaId: 'baloncesto-master', cedula: 'V-22940182', nombres: 'Jesús Manuel Torres', fechaNacimiento: '1994-12-19', edad: 30, camiseta: '21', posicion: 'Ala-Pívot', equipo: 'Tigres de la Sabana', rol: 'Atleta', fotoUrl: '' },
+    { id: 'ATL-010', disciplinaId: 'baloncesto-master', cedula: 'V-20891274', nombres: 'Víctor Alfonso Silva', fechaNacimiento: '1992-06-11', edad: 32, camiseta: '34', posicion: 'Pívot', equipo: 'Tigres de la Sabana', rol: 'Atleta', fotoUrl: '' },
 
-    { id: 'ATL-011', cedula: 'V-26891024', nombres: 'Daniel Enrique Guerra', fechaNacimiento: '1999-02-14', edad: 25, camiseta: '3', posicion: 'Base', equipo: 'Monagas BBC', rol: 'Atleta', fotoUrl: '' },
-    { id: 'ATL-012', cedula: 'V-24901823', nombres: 'Héctor Luis Carreño', fechaNacimiento: '1996-10-25', edad: 28, camiseta: '8', posicion: 'Alero', equipo: 'Monagas BBC', rol: 'Capitán', fotoUrl: '' },
-    { id: 'ATL-013', cedula: 'V-23190284', nombres: 'Ricardo José Barrios', fechaNacimiento: '1995-03-17', edad: 29, camiseta: '14', posicion: 'Pívot', equipo: 'Monagas BBC', rol: 'Atleta', fotoUrl: '' },
+    { id: 'ATL-011', disciplinaId: 'baloncesto-master', cedula: 'V-26891024', nombres: 'Daniel Enrique Guerra', fechaNacimiento: '1999-02-14', edad: 25, camiseta: '3', posicion: 'Base', equipo: 'Monagas BBC', rol: 'Atleta', fotoUrl: '' },
+    { id: 'ATL-012', disciplinaId: 'baloncesto-master', cedula: 'V-24901823', nombres: 'Héctor Luis Carreño', fechaNacimiento: '1996-10-25', edad: 28, camiseta: '8', posicion: 'Alero', equipo: 'Monagas BBC', rol: 'Capitán', fotoUrl: '' },
+    { id: 'ATL-013', disciplinaId: 'baloncesto-master', cedula: 'V-23190284', nombres: 'Ricardo José Barrios', fechaNacimiento: '1995-03-17', edad: 29, camiseta: '14', posicion: 'Pívot', equipo: 'Monagas BBC', rol: 'Atleta', fotoUrl: '' },
 
-    { id: 'ATL-014', cedula: 'V-25901824', nombres: 'Samuel David Morales', fechaNacimiento: '1998-09-02', edad: 26, camiseta: '9', posicion: 'Base', equipo: 'Indios de Punceres', rol: 'Atleta', fotoUrl: '' },
-    { id: 'ATL-015', cedula: 'V-24810294', nombres: 'Kelvin José Requena', fechaNacimiento: '1996-12-08', edad: 28, camiseta: '24', posicion: 'Alero', equipo: 'Indios de Punceres', rol: 'Capitán', fotoUrl: '' }
+    { id: 'ATL-014', disciplinaId: 'baloncesto-master', cedula: 'V-25901824', nombres: 'Samuel David Morales', fechaNacimiento: '1998-09-02', edad: 26, camiseta: '9', posicion: 'Base', equipo: 'Indios de Punceres', rol: 'Atleta', fotoUrl: '' },
+    { id: 'ATL-015', disciplinaId: 'baloncesto-master', cedula: 'V-24810294', nombres: 'Kelvin José Requena', fechaNacimiento: '1996-12-08', edad: 28, camiseta: '24', posicion: 'Alero', equipo: 'Indios de Punceres', rol: 'Capitán', fotoUrl: '' }
   ],
 
   // Calendario oficial de encuentros de la temporada
@@ -428,8 +705,8 @@ const DEFAULT_SEED_DATA = {
         creadoEn: '2026-01-01'
       }
     ],
-    supabaseUrl: '',
-    supabaseAnonKey: '',
+    supabaseUrl: 'https://wznvihuvpqnnrlgcgqpx.supabase.co',
+    supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6bnZpaHV2cHFubnJsZ2dxcHgiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTcxNzAzNzQwMCwiZXhwIjoyMDMyNjEzNDAwfQ.ixhXWj0Jfir852IXJFdZNNfNscnND2u5WPXZ0EBA6Ik',
     modoOffline: false,
     rostersCongelados: false, // Superadmin can lock rosters to prevent unregistered additions
     solicitudesBaja: [], // Formal discharge requests from delegates awaiting Superadmin approval
@@ -444,226 +721,291 @@ const DEFAULT_SEED_DATA = {
   }
 };
 
+// Diccionario de semillas base por deporte oficial
+const DEFAULT_DISCIPLINE_SEEDS = {
+  'baloncesto-master': {
+    equipos: DEFAULT_SEED_DATA.equipos.filter((e) => e.disciplinaId === 'baloncesto-master'),
+    partidos: DEFAULT_SEED_DATA.partidos.filter((p) => p.disciplinaId === 'baloncesto-master'),
+    atletas: DEFAULT_SEED_DATA.atletas || []
+  },
+  'voleibol-femenino': {
+    equipos: DEFAULT_SEED_DATA.equipos.filter((e) => e.disciplinaId === 'voleibol-femenino'),
+    partidos: DEFAULT_SEED_DATA.partidos.filter((p) => p.disciplinaId === 'voleibol-femenino'),
+    atletas: []
+  },
+  'futsal-copa': {
+    equipos: DEFAULT_SEED_DATA.equipos.filter((e) => e.disciplinaId === 'futsal-copa'),
+    partidos: DEFAULT_SEED_DATA.partidos.filter((p) => p.disciplinaId === 'futsal-copa'),
+    atletas: []
+  },
+  'softbol-master': {
+    equipos: DEFAULT_SEED_DATA.equipos.filter((e) => e.disciplinaId === 'softbol-master'),
+    partidos: DEFAULT_SEED_DATA.partidos.filter((p) => p.disciplinaId === 'softbol-master'),
+    atletas: []
+  }
+};
+
+function getCleanDisciplineId(disciplinaId) {
+  if (!disciplinaId) return '';
+  return String(disciplinaId)
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '-');
+}
+
 class TournamentStore {
   constructor() {
     this.listeners = new Set();
+    emergencyQuotaCleanup();
     this.data = this.loadFromStorage();
     this.setupBroadcast();
   }
 
+  loadDisciplinasConfig() {
+    try {
+      const raw = localStorage.getItem(DISCIPLINAS_CONFIG_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed) {
+          if (Array.isArray(parsed.disciplinas) && parsed.disciplinas.length > 0) {
+            return parsed.disciplinas;
+          }
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+          if (typeof parsed === 'object') {
+            const pool = parsed.porId || parsed;
+            const values = Object.values(pool).filter(
+              (x) => x && typeof x === 'object' && (x.id || x.nombre)
+            );
+            if (values.length > 0) {
+              return values;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error al leer gmd_disciplinas_config de localStorage:', e);
+    }
+    return null;
+  }
+
+  saveDisciplinasConfig(disciplinas) {
+    if (!disciplinas) return;
+    try {
+      let arrayDiscs = [];
+      if (Array.isArray(disciplinas)) {
+        arrayDiscs = disciplinas;
+      } else if (disciplinas.disciplinas && Array.isArray(disciplinas.disciplinas)) {
+        arrayDiscs = disciplinas.disciplinas;
+      } else if (typeof disciplinas === 'object') {
+        const pool = disciplinas.porId || disciplinas;
+        arrayDiscs = Object.values(pool).filter(
+          (x) => x && typeof x === 'object' && (x.id || x.nombre)
+        );
+      }
+
+      // Estructura de objeto rica para localStorage (gmd_disciplinas_config)
+      const structuredConfig = {
+        _version: '2026-pro',
+        _updatedAt: new Date().toISOString(),
+        disciplinas: arrayDiscs.map((d) => {
+          const cleanId = getCleanDisciplineId(d.id);
+          let effectiveLogo = (d.logoUrl || d.avatar || d.logo || d.banner || '').trim();
+          if (effectiveLogo.startsWith('data:') && effectiveLogo.length > 8000) {
+            effectiveLogo = './assets/logo.png';
+          }
+          let banner = (d.banner || effectiveLogo).trim();
+          if (banner.startsWith('data:') && banner.length > 8000) {
+            banner = effectiveLogo;
+          }
+          return {
+            ...d,
+            id: cleanId,
+            nombre: d.nombre,
+            categoria: d.categoria || 'Torneo Master / Libre',
+            descripcion: d.descripcion || '',
+            icono: d.icono || '🏆',
+            avatar: effectiveLogo,
+            logoUrl: effectiveLogo,
+            logo: effectiveLogo,
+            banner: banner,
+            color: d.color || '#D4AF37',
+            activa: d.activa !== false,
+            reglas: d.reglas || { periodos: 4, nombrePeriodo: 'Cuarto', ptsGanador: 2, ptsPerdedor: 1, duracionMin: 10 }
+          };
+        }),
+        porId: {}
+      };
+
+      structuredConfig.disciplinas.forEach((d) => {
+        structuredConfig.porId[d.id] = d;
+        structuredConfig[d.id] = d;
+      });
+
+      safeLocalStorageSetItem(DISCIPLINAS_CONFIG_KEY, JSON.stringify(structuredConfig));
+
+      if (this.data) {
+        this.data.disciplinas = structuredConfig.disciplinas;
+        if (this.data.config) {
+          this.data.config.disciplinas = structuredConfig.disciplinas;
+        }
+      }
+    } catch (e) {
+      console.error('Error al guardar gmd_disciplinas_config en localStorage:', e);
+    }
+  }
+
+  loadGlobalConfig() {
+    try {
+      const raw = localStorage.getItem(GLOBAL_CONFIG_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Error al leer gmd_config_global de localStorage:', e);
+    }
+    return null;
+  }
+
+  saveGlobalConfig(config) {
+    if (!config || typeof config !== 'object') return;
+    try {
+      safeLocalStorageSetItem(GLOBAL_CONFIG_KEY, JSON.stringify(config));
+    } catch (e) {
+      console.error('Error al guardar gmd_config_global en localStorage:', e);
+    }
+  }
+
   loadFromStorage() {
     try {
+      // 1. CARGA DE DISCIPLINAS CON PRIORIDAD ABSOLUTA A LOCALSTORAGE
+      let savedDisciplinas = this.loadDisciplinasConfig();
+
       const stored = localStorage.getItem(STORAGE_KEY);
+      let parsed = null;
       if (stored) {
-        const parsed = JSON.parse(stored);
-        
-        // Ensure standard disciplines are synced
-        let discs = parsed.disciplinas || (parsed.config && parsed.config.disciplinas) || [];
-        discs = discs.map(d => {
-          if (d.id === 'beisbol-cinco' || d.nombre === 'Béisbol 5') {
-            return {
-              id: 'softbol-master',
-              nombre: 'Sotfbol',
-              categoria: 'Torneo Master / Modificado',
-              icono: '🥎',
-              avatar: d.avatar || './assets/logo.png',
-              banner: d.banner || './assets/logo.png',
-              color: '#F59E0B',
-              activa: true,
-              reglas: { periodos: 7, nombrePeriodo: 'Inning', ptsGanador: 2, ptsPerdedor: 1, duracionMin: 15 }
-            };
-          }
-          if (d.id === 'futsal-copa') {
-            const futsalAvatar = d.avatar || d.logoUrl || d.logo || d.banner || './assets/banner_futsal.jpg';
-            return { ...d, nombre: d.nombre || 'Futbol Sala', avatar: futsalAvatar, banner: d.banner || futsalAvatar };
-          }
-          if (d.id === 'baloncesto-master') {
-            const bballAvatar = d.avatar || d.logoUrl || d.logo || d.banner || './assets/banner_baloncesto.jpg';
-            return { ...d, avatar: bballAvatar, banner: d.banner || bballAvatar };
-          }
-          if (d.id === 'voleibol-femenino') {
-            const vballAvatar = d.avatar || d.logoUrl || d.logo || d.banner || './assets/banner_voleibol.jpg';
-            return { ...d, avatar: vballAvatar, banner: d.banner || vballAvatar };
-          }
-          return d;
-        });
-
-        DEFAULT_SEED_DATA.disciplinas.forEach(defD => {
-          const existing = discs.find(d => d.id === defD.id);
-          if (!existing) {
-            discs.push(JSON.parse(JSON.stringify(defD)));
-          } else {
-            if (!existing.avatar) existing.avatar = defD.avatar || defD.banner;
-          }
-        });
-        parsed.disciplinas = discs;
-
-        // Ensure teams exist for all disciplines and have email & cedula
-        let teams = parsed.equipos || [];
-        const demoTeamNames = [
-          'Broncos de Higuerey',
-          'Centauros del Este',
-          'Guerreros de Guanta',
-          'Titanes de Oriente',
-          'Halcones de Puerto',
-          'Espartanos JL',
-          'Navegantes Sport',
-          'Vencedores BBC'
-        ];
-
-        // If the stored teams in baloncesto are only the old demo teams, migrate to active tournament franchises
-        const hasCustomTeamsInBaloncesto = teams.some(
-          (e) => e.disciplinaId === 'baloncesto-master' && !demoTeamNames.includes(e.nombre)
-        );
-        if (!hasCustomTeamsInBaloncesto) {
-          teams = teams.filter((e) => e.disciplinaId !== 'baloncesto-master');
-          DEFAULT_SEED_DATA.equipos
-            .filter((e) => e.disciplinaId === 'baloncesto-master')
-            .forEach((defE) => teams.push(JSON.parse(JSON.stringify(defE))));
-        }
-
-        DEFAULT_SEED_DATA.equipos.forEach((defE) => {
-          const existing = teams.find((e) => e.id === defE.id || e.nombre === defE.nombre);
-          if (!existing) {
-            teams.push(JSON.parse(JSON.stringify(defE)));
-          } else {
-            if (!existing.delegadoEmail) existing.delegadoEmail = defE.delegadoEmail;
-            if (!existing.delegadoCedula) existing.delegadoCedula = defE.delegadoCedula;
-            if (!existing.pin) existing.pin = defE.pin || '2024';
-            if (existing.entrenador === undefined) existing.entrenador = defE.entrenador || '';
-            if (existing.asistente === undefined) existing.asistente = defE.asistente || '';
-            if (existing.utilero === undefined) existing.utilero = defE.utilero || '';
-          }
-        });
-        parsed.equipos = teams;
-
-        // Sync athletes linked to migrated demo teams
-        if (parsed.atletas && Array.isArray(parsed.atletas)) {
-          parsed.atletas = parsed.atletas.map((a) => {
-            if (a.equipo === 'Broncos de Higuerey') a.equipo = 'Gigantes de Caripito';
-            else if (a.equipo === 'Centauros del Este') a.equipo = 'Tigres de la Sabana';
-            else if (a.equipo === 'Guerreros de Guanta') a.equipo = 'Monagas BBC';
-            else if (a.equipo === 'Titanes de Oriente') a.equipo = 'Indios de Punceres';
-            return a;
-          });
-        }
-
-        // Purge old static demo matches previously loaded (PAR-001..PAR-008, Broncos, Centauros, Halcones, etc.)
-        const staticDemoMatchIds = ['PAR-001', 'PAR-002', 'PAR-003', 'PAR-004', 'PAR-005', 'PAR-006', 'PAR-007', 'PAR-008'];
-        let matches = (parsed.partidos || []).filter((m) => {
-          if (staticDemoMatchIds.includes(m.id)) return false;
-          if (demoTeamNames.includes(m.equipoLocal) || demoTeamNames.includes(m.equipoVisitante)) return false;
-          return true;
-        });
-
-        // Asegurar que los encuentros oficiales siempre existan y estén sincronizados
-        if (!matches || matches.length === 0) {
-          matches = JSON.parse(JSON.stringify(DEFAULT_SEED_DATA.partidos));
-        } else {
-          DEFAULT_SEED_DATA.partidos.forEach((defP) => {
-            const existing = matches.find(
-              (m) => m.id === defP.id || (m.equipoLocal === defP.equipoLocal && m.equipoVisitante === defP.equipoVisitante && m.disciplinaId === defP.disciplinaId)
-            );
-            if (!existing) {
-              matches.push(JSON.parse(JSON.stringify(defP)));
-            } else {
-              // Sincronizar puntos y estado oficiales si el partido en almacenamiento estaba en 0 o desactualizado
-              if (defP.id === 'PAR-BAL-01' || defP.id === 'PAR-BAL-02') {
-                const exTotalL = Number(existing.totalLocal ?? existing.puntosLocal ?? existing.marcadorLocal ?? 0);
-                const exTotalV = Number(existing.totalVisitante ?? existing.puntosVisitante ?? existing.marcadorVisitante ?? 0);
-                if (exTotalL === 0 && exTotalV === 0 || existing.estado !== defP.estado || !existing.q1Loc) {
-                  existing.totalLocal = defP.totalLocal;
-                  existing.totalVisitante = defP.totalVisitante;
-                  existing.puntosLocal = defP.puntosLocal ?? defP.totalLocal;
-                  existing.puntosVisitante = defP.puntosVisitante ?? defP.totalVisitante;
-                  existing.q1Loc = defP.q1Loc;
-                  existing.q2Loc = defP.q2Loc;
-                  existing.q3Loc = defP.q3Loc;
-                  existing.q4Loc = defP.q4Loc;
-                  existing.otLoc = defP.otLoc ?? 0;
-                  existing.q1Vis = defP.q1Vis;
-                  existing.q2Vis = defP.q2Vis;
-                  existing.q3Vis = defP.q3Vis;
-                  existing.q4Vis = defP.q4Vis;
-                  existing.otVis = defP.otVis ?? 0;
-                  existing.estado = defP.estado;
-                  existing.periodoActual = defP.periodoActual;
-                  existing.reloj = defP.reloj;
-                }
-              } else if (defP.totalLocal > 0 || defP.totalVisitante > 0 || defP.estado === 'FINALIZADO') {
-                const exTotalL = Number(existing.totalLocal ?? existing.puntosLocal ?? existing.marcadorLocal ?? 0);
-                const exTotalV = Number(existing.totalVisitante ?? existing.puntosVisitante ?? existing.marcadorVisitante ?? 0);
-                if (exTotalL === 0 && exTotalV === 0) {
-                  existing.totalLocal = defP.totalLocal;
-                  existing.totalVisitante = defP.totalVisitante;
-                  existing.puntosLocal = defP.puntosLocal ?? defP.totalLocal;
-                  existing.puntosVisitante = defP.puntosVisitante ?? defP.totalVisitante;
-                  existing.q1Loc = defP.q1Loc;
-                  existing.q2Loc = defP.q2Loc;
-                  existing.q3Loc = defP.q3Loc;
-                  existing.q4Loc = defP.q4Loc;
-                  existing.otLoc = defP.otLoc ?? 0;
-                  existing.q1Vis = defP.q1Vis;
-                  existing.q2Vis = defP.q2Vis;
-                  existing.q3Vis = defP.q3Vis;
-                  existing.q4Vis = defP.q4Vis;
-                  existing.otVis = defP.otVis ?? 0;
-                  existing.estado = defP.estado;
-                  existing.periodoActual = defP.periodoActual;
-                  existing.reloj = defP.reloj;
-                }
-              }
-            }
-          });
-        }
-        parsed.partidos = matches;
-
-        // Asegurar logotipos reales por defecto en franquicias si están vacíos
-        teams.forEach((t) => {
-          if (!t.logoUrl || t.logoUrl.trim() === '') {
-            t.logoUrl = './assets/logo.png';
-          }
-        });
-
-        const mergedConfig = {
-          ...DEFAULT_SEED_DATA.config,
-          ...(parsed.config || {})
-        };
-        if (typeof mergedConfig.rostersCongelados === 'undefined') mergedConfig.rostersCongelados = false;
-        if (!mergedConfig.solicitudesBaja) mergedConfig.solicitudesBaja = [];
-        if (!mergedConfig.patrocinadores || mergedConfig.patrocinadores.length === 0) mergedConfig.patrocinadores = DEFAULT_SEED_DATA.config.patrocinadores;
-        if (!mergedConfig.fasesTorneo) mergedConfig.fasesTorneo = DEFAULT_SEED_DATA.config.fasesTorneo;
-        if (!mergedConfig.sedesTorneo) mergedConfig.sedesTorneo = DEFAULT_SEED_DATA.config.sedesTorneo;
-        if (!mergedConfig.tituloEvento) mergedConfig.tituloEvento = DEFAULT_SEED_DATA.config.tituloEvento;
-        if (!mergedConfig.temporadaEvento) mergedConfig.temporadaEvento = DEFAULT_SEED_DATA.config.temporadaEvento;
-        if (!mergedConfig.logoEvento) mergedConfig.logoEvento = DEFAULT_SEED_DATA.config.logoEvento;
-        if (typeof mergedConfig.sonidosActivos === 'undefined') mergedConfig.sonidosActivos = true;
-        if (typeof mergedConfig.silbatosActivos === 'undefined') mergedConfig.silbatosActivos = true;
-        if (typeof mergedConfig.liveSyncActivo === 'undefined') mergedConfig.liveSyncActivo = true;
-        if (typeof mergedConfig.notificacionesActivas === 'undefined') mergedConfig.notificacionesActivas = true;
-        if (typeof mergedConfig.brilloInterfaz === 'undefined') mergedConfig.brilloInterfaz = 100;
-        if (!mergedConfig.versionApp) mergedConfig.versionApp = DEFAULT_SEED_DATA.config.versionApp;
-        if (!mergedConfig.admins || mergedConfig.admins.length === 0) mergedConfig.admins = DEFAULT_SEED_DATA.config.admins;
-
-        // Ensure active session persistence
         try {
-          const savedSession = localStorage.getItem('gmd_jl_active_session');
-          if (savedSession) {
-            mergedConfig.usuarioActual = JSON.parse(savedSession);
-          }
+          parsed = JSON.parse(stored);
         } catch (e) {
-          console.warn('Error reading session from localStorage:', e);
+          console.warn('Error al parsear STORAGE_KEY:', e);
         }
-
-        mergedConfig.disciplinas = discs;
-
-        return {
-          ...DEFAULT_SEED_DATA,
-          ...parsed,
-          disciplinas: discs,
-          config: mergedConfig
-        };
       }
+
+      // Si no existe gmd_disciplinas_config aún, revisar si parsed ya tenía disciplinas guardadas
+      if (!savedDisciplinas && parsed) {
+        if (Array.isArray(parsed.disciplinas) && parsed.disciplinas.length > 0) {
+          savedDisciplinas = parsed.disciplinas;
+        } else if (parsed.config && Array.isArray(parsed.config.disciplinas) && parsed.config.disciplinas.length > 0) {
+          savedDisciplinas = parsed.config.disciplinas;
+        }
+      }
+
+      let discs = [];
+      if (Array.isArray(savedDisciplinas) && savedDisciplinas.length > 0) {
+        // RESPETO TOTAL A LOS DATOS GUARDADOS POR EL USUARIO:
+        // Se preservan íntegros nombres, logos, banners y reglas personalizadas.
+        // NUNCA se resucitan disciplinas eliminadas ni se inyectan logos estáticos forzados.
+        discs = savedDisciplinas.map((d) => {
+          const effectiveLogo = (d.logoUrl || d.avatar || d.logo || d.banner || '').trim();
+          return {
+            ...d,
+            id: getCleanDisciplineId(d.id),
+            nombre: d.nombre,
+            categoria: d.categoria || 'Torneo Master / Libre',
+            descripcion: d.descripcion || '',
+            icono: d.icono || '🏆',
+            avatar: effectiveLogo,
+            logoUrl: effectiveLogo,
+            logo: effectiveLogo,
+            banner: (d.banner || effectiveLogo).trim(),
+            color: d.color || '#D4AF37',
+            activa: d.activa !== false,
+            reglas: {
+              periodos: Number(d.reglas?.periodos) || 4,
+              nombrePeriodo: d.reglas?.nombrePeriodo || 'Cuarto',
+              ptsGanador: Number(d.reglas?.ptsGanador) !== undefined ? Number(d.reglas?.ptsGanador) : 2,
+              ptsPerdedor: Number(d.reglas?.ptsPerdedor) !== undefined ? Number(d.reglas?.ptsPerdedor) : 1,
+              duracionMin: Number(d.reglas?.duracionMin) || 10,
+              ...(d.reglas || {})
+            }
+          };
+        });
+      } else {
+        // Solo en el primer arranque limpio absoluto sin datos previos en el navegador:
+        discs = JSON.parse(JSON.stringify(DEFAULT_SEED_DATA.disciplinas));
+      }
+
+      // Persistir de forma permanente en gmd_disciplinas_config con estructura de objeto
+      this.saveDisciplinasConfig(discs);
+
+      // 2. CARGA DE CONFIGURACIÓN GLOBAL
+      const savedGlobalConfig = this.loadGlobalConfig();
+      const mergedConfig = {
+        ...DEFAULT_SEED_DATA.config,
+        ...(parsed?.config || {}),
+        ...(savedGlobalConfig || {})
+      };
+      if (typeof mergedConfig.rostersCongelados === 'undefined') mergedConfig.rostersCongelados = false;
+      if (!mergedConfig.solicitudesBaja) mergedConfig.solicitudesBaja = [];
+      if (!mergedConfig.patrocinadores || mergedConfig.patrocinadores.length === 0) mergedConfig.patrocinadores = DEFAULT_SEED_DATA.config.patrocinadores;
+      if (!mergedConfig.fasesTorneo) mergedConfig.fasesTorneo = DEFAULT_SEED_DATA.config.fasesTorneo;
+      if (!mergedConfig.sedesTorneo) mergedConfig.sedesTorneo = DEFAULT_SEED_DATA.config.sedesTorneo;
+      if (!mergedConfig.tituloEvento) mergedConfig.tituloEvento = DEFAULT_SEED_DATA.config.tituloEvento;
+      if (!mergedConfig.temporadaEvento) mergedConfig.temporadaEvento = DEFAULT_SEED_DATA.config.temporadaEvento;
+      if (!mergedConfig.logoEvento) mergedConfig.logoEvento = DEFAULT_SEED_DATA.config.logoEvento;
+      if (typeof mergedConfig.sonidosActivos === 'undefined') mergedConfig.sonidosActivos = true;
+      if (typeof mergedConfig.silbatosActivos === 'undefined') mergedConfig.silbatosActivos = true;
+      if (typeof mergedConfig.liveSyncActivo === 'undefined') mergedConfig.liveSyncActivo = true;
+      if (typeof mergedConfig.notificacionesActivas === 'undefined') mergedConfig.notificacionesActivas = true;
+      if (typeof mergedConfig.brilloInterfaz === 'undefined') mergedConfig.brilloInterfaz = 100;
+      if (!mergedConfig.versionApp) mergedConfig.versionApp = DEFAULT_SEED_DATA.config.versionApp;
+      if (!mergedConfig.admins || mergedConfig.admins.length === 0) mergedConfig.admins = DEFAULT_SEED_DATA.config.admins;
+      if (!mergedConfig.supabaseUrl || mergedConfig.supabaseUrl.includes('xyz')) mergedConfig.supabaseUrl = DEFAULT_SEED_DATA.config.supabaseUrl;
+      if (!mergedConfig.supabaseAnonKey || mergedConfig.supabaseAnonKey.length < 50) mergedConfig.supabaseAnonKey = DEFAULT_SEED_DATA.config.supabaseAnonKey;
+
+      try {
+        const savedSession = localStorage.getItem('gmd_jl_active_session');
+        if (savedSession) {
+          mergedConfig.usuarioActual = JSON.parse(savedSession);
+        }
+      } catch (e) {
+        console.warn('Error reading session from localStorage:', e);
+      }
+
+      mergedConfig.disciplinas = discs;
+      this.saveGlobalConfig(mergedConfig);
+
+      // 3. CARGA DE DATOS MULTI-TENANT POR DEPORTE
+      let aggregatedTeams = [];
+      let aggregatedMatches = [];
+      let aggregatedAthletes = [];
+
+      discs.forEach((d) => {
+        const cleanId = getCleanDisciplineId(d.id);
+        const teamsForD = this.loadTeams(cleanId);
+        const matchesForD = this.loadMatches(cleanId);
+        const athletesForD = this.loadAthletes(cleanId);
+
+        aggregatedTeams = aggregatedTeams.concat(teamsForD);
+        aggregatedMatches = aggregatedMatches.concat(matchesForD);
+        aggregatedAthletes = aggregatedAthletes.concat(athletesForD);
+      });
+
+      return {
+        ...DEFAULT_SEED_DATA,
+        ...(parsed || {}),
+        disciplinas: discs,
+        equipos: aggregatedTeams,
+        partidos: aggregatedMatches,
+        atletas: aggregatedAthletes,
+        config: mergedConfig
+      };
     } catch (e) {
       console.warn('Error reading from localStorage, using seed data:', e);
     }
@@ -672,9 +1014,228 @@ class TournamentStore {
 
   saveToStorage() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+      // 1. Priorizar persistencia atómica de disciplinas y configuración global
+      if (this.data && Array.isArray(this.data.disciplinas)) {
+        this.saveDisciplinasConfig(this.data.disciplinas);
+      }
+      if (this.data && this.data.config) {
+        this.saveGlobalConfig(this.data.config);
+      }
+      // 2. Persistir paquete consolidado con control de cuota
+      safeLocalStorageSetItem(STORAGE_KEY, JSON.stringify(this.data));
     } catch (e) {
       console.error('Error saving to localStorage:', e);
+    }
+  }
+
+  // ==============================================================================
+  // MULTI-TENANT POR DEPORTE: GESTIÓN INDEPENDIENTE EN LOCALSTORAGE
+  // ==============================================================================
+
+  loadTeams(disciplinaId) {
+    const cleanId = getCleanDisciplineId(disciplinaId || this.data?.config?.disciplinaActual || 'baloncesto-master');
+    if (!cleanId) return [];
+
+    const key = `teams_${cleanId}`;
+    const gmdKey = `gmd_teams_${cleanId}`;
+    let stored = null;
+
+    try {
+      const raw = localStorage.getItem(key) || localStorage.getItem(gmdKey);
+      if (raw) {
+        stored = JSON.parse(raw);
+      }
+    } catch (e) {
+      console.warn(`Error al leer ${key} desde localStorage:`, e);
+    }
+
+    if (Array.isArray(stored)) {
+      // Filtrado estricto: evitar que equipos de otros deportes se cuelen
+      return stored
+        .filter((t) => !t.disciplinaId || getCleanDisciplineId(t.disciplinaId) === cleanId)
+        .map((t) => ({ ...t, disciplinaId: cleanId }));
+    }
+
+    // Si es uno de los deportes semilla predefinidos y no tiene datos previos, cargar su semilla oficial
+    if (DEFAULT_DISCIPLINE_SEEDS[cleanId] && Array.isArray(DEFAULT_DISCIPLINE_SEEDS[cleanId].equipos)) {
+      const seedTeams = JSON.parse(JSON.stringify(DEFAULT_DISCIPLINE_SEEDS[cleanId].equipos));
+      this.saveTeams(cleanId, seedTeams);
+      return seedTeams;
+    }
+
+    // Aislamiento Total: Cualquier otra disciplina (ej. Natación) se inicializa COMPLETAMENTE EN BLANCO ([])
+    this.saveTeams(cleanId, []);
+    return [];
+  }
+
+  saveTeams(disciplinaId, teams) {
+    const cleanId = getCleanDisciplineId(disciplinaId || this.data?.config?.disciplinaActual || 'baloncesto-master');
+    if (!cleanId) return;
+
+    const safeTeams = (Array.isArray(teams) ? teams : []).map((t) => {
+      let logo = t.logoUrl || '';
+      if (typeof logo === 'string' && logo.startsWith('data:') && logo.length > 8000) {
+        logo = './assets/logo.png';
+      }
+      return {
+        ...t,
+        logoUrl: logo,
+        disciplinaId: cleanId
+      };
+    });
+
+    try {
+      const serialized = JSON.stringify(safeTeams);
+      safeLocalStorageSetItem(`teams_${cleanId}`, serialized);
+      safeLocalStorageSetItem(`gmd_teams_${cleanId}`, serialized);
+    } catch (e) {
+      console.error(`Error al guardar equipos para ${cleanId}:`, e);
+    }
+
+    if (this.data) {
+      this.data.equipos = (this.data.equipos || [])
+        .filter((t) => getCleanDisciplineId(t.disciplinaId) !== cleanId)
+        .concat(safeTeams);
+      this.saveToStorage();
+    }
+  }
+
+  loadMatches(disciplinaId) {
+    const cleanId = getCleanDisciplineId(disciplinaId || this.data?.config?.disciplinaActual || 'baloncesto-master');
+    if (!cleanId) return [];
+
+    const key = `matches_${cleanId}`;
+    const gmdKey = `gmd_matches_${cleanId}`;
+    let stored = null;
+
+    try {
+      const raw = localStorage.getItem(key) || localStorage.getItem(gmdKey);
+      if (raw) {
+        stored = JSON.parse(raw);
+      }
+    } catch (e) {
+      console.warn(`Error al leer ${key} desde localStorage:`, e);
+    }
+
+    if (Array.isArray(stored)) {
+      return stored
+        .filter((m) => !m.disciplinaId || getCleanDisciplineId(m.disciplinaId) === cleanId)
+        .map((m) => ({ ...m, disciplinaId: cleanId }));
+    }
+
+    if (DEFAULT_DISCIPLINE_SEEDS[cleanId] && Array.isArray(DEFAULT_DISCIPLINE_SEEDS[cleanId].partidos)) {
+      const seedMatches = JSON.parse(JSON.stringify(DEFAULT_DISCIPLINE_SEEDS[cleanId].partidos));
+      this.saveMatches(cleanId, seedMatches);
+      return seedMatches;
+    }
+
+    // Disciplinas nuevas (como Natación): inician estrictamente con []
+    this.saveMatches(cleanId, []);
+    return [];
+  }
+
+  saveMatches(disciplinaId, matches) {
+    const cleanId = getCleanDisciplineId(disciplinaId || this.data?.config?.disciplinaActual || 'baloncesto-master');
+    if (!cleanId) return;
+
+    const safeMatches = (Array.isArray(matches) ? matches : []).map((m) => ({
+      ...m,
+      disciplinaId: cleanId
+    }));
+
+    try {
+      const serialized = JSON.stringify(safeMatches);
+      safeLocalStorageSetItem(`matches_${cleanId}`, serialized);
+      safeLocalStorageSetItem(`gmd_matches_${cleanId}`, serialized);
+    } catch (e) {
+      console.error(`Error al guardar partidos para ${cleanId}:`, e);
+    }
+
+    if (this.data) {
+      this.data.partidos = (this.data.partidos || [])
+        .filter((m) => getCleanDisciplineId(m.disciplinaId) !== cleanId)
+        .concat(safeMatches);
+      this.saveToStorage();
+    }
+  }
+
+  loadAthletes(disciplinaId) {
+    const cleanId = getCleanDisciplineId(disciplinaId || this.data?.config?.disciplinaActual || 'baloncesto-master');
+    if (!cleanId) return [];
+
+    const key = `athletes_${cleanId}`;
+    const gmdKey = `gmd_athletes_${cleanId}`;
+    let stored = null;
+
+    try {
+      const raw = localStorage.getItem(key) || localStorage.getItem(gmdKey);
+      if (raw) {
+        stored = JSON.parse(raw);
+      }
+    } catch (e) {
+      console.warn(`Error al leer ${key} desde localStorage:`, e);
+    }
+
+    if (Array.isArray(stored)) {
+      return stored
+        .filter((a) => !a.disciplinaId || getCleanDisciplineId(a.disciplinaId) === cleanId)
+        .map((a) => ({ ...a, disciplinaId: cleanId }));
+    }
+
+    if (DEFAULT_DISCIPLINE_SEEDS[cleanId] && Array.isArray(DEFAULT_DISCIPLINE_SEEDS[cleanId].atletas)) {
+      const seedAthletes = JSON.parse(JSON.stringify(DEFAULT_DISCIPLINE_SEEDS[cleanId].atletas)).map((a) => ({
+        ...a,
+        disciplinaId: cleanId
+      }));
+      this.saveAthletes(cleanId, seedAthletes);
+      return seedAthletes;
+    }
+
+    this.saveAthletes(cleanId, []);
+    return [];
+  }
+
+  saveAthletes(disciplinaId, athletes) {
+    const cleanId = getCleanDisciplineId(disciplinaId || this.data?.config?.disciplinaActual || 'baloncesto-master');
+    if (!cleanId) return;
+
+    const safeAthletes = (Array.isArray(athletes) ? athletes : []).map((a) => ({
+      ...a,
+      disciplinaId: cleanId
+    }));
+
+    try {
+      const serialized = JSON.stringify(safeAthletes);
+      safeLocalStorageSetItem(`athletes_${cleanId}`, serialized);
+      safeLocalStorageSetItem(`gmd_athletes_${cleanId}`, serialized);
+    } catch (e) {
+      console.error(`Error al guardar atletas para ${cleanId}:`, e);
+    }
+
+    if (this.data) {
+      this.data.atletas = (this.data.atletas || [])
+        .filter((a) => getCleanDisciplineId(a.disciplinaId) !== cleanId)
+        .concat(safeAthletes);
+      this.saveToStorage();
+    }
+  }
+
+  syncGlobalDataArrays() {
+    const allDiscs = this.data?.disciplinas || [];
+    let allTeams = [];
+    let allMatches = [];
+    let allAthletes = [];
+    allDiscs.forEach((d) => {
+      const cId = getCleanDisciplineId(d.id);
+      allTeams = allTeams.concat(this.loadTeams(cId));
+      allMatches = allMatches.concat(this.loadMatches(cId));
+      allAthletes = allAthletes.concat(this.loadAthletes(cId));
+    });
+    if (this.data) {
+      this.data.equipos = allTeams;
+      this.data.partidos = allMatches;
+      this.data.atletas = allAthletes;
+      this.saveToStorage();
     }
   }
 
@@ -716,73 +1277,100 @@ class TournamentStore {
 
   getDisciplinaActual() {
     const id = this.data.config.disciplinaActual;
-    return this.data.disciplinas.find((d) => d.id === id) || this.data.disciplinas[0];
+    return this.data.disciplinas.find((d) => getCleanDisciplineId(d.id) === getCleanDisciplineId(id)) || this.data.disciplinas[0];
   }
 
   setDisciplinaActual(id) {
+    if (!id) return;
     this.data.config.disciplinaActual = id;
+    this.saveToStorage();
     this.notify({ action: 'change_discipline', id });
   }
 
   getEquipos(disciplinaId = null) {
-    const target = disciplinaId || this.data.config.disciplinaActual;
-    return this.data.equipos.filter((eq) => !eq.disciplinaId || eq.disciplinaId === target);
+    const target = getCleanDisciplineId(disciplinaId || this.data.config.disciplinaActual);
+    if (!target) return [];
+    return this.loadTeams(target);
   }
 
-  getEquipoPorNombre(nombre) {
+  getEquipoPorNombre(nombre, disciplinaId = null) {
     if (!nombre) return null;
     const str = String(nombre).trim().toLowerCase();
     if (!str) return null;
 
-    // 1. Coincidencia exacta por nombre
-    const exact = (this.data.equipos || []).find((eq) => eq.nombre && eq.nombre.trim().toLowerCase() === str);
+    const discTarget = getCleanDisciplineId(disciplinaId || this.data?.config?.disciplinaActual);
+    const pool = discTarget ? this.loadTeams(discTarget) : (this.data?.equipos || []);
+
+    // 1. Coincidencia exacta por nombre en la disciplina
+    const exact = pool.find((eq) => eq.nombre && eq.nombre.trim().toLowerCase() === str);
     if (exact) return exact;
 
     // 2. Coincidencia por ID o Siglas
-    const byIdOrSiglas = (this.data.equipos || []).find((eq) => 
+    const byIdOrSiglas = pool.find((eq) => 
       (eq.id && eq.id.trim().toLowerCase() === str) || 
       (eq.siglas && eq.siglas.trim().toLowerCase() === str)
     );
     if (byIdOrSiglas) return byIdOrSiglas;
 
-    // 3. Coincidencia normalizada sin acentos ni caracteres especiales
+    // 3. Coincidencia normalizada
     const norm = (s) => String(s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, '');
     const normStr = norm(str);
     if (normStr) {
-      const byNorm = (this.data.equipos || []).find((eq) => norm(eq.nombre) === normStr || norm(eq.siglas) === normStr);
+      const byNorm = pool.find((eq) => norm(eq.nombre) === normStr || norm(eq.siglas) === normStr);
       if (byNorm) return byNorm;
 
-      const byContains = (this.data.equipos || []).find((eq) => {
+      const byContains = pool.find((eq) => {
         const neq = norm(eq.nombre);
         return neq && (neq.includes(normStr) || normStr.includes(neq));
       });
       if (byContains) return byContains;
     }
 
+    // 4. Fallback global solo si no se solicitó una disciplina específica
+    if (!disciplinaId && this.data && Array.isArray(this.data.equipos)) {
+      const globalMatch = this.data.equipos.find((eq) => eq.nombre && eq.nombre.trim().toLowerCase() === str);
+      if (globalMatch) return globalMatch;
+    }
+
     return null;
   }
 
-  getEquipoPorId(id) {
+  getEquipoPorId(id, disciplinaId = null) {
     if (id === undefined || id === null) return null;
     const idStr = String(id).trim().toLowerCase();
-    return (this.data.equipos || []).find((eq) => eq.id && eq.id.trim().toLowerCase() === idStr) || null;
+    const discTarget = getCleanDisciplineId(disciplinaId);
+    if (discTarget) {
+      const discTeams = this.loadTeams(discTarget);
+      const found = discTeams.find((eq) => eq.id && eq.id.trim().toLowerCase() === idStr);
+      if (found) return found;
+      return null;
+    }
+    return (this.data?.equipos || []).find((eq) => eq.id && eq.id.trim().toLowerCase() === idStr) || null;
   }
 
-  getAtletas(equipoNombre = null) {
-    if (!equipoNombre) return this.data.atletas || [];
-    const target = String(equipoNombre).trim().toLowerCase();
-    return (this.data.atletas || []).filter((a) => a.equipo && a.equipo.trim().toLowerCase() === target);
+  getAtletas(equipoNombre = null, disciplinaId = null) {
+    const target = getCleanDisciplineId(disciplinaId || this.data.config.disciplinaActual);
+    const pool = target ? this.loadAthletes(target) : (this.data?.atletas || []);
+    if (!equipoNombre) return pool;
+    const norm = String(equipoNombre).trim().toLowerCase();
+    return pool.filter((a) => a.equipo && a.equipo.trim().toLowerCase() === norm);
   }
 
   getPartidos(disciplinaId = null) {
-    const target = disciplinaId || this.data.config.disciplinaActual;
-    return (this.data.partidos || []).filter((p) => p.disciplinaId === target || (!p.disciplinaId && target === 'baloncesto-master'));
+    const target = getCleanDisciplineId(disciplinaId || this.data.config.disciplinaActual);
+    if (!target) return [];
+    return this.loadMatches(target);
   }
 
-  getPartidoPorId(id) {
+  getPartidoPorId(id, disciplinaId = null) {
     if (id === undefined || id === null) return null;
     const idStr = String(id).trim();
-    return (this.data.partidos || []).find((p) => p.id === id || String(p.id).trim() === idStr) || null;
+    if (disciplinaId) {
+      const matches = this.getPartidos(disciplinaId);
+      const foundInDisc = matches.find((p) => p.id === id || String(p.id).trim() === idStr);
+      if (foundInDisc) return foundInDisc;
+    }
+    return (this.data?.partidos || []).find((p) => p.id === id || String(p.id).trim() === idStr) || null;
   }
 
   getConfig() {
@@ -798,7 +1386,7 @@ class TournamentStore {
     this.data.config.usuarioActual = usuario;
     try {
       if (usuario) {
-        localStorage.setItem('gmd_jl_active_session', JSON.stringify(usuario));
+        safeLocalStorageSetItem('gmd_jl_active_session', JSON.stringify(usuario));
       } else {
         localStorage.removeItem('gmd_jl_active_session');
       }
@@ -813,9 +1401,11 @@ class TournamentStore {
     if (newConfig && newConfig.disciplinas && Array.isArray(newConfig.disciplinas)) {
       this.data.disciplinas = JSON.parse(JSON.stringify(newConfig.disciplinas));
       this.data.config.disciplinas = JSON.parse(JSON.stringify(newConfig.disciplinas));
+      this.saveDisciplinasConfig(this.data.disciplinas);
     } else {
       this.data.config.disciplinas = JSON.parse(JSON.stringify(this.data.disciplinas || []));
     }
+    this.saveGlobalConfig(this.data.config);
     this.saveToStorage();
     this.notify({ action: 'config_updated' });
   }
@@ -824,24 +1414,32 @@ class TournamentStore {
   updatePartido(partidoId, patch) {
     if (partidoId === undefined || partidoId === null) return null;
     const idStr = String(partidoId).trim();
-    const idx = (this.data.partidos || []).findIndex((p) => p.id === partidoId || String(p.id).trim() === idStr);
+    const existingMatch = this.getPartidoPorId(partidoId);
+    const discId = getCleanDisciplineId(existingMatch?.disciplinaId || this.data.config.disciplinaActual);
+    const matches = this.loadMatches(discId);
+    const idx = matches.findIndex((p) => p.id === partidoId || String(p.id).trim() === idStr);
     if (idx !== -1) {
-      this.data.partidos[idx] = {
-        ...this.data.partidos[idx],
+      matches[idx] = {
+        ...matches[idx],
         ...patch,
+        disciplinaId: discId,
         actualizadoEn: new Date().toISOString()
       };
-      this.notify({ action: 'match_updated', partidoId, patch });
-      return this.data.partidos[idx];
+      this.saveMatches(discId, matches);
+      this.syncGlobalDataArrays();
+      this.notify({ action: 'match_updated', partidoId, patch, disciplinaId: discId });
+      return matches[idx];
     }
     return null;
   }
 
   addPartido(nuevoPartido) {
-    const id = nuevoPartido.id || `PAR-${String(this.data.partidos.length + 1).padStart(3, '0')}`;
+    const discId = getCleanDisciplineId(nuevoPartido.disciplinaId || this.data.config.disciplinaActual || 'baloncesto-master');
+    const matches = this.loadMatches(discId);
+    const id = nuevoPartido.id || `PAR-${discId.substring(0, 3).toUpperCase()}-${String(matches.length + 1).padStart(3, '0')}`;
     const partido = {
       id,
-      disciplinaId: nuevoPartido.disciplinaId || this.data.config.disciplinaActual,
+      disciplinaId: discId,
       fecha: nuevoPartido.fecha || new Date().toISOString().split('T')[0],
       hora: nuevoPartido.hora || '18:00',
       sede: nuevoPartido.sede || 'Gimnasio Pablo Higuerey',
@@ -866,28 +1464,34 @@ class TournamentStore {
       faltasVis: Number(nuevoPartido.faltasVis) || 0,
       actualizadoEn: new Date().toISOString()
     };
-    this.data.partidos.push(partido);
-    this.notify({ action: 'match_added', id });
+    matches.push(partido);
+    this.saveMatches(discId, matches);
+    this.syncGlobalDataArrays();
+    this.notify({ action: 'match_added', id, disciplinaId: discId });
     return partido;
   }
 
   deletePartido(id) {
-    this.data.partidos = this.data.partidos.filter((p) => p.id !== id);
-    this.saveToStorage();
-    this.notify({ action: 'match_deleted', id });
+    const match = this.getPartidoPorId(id);
+    const discId = getCleanDisciplineId(match?.disciplinaId || this.data.config.disciplinaActual);
+    let matches = this.loadMatches(discId);
+    matches = matches.filter((p) => p.id !== id);
+    this.saveMatches(discId, matches);
+    this.syncGlobalDataArrays();
+    this.notify({ action: 'match_deleted', id, disciplinaId: discId });
   }
 
   clearPartidos(disciplinaId = null) {
-    const target = disciplinaId || this.data.config.disciplinaActual;
-    this.data.partidos = (this.data.partidos || []).filter((p) => p.disciplinaId && p.disciplinaId !== target);
-    this.saveToStorage();
+    const target = getCleanDisciplineId(disciplinaId || this.data.config.disciplinaActual);
+    this.saveMatches(target, []);
+    this.syncGlobalDataArrays();
     this.notify({ action: 'matches_cleared', disciplinaId: target });
     return true;
   }
 
   generateScheduleForDiscipline(disciplinaId = null, replaceExisting = true) {
-    const target = disciplinaId || this.data.config.disciplinaActual;
-    const disc = this.data.disciplinas?.find((d) => d.id === target) || this.getDisciplinaActual();
+    const target = getCleanDisciplineId(disciplinaId || this.data.config.disciplinaActual);
+    const disc = this.data.disciplinas?.find((d) => getCleanDisciplineId(d.id) === target) || this.getDisciplinaActual();
     const formato = this.getFormatoCompeticion(target);
     const equipos = this.getEquipos(target);
 
@@ -949,7 +1553,6 @@ class TournamentStore {
             actualizadoEn: new Date().toISOString()
           };
 
-          this.data.partidos.push(nuevo);
           generated.push(nuevo);
           matchIndex++;
           timeSlot++;
@@ -994,7 +1597,6 @@ class TournamentStore {
           actualizadoEn: new Date().toISOString()
         };
 
-        this.data.partidos.push(nuevo);
         generated.push(nuevo);
         matchIndex++;
       }
@@ -1040,7 +1642,6 @@ class TournamentStore {
               actualizadoEn: new Date().toISOString()
             };
 
-            this.data.partidos.push(nuevo);
             generated.push(nuevo);
             matchIndex++;
             timeSlot++;
@@ -1052,18 +1653,23 @@ class TournamentStore {
       });
     }
 
-    this.saveToStorage();
+    const currentMatches = replaceExisting ? [] : this.loadMatches(target);
+    const combined = currentMatches.concat(generated);
+    this.saveMatches(target, combined);
+    this.syncGlobalDataArrays();
     this.notify({ action: 'schedule_generated', disciplinaId: target, count: generated.length });
     return { success: true, count: generated.length, matches: generated };
   }
 
   // Teams
   addEquipo(equipo) {
-    const id = equipo.id || `EQ-${String(this.data.equipos.length + 1).padStart(2, '0')}`;
+    const discId = getCleanDisciplineId(equipo.disciplinaId || this.data.config.disciplinaActual || 'baloncesto-master');
+    const teams = this.loadTeams(discId);
+    const id = equipo.id || `EQ-${discId.substring(0, 3).toUpperCase()}-${String(teams.length + 1).padStart(2, '0')}`;
     const nuevo = {
       id,
       nombre: equipo.nombre,
-      disciplinaId: equipo.disciplinaId || this.data.config.disciplinaActual,
+      disciplinaId: discId,
       grupo: equipo.grupo || 'Grupo A',
       sedePrincipal: equipo.sedePrincipal || 'Gimnasio Pablo Higuerey',
       siglas: equipo.siglas || equipo.nombre.substring(0, 3).toUpperCase(),
@@ -1071,63 +1677,89 @@ class TournamentStore {
       color: equipo.color || '#800020',
       delegadoNombre: equipo.delegadoNombre || '',
       delegadoTelefono: equipo.delegadoTelefono || '',
+      delegadoEmail: equipo.delegadoEmail || '',
+      delegadoCedula: equipo.delegadoCedula || '',
       pin: equipo.pin || '2024',
       entrenador: equipo.entrenador || '',
       asistente: equipo.asistente || '',
       utilero: equipo.utilero || ''
     };
-    this.data.equipos.push(nuevo);
-    this.notify({ action: 'team_added', id });
+    teams.push(nuevo);
+    this.saveTeams(discId, teams);
+    this.syncGlobalDataArrays();
+    this.notify({ action: 'team_added', id, disciplinaId: discId });
     return nuevo;
   }
 
   updateEquipo(id, patch) {
-    const idx = this.data.equipos.findIndex((eq) => eq.id === id);
+    const eq = this.getEquipoPorId(id);
+    const discId = getCleanDisciplineId(eq?.disciplinaId || this.data.config.disciplinaActual);
+    const teams = this.loadTeams(discId);
+    const idx = teams.findIndex((item) => item.id === id);
     if (idx !== -1) {
-      this.data.equipos[idx] = { ...this.data.equipos[idx], ...patch };
-      this.notify({ action: 'team_updated', id });
-      return this.data.equipos[idx];
+      teams[idx] = { ...teams[idx], ...patch, disciplinaId: discId };
+      this.saveTeams(discId, teams);
+      this.syncGlobalDataArrays();
+      this.notify({ action: 'team_updated', id, disciplinaId: discId });
+      return teams[idx];
     }
     return null;
   }
 
   deleteEquipo(id, userRole = 'superadmin') {
     const eq = this.getEquipoPorId(id);
-    if (eq) {
-      this.data.equipos = this.data.equipos.filter((e) => e.id !== id);
-      // also filter and remove athletes associated with this team
-      this.data.atletas = (this.data.atletas || []).filter((a) => a.equipo !== eq.nombre);
-      this.notify({ action: 'team_deleted', id, equipoNombre: eq.nombre });
-      return true;
-    }
-    return false;
+    if (!eq) return false;
+    const discId = getCleanDisciplineId(eq.disciplinaId || this.data.config.disciplinaActual);
+    let teams = this.loadTeams(discId);
+    teams = teams.filter((item) => item.id !== id);
+    this.saveTeams(discId, teams);
+
+    // Also remove athletes of this team in this discipline
+    let athletes = this.loadAthletes(discId);
+    athletes = athletes.filter((a) => a.equipo !== eq.nombre);
+    this.saveAthletes(discId, athletes);
+
+    this.syncGlobalDataArrays();
+    this.notify({ action: 'team_deleted', id, equipoNombre: eq.nombre, disciplinaId: discId });
+    return true;
   }
 
   updateEquiposGrupos(assignments) {
     if (!Array.isArray(assignments)) return;
+    const touchedDiscs = new Set();
     assignments.forEach(({ id, grupo }) => {
-      const eq = this.data.equipos.find((e) => e.id === id);
+      const eq = this.getEquipoPorId(id);
       if (eq) {
         eq.grupo = grupo;
+        const dId = getCleanDisciplineId(eq.disciplinaId || this.data.config.disciplinaActual);
+        touchedDiscs.add(dId);
+        const teams = this.loadTeams(dId);
+        const tIdx = teams.findIndex((item) => item.id === id);
+        if (tIdx !== -1) {
+          teams[tIdx].grupo = grupo;
+          this.saveTeams(dId, teams);
+        }
       }
     });
+    this.syncGlobalDataArrays();
     this.notify({ action: 'groups_updated' });
   }
 
   getFormatoCompeticion(disciplinaId = null) {
-    const target = disciplinaId || this.data.config.disciplinaActual;
-    const disc = this.data.disciplinas?.find((d) => d.id === target);
+    const target = getCleanDisciplineId(disciplinaId || this.data.config.disciplinaActual);
+    const disc = this.data.disciplinas?.find((d) => getCleanDisciplineId(d.id) === target);
     return disc?.formatoTorneo || this.data.config.formatoCompeticion || 'por_grupo';
   }
 
   setFormatoCompeticion(formato, disciplinaId = null) {
-    const target = disciplinaId || this.data.config.disciplinaActual;
-    const disc = this.data.disciplinas?.find((d) => d.id === target);
+    const target = getCleanDisciplineId(disciplinaId || this.data.config.disciplinaActual);
+    const disc = this.data.disciplinas?.find((d) => getCleanDisciplineId(d.id) === target);
     if (disc) {
       disc.formatoTorneo = formato;
     }
     this.data.config.formatoCompeticion = formato;
-    this.notify({ action: 'format_updated', formato });
+    this.saveToStorage();
+    this.notify({ action: 'format_updated', formato, disciplinaId: target });
   }
 
   getReglamentoTorneo() {
@@ -1144,14 +1776,18 @@ class TournamentStore {
 
   setReglamentoTorneo(reglas) {
     this.data.config.reglamentoTorneo = Array.isArray(reglas) ? reglas : [];
+    this.saveToStorage();
     this.notify({ action: 'reglamento_updated' });
   }
 
   // Athletes
   addAtleta(atleta) {
-    const id = atleta.id || `ATL-${String(this.data.atletas.length + 1).padStart(3, '0')}`;
+    const discId = getCleanDisciplineId(atleta.disciplinaId || this.data.config.disciplinaActual || 'baloncesto-master');
+    const athletes = this.loadAthletes(discId);
+    const id = atleta.id || `ATL-${discId.substring(0, 3).toUpperCase()}-${String(athletes.length + 1).padStart(3, '0')}`;
     const nuevo = {
       id,
+      disciplinaId: discId,
       cedula: atleta.cedula || '',
       nombres: atleta.nombres || '',
       fechaNacimiento: atleta.fechaNacimiento || '',
@@ -1162,30 +1798,42 @@ class TournamentStore {
       rol: atleta.rol || 'Atleta',
       fotoUrl: atleta.fotoUrl || ''
     };
-    this.data.atletas.push(nuevo);
-    this.notify({ action: 'athlete_added', id });
+    athletes.push(nuevo);
+    this.saveAthletes(discId, athletes);
+    this.syncGlobalDataArrays();
+    this.notify({ action: 'athlete_added', id, disciplinaId: discId });
     return nuevo;
   }
 
   updateAtleta(id, patch) {
-    const idx = this.data.atletas.findIndex((a) => a.id === id);
+    const all = this.data?.atletas || [];
+    const a = all.find((item) => item.id === id);
+    const discId = getCleanDisciplineId(a?.disciplinaId || this.data.config.disciplinaActual);
+    const athletes = this.loadAthletes(discId);
+    const idx = athletes.findIndex((item) => item.id === id);
     if (idx !== -1) {
-      this.data.atletas[idx] = { ...this.data.atletas[idx], ...patch };
-      this.notify({ action: 'athlete_updated', id });
-      return this.data.atletas[idx];
+      athletes[idx] = { ...athletes[idx], ...patch, disciplinaId: discId };
+      this.saveAthletes(discId, athletes);
+      this.syncGlobalDataArrays();
+      this.notify({ action: 'athlete_updated', id, disciplinaId: discId });
+      return athletes[idx];
     }
     return null;
   }
 
   deleteAtleta(id, userRole = 'superadmin') {
-    // RESTRICCIÓN DE SEGURIDAD (Protección de Datos):
-    // El delegado NO tiene permiso para eliminar atletas ya registrados. Debe solicitar autorización formal.
     if (userRole !== 'superadmin') {
       console.warn('RESTRICCIÓN DE SEGURIDAD: Los delegados no pueden eliminar atletas directamente. Deben solicitar baja formal.');
       return false;
     }
-    this.data.atletas = this.data.atletas.filter((a) => a.id !== id);
-    this.notify({ action: 'athlete_deleted', id });
+    const all = this.data?.atletas || [];
+    const a = all.find((item) => item.id === id);
+    const discId = getCleanDisciplineId(a?.disciplinaId || this.data.config.disciplinaActual);
+    let athletes = this.loadAthletes(discId);
+    athletes = athletes.filter((item) => item.id !== id);
+    this.saveAthletes(discId, athletes);
+    this.syncGlobalDataArrays();
+    this.notify({ action: 'athlete_deleted', id, disciplinaId: discId });
     return true;
   }
 
@@ -1267,24 +1915,30 @@ class TournamentStore {
     if (Array.isArray(disciplinas)) {
       this.data.disciplinas = disciplinas;
       this.data.config.disciplinas = JSON.parse(JSON.stringify(disciplinas));
+      this.saveDisciplinasConfig(this.data.disciplinas);
       this.saveToStorage();
       this.notify({ action: 'disciplines_updated' });
     }
   }
 
   addDisciplina(disc) {
-    const id = disc.id || disc.nombre.toLowerCase().replace(/\s+/g, '-');
-    const avatar = disc.avatar || disc.banner || './assets/logo.png';
+    const rawId = disc.id || disc.nombre.toLowerCase().replace(/\s+/g, '-');
+    const id = getCleanDisciplineId(rawId);
+    const logoVal = (disc.avatar || disc.logoUrl || disc.logo || disc.banner || '').trim();
     const nueva = {
       id,
       nombre: disc.nombre,
       categoria: disc.categoria || 'Libre',
       descripcion: disc.descripcion || '',
       icono: disc.icono || '🏆',
-      avatar: avatar,
-      banner: disc.banner || avatar,
+      avatar: logoVal,
+      logoUrl: logoVal,
+      logo: logoVal,
+      banner: (disc.banner || logoVal).trim(),
       color: disc.color || '#D4AF37',
       activa: disc.activa !== false,
+      grupos: disc.grupos && disc.grupos.length > 0 ? disc.grupos : ['Grupo A', 'Grupo B'],
+      formatoTorneo: disc.formatoTorneo || 'por_grupo',
       reglas: {
         periodos: Number(disc.reglas?.periodos) || 4,
         nombrePeriodo: disc.reglas?.nombrePeriodo || 'Cuarto',
@@ -1293,53 +1947,91 @@ class TournamentStore {
         duracionMin: Number(disc.reglas?.duracionMin) || 10
       }
     };
+
+    // Aislamiento Total: Inicializar los datos de esta disciplina COMPLETAMENTE EN BLANCO ([])
+    this.saveTeams(id, []);
+    this.saveMatches(id, []);
+    this.saveAthletes(id, []);
+
     this.data.disciplinas.push(nueva);
     this.data.config.disciplinas = JSON.parse(JSON.stringify(this.data.disciplinas));
+    this.saveDisciplinasConfig(this.data.disciplinas);
     this.saveToStorage();
+    this.syncGlobalDataArrays();
     this.notify({ action: 'discipline_added', id });
     return nueva;
   }
 
   updateDisciplina(id, patch) {
-    const idx = this.data.disciplinas.findIndex((d) => d.id === id);
+    const cleanId = getCleanDisciplineId(id);
+    const idx = this.data.disciplinas.findIndex((d) => getCleanDisciplineId(d.id) === cleanId);
     if (idx !== -1) {
+      const existing = this.data.disciplinas[idx];
+      const logoCandidate = patch.logoUrl !== undefined ? patch.logoUrl :
+        (patch.avatar !== undefined ? patch.avatar :
+        (patch.logo !== undefined ? patch.logo :
+        (patch.banner !== undefined ? patch.banner :
+        (existing.logoUrl || existing.avatar || existing.logo || existing.banner || ''))));
+      const finalLogo = String(logoCandidate || '').trim();
+
       this.data.disciplinas[idx] = {
-        ...this.data.disciplinas[idx],
+        ...existing,
         ...patch,
+        avatar: patch.avatar !== undefined ? patch.avatar : finalLogo,
+        logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : finalLogo,
+        logo: patch.logo !== undefined ? patch.logo : finalLogo,
+        banner: patch.banner !== undefined ? patch.banner : (finalLogo || existing.banner || ''),
         reglas: {
-          ...this.data.disciplinas[idx].reglas,
+          ...existing.reglas,
           ...(patch.reglas || {})
         }
       };
       this.data.config.disciplinas = JSON.parse(JSON.stringify(this.data.disciplinas));
+      this.saveDisciplinasConfig(this.data.disciplinas);
       this.saveToStorage();
-      this.notify({ action: 'discipline_updated', id });
+      this.notify({ action: 'discipline_updated', id: cleanId });
       return this.data.disciplinas[idx];
     }
     return null;
   }
 
   toggleDisciplina(id) {
-    const disc = this.data.disciplinas.find((d) => d.id === id);
+    const cleanId = getCleanDisciplineId(id);
+    const disc = this.data.disciplinas.find((d) => getCleanDisciplineId(d.id) === cleanId);
     if (disc) {
       disc.activa = !disc.activa;
       this.data.config.disciplinas = JSON.parse(JSON.stringify(this.data.disciplinas));
+      this.saveDisciplinasConfig(this.data.disciplinas);
       this.saveToStorage();
-      this.notify({ action: 'discipline_toggled', id });
+      this.notify({ action: 'discipline_toggled', id: cleanId });
     }
   }
 
   deleteDisciplina(id) {
-    const idx = this.data.disciplinas.findIndex((d) => d.id === id);
+    const cleanId = getCleanDisciplineId(id);
+    const idx = this.data.disciplinas.findIndex((d) => getCleanDisciplineId(d.id) === cleanId);
     if (idx !== -1) {
       const removed = this.data.disciplinas.splice(idx, 1)[0];
+      try {
+        localStorage.removeItem(`teams_${cleanId}`);
+        localStorage.removeItem(`gmd_teams_${cleanId}`);
+        localStorage.removeItem(`matches_${cleanId}`);
+        localStorage.removeItem(`gmd_matches_${cleanId}`);
+        localStorage.removeItem(`athletes_${cleanId}`);
+        localStorage.removeItem(`gmd_athletes_${cleanId}`);
+      } catch (e) {
+        console.warn(`Error eliminando almacenamiento para ${cleanId}:`, e);
+      }
+      this.syncGlobalDataArrays();
+
       // If current active discipline was deleted, fallback to another active discipline
-      if (this.data.config.disciplinaActual === id) {
-        this.data.config.disciplinaActual = this.data.disciplinas[0]?.id || '';
+      if (getCleanDisciplineId(this.data.config.disciplinaActual) === cleanId) {
+        this.data.config.disciplinaActual = this.data.disciplinas[0]?.id || 'baloncesto-master';
       }
       this.data.config.disciplinas = JSON.parse(JSON.stringify(this.data.disciplinas));
+      this.saveDisciplinasConfig(this.data.disciplinas);
       this.saveToStorage();
-      this.notify({ action: 'discipline_deleted', id, removed });
+      this.notify({ action: 'discipline_deleted', id: cleanId, removed });
       return true;
     }
     return false;
@@ -1555,42 +2247,103 @@ class TournamentStore {
 
   // Bulk Import Overwrite/Append
   importData({ equipos, atletas, partidos, replace = false }) {
-    if (replace) {
-      if (equipos) this.data.equipos = equipos;
-      if (atletas) this.data.atletas = atletas;
-      if (partidos) this.data.partidos = partidos;
-    } else {
-      if (equipos) {
-        equipos.forEach((eq) => {
-          const idx = this.data.equipos.findIndex((e) => e.nombre.toLowerCase() === eq.nombre.toLowerCase());
-          if (idx !== -1) this.data.equipos[idx] = { ...this.data.equipos[idx], ...eq };
-          else this.data.equipos.push(eq);
+    if (Array.isArray(equipos)) {
+      const byDisc = {};
+      equipos.forEach((eq) => {
+        const dId = getCleanDisciplineId(eq.disciplinaId || this.data.config.disciplinaActual);
+        if (!byDisc[dId]) byDisc[dId] = [];
+        byDisc[dId].push(eq);
+      });
+      Object.keys(byDisc).forEach((dId) => {
+        const existing = replace ? [] : this.loadTeams(dId);
+        byDisc[dId].forEach((newEq) => {
+          const idx = existing.findIndex((e) => e.id === newEq.id || e.nombre.toLowerCase() === newEq.nombre.toLowerCase());
+          if (idx !== -1) existing[idx] = { ...existing[idx], ...newEq, disciplinaId: dId };
+          else existing.push({ ...newEq, disciplinaId: dId });
         });
-      }
-      if (atletas) {
-        atletas.forEach((atl) => {
-          const idx = this.data.atletas.findIndex((a) => a.cedula && a.cedula === atl.cedula);
-          if (idx !== -1) this.data.atletas[idx] = { ...this.data.atletas[idx], ...atl };
-          else this.data.atletas.push(atl);
-        });
-      }
-      if (partidos) {
-        partidos.forEach((par) => {
-          const idx = this.data.partidos.findIndex((p) => p.id === par.id);
-          if (idx !== -1) this.data.partidos[idx] = { ...this.data.partidos[idx], ...par };
-          else this.data.partidos.push(par);
-        });
-      }
+        this.saveTeams(dId, existing);
+      });
     }
+    if (Array.isArray(partidos)) {
+      const byDisc = {};
+      partidos.forEach((p) => {
+        const dId = getCleanDisciplineId(p.disciplinaId || this.data.config.disciplinaActual);
+        if (!byDisc[dId]) byDisc[dId] = [];
+        byDisc[dId].push(p);
+      });
+      Object.keys(byDisc).forEach((dId) => {
+        const existing = replace ? [] : this.loadMatches(dId);
+        byDisc[dId].forEach((newP) => {
+          const idx = existing.findIndex((m) => m.id === newP.id);
+          if (idx !== -1) existing[idx] = { ...existing[idx], ...newP, disciplinaId: dId };
+          else existing.push({ ...newP, disciplinaId: dId });
+        });
+        this.saveMatches(dId, existing);
+      });
+    }
+    if (Array.isArray(atletas)) {
+      const byDisc = {};
+      atletas.forEach((a) => {
+        const dId = getCleanDisciplineId(a.disciplinaId || this.data.config.disciplinaActual);
+        if (!byDisc[dId]) byDisc[dId] = [];
+        byDisc[dId].push(a);
+      });
+      Object.keys(byDisc).forEach((dId) => {
+        const existing = replace ? [] : this.loadAthletes(dId);
+        byDisc[dId].forEach((newA) => {
+          const idx = existing.findIndex((atl) => atl.id === newA.id || (atl.cedula && atl.cedula === newA.cedula));
+          if (idx !== -1) existing[idx] = { ...existing[idx], ...newA, disciplinaId: dId };
+          else existing.push({ ...newA, disciplinaId: dId });
+        });
+        this.saveAthletes(dId, existing);
+      });
+    }
+    this.syncGlobalDataArrays();
     this.notify({ action: 'bulk_import' });
   }
 
   // Reset to default
   resetToDefaults() {
     this.data = JSON.parse(JSON.stringify(DEFAULT_SEED_DATA));
+    try {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith('teams_') || k.startsWith('gmd_teams_') ||
+                  k.startsWith('matches_') || k.startsWith('gmd_matches_') ||
+                  k.startsWith('athletes_') || k.startsWith('gmd_athletes_'))) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      localStorage.removeItem(DISCIPLINAS_CONFIG_KEY);
+      localStorage.removeItem(GLOBAL_CONFIG_KEY);
+    } catch (e) {
+      console.warn('Error clearing discipline keys:', e);
+    }
+    Object.keys(DEFAULT_DISCIPLINE_SEEDS).forEach((dId) => {
+      this.saveTeams(dId, DEFAULT_DISCIPLINE_SEEDS[dId].equipos || []);
+      this.saveMatches(dId, DEFAULT_DISCIPLINE_SEEDS[dId].partidos || []);
+      this.saveAthletes(dId, DEFAULT_DISCIPLINE_SEEDS[dId].atletas || []);
+    });
+    this.saveToStorage();
+    this.syncGlobalDataArrays();
     this.notify({ action: 'reset_defaults' });
   }
 }
 
 // Global instance
 window.tournamentStore = new TournamentStore();
+
+// Global Helper Functions exposed directly on window as requested
+window.loadTeams = (disciplinaId) => window.tournamentStore.loadTeams(disciplinaId);
+window.saveTeams = (disciplinaId, teams) => window.tournamentStore.saveTeams(disciplinaId, teams);
+window.loadMatches = (disciplinaId) => window.tournamentStore.loadMatches(disciplinaId);
+window.saveMatches = (disciplinaId, matches) => window.tournamentStore.saveMatches(disciplinaId, matches);
+window.loadAthletes = (disciplinaId) => window.tournamentStore.loadAthletes(disciplinaId);
+window.saveAthletes = (disciplinaId, athletes) => window.tournamentStore.saveAthletes(disciplinaId, athletes);
+window.loadDisciplinasConfig = () => window.tournamentStore.loadDisciplinasConfig();
+window.saveDisciplinasConfig = (disciplinas) => window.tournamentStore.saveDisciplinasConfig(disciplinas);
+window.saveDisciplineConfig = (disciplinas) => window.tournamentStore.saveDisciplinasConfig(disciplinas);
+window.loadGlobalConfig = () => window.tournamentStore.loadGlobalConfig();
+window.saveGlobalConfig = (config) => window.tournamentStore.saveGlobalConfig(config);

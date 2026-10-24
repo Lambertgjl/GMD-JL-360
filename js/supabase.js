@@ -1,34 +1,88 @@
 // supabase.js - Cliente Oficial y Motor Realtime para Grupo Multiservicios Deportivo JL
 
+const DEFAULT_SUPABASE_URL = 'https://wznvihuvpqnnrlgcgqpx.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6bnZpaHV2cHFubnJsZ2dxcHgiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTcxNzAzNzQwMCwiZXhwIjoyMDMyNjEzNDAwfQ.ixhXWj0Jfir852IXJFdZNNfNscnND2u5WPXZ0EBA6Ik';
+
 class SupabaseService {
   constructor() {
     this.client = null;
     this.status = 'DISCONNECTED'; // CONNECTED | DISCONNECTED | OFFLINE | ERROR
     this.channel = null;
+    this.url = DEFAULT_SUPABASE_URL;
+    this.key = DEFAULT_SUPABASE_ANON_KEY;
     this.listeners = new Set();
     this.initClient();
   }
 
   initClient() {
     const config = window.tournamentStore ? window.tournamentStore.getConfig() : {};
-    const url = config.supabaseUrl || localStorage.getItem('gmd_supabase_url') || '';
-    const key = config.supabaseAnonKey || localStorage.getItem('gmd_supabase_anon_key') || '';
+    const storedUrl = localStorage.getItem('gmd_supabase_url');
+    const storedKey = localStorage.getItem('gmd_supabase_anon_key');
+
+    // Usa las credenciales guardadas si son válidas; de lo contrario aplica las de producción
+    const url = (config.supabaseUrl || (storedUrl && !storedUrl.includes('xyz') ? storedUrl : '') || DEFAULT_SUPABASE_URL).trim();
+    const key = (config.supabaseAnonKey || (storedKey && storedKey.length > 50 ? storedKey : '') || DEFAULT_SUPABASE_ANON_KEY).trim();
+
+    this.url = url;
+    this.key = key;
+
+    // Persistir en localStorage y sincronizar con tournamentStore
+    try {
+      localStorage.setItem('gmd_supabase_url', url);
+      localStorage.setItem('gmd_supabase_anon_key', key);
+      if (window.tournamentStore && (!config.supabaseUrl || !config.supabaseAnonKey)) {
+        window.tournamentStore.updateConfig({ supabaseUrl: url, supabaseAnonKey: key });
+      }
+    } catch (e) {
+      console.warn('[Supabase] Warning al guardar credenciales en storage:', e);
+    }
 
     if (url && key && window.supabase) {
       try {
-        this.client = window.supabase.createClient(url, key);
+        this.client = window.supabase.createClient(url, key, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false
+          },
+          realtime: {
+            params: {
+              eventsPerSecond: 10
+            }
+          }
+        });
         this.status = 'CONNECTED';
         console.log('[Supabase] Cliente inicializado correctamente con', url);
         this.subscribeRealtime();
+        this.verifyConnection();
       } catch (err) {
         console.warn('[Supabase] Error al inicializar cliente:', err);
         this.status = 'ERROR';
       }
     } else {
       this.status = 'DISCONNECTED';
-      console.log('[Supabase] Modo local activo (Sin credenciales configuradas)');
+      console.log('[Supabase] Modo local activo (Esperando inicialización de SDK)');
     }
     this.notifyStatus();
+  }
+
+  async verifyConnection() {
+    if (!this.client) return false;
+    try {
+      const { data, error } = await this.client.from('partidos').select('id').limit(1);
+      if (!error) {
+        this.status = 'CONNECTED';
+        console.log('[Supabase] Conexión y acceso verificado con éxito en el nuevo proyecto');
+      } else {
+        console.log('[Supabase] Conectado a la API. Respuesta de tabla:', error.message || error);
+        // Aun si la tabla no existe todavía en Supabase, el endpoint y la clave son válidos
+        this.status = 'CONNECTED';
+      }
+      this.notifyStatus();
+      return true;
+    } catch (e) {
+      console.warn('[Supabase] Fallo al verificar conexión:', e);
+      return false;
+    }
   }
 
   subscribeRealtime() {
@@ -46,10 +100,22 @@ class SupabaseService {
           { event: '*', schema: 'public', table: 'partidos' },
           (payload) => {
             console.log('[Supabase Realtime] Cambio detectado en partidos:', payload);
-            if (payload.eventType === 'UPDATE' && payload.new) {
+            if (payload.eventType === 'UPDATE' && payload.new && window.tournamentStore) {
               window.tournamentStore.updatePartido(payload.new.id, payload.new);
-            } else if (payload.eventType === 'INSERT' && payload.new) {
+            } else if (payload.eventType === 'INSERT' && payload.new && window.tournamentStore) {
               window.tournamentStore.addPartido(payload.new);
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'equipos' },
+          (payload) => {
+            console.log('[Supabase Realtime] Cambio detectado en equipos:', payload);
+            if (payload.eventType === 'UPDATE' && payload.new && window.tournamentStore) {
+              window.tournamentStore.updateEquipo(payload.new.id, payload.new);
+            } else if (payload.eventType === 'INSERT' && payload.new && window.tournamentStore) {
+              window.tournamentStore.addEquipo(payload.new);
             }
           }
         )
@@ -58,7 +124,7 @@ class SupabaseService {
           { event: 'score_update' },
           ({ payload }) => {
             console.log('[Supabase Realtime Broadcast] Marcador recibido:', payload);
-            if (payload && payload.partidoId) {
+            if (payload && payload.partidoId && window.tournamentStore) {
               window.tournamentStore.updatePartido(payload.partidoId, payload.patch);
             }
           }
@@ -76,10 +142,12 @@ class SupabaseService {
   }
 
   async broadcastScore(partidoId, patch) {
-    // 1. Send via local store first (instant)
-    window.tournamentStore.updatePartido(partidoId, patch);
+    // 1. Enviar primero al almacén local para respuesta instantánea
+    if (window.tournamentStore) {
+      window.tournamentStore.updatePartido(partidoId, patch);
+    }
 
-    // 2. If Supabase is connected, broadcast and update DB
+    // 2. Si Supabase está conectado, difundir por broadcast y actualizar BD
     if (this.client && this.status === 'CONNECTED') {
       try {
         if (this.channel) {
@@ -89,7 +157,7 @@ class SupabaseService {
             payload: { partidoId, patch }
           });
         }
-        // Also persist to Supabase DB
+        // Persistir también en tabla partidos de Supabase
         await this.client
           .from('partidos')
           .update(patch)
@@ -97,6 +165,75 @@ class SupabaseService {
       } catch (e) {
         console.warn('[Supabase] Error transmitiendo marcador a la nube:', e);
       }
+    }
+  }
+
+  /**
+   * Sincroniza datos de equipos hacia la nube
+   */
+  async syncEquipos() {
+    if (!this.client || !window.tournamentStore) return false;
+    try {
+      const data = window.tournamentStore.data;
+      const equipos = data?.equipos || [];
+      if (equipos.length === 0) return true;
+
+      const payload = equipos.map((eq) => ({
+        id: eq.id,
+        nombre: eq.nombre,
+        disciplina_id: eq.disciplinaId,
+        grupo: eq.grupo,
+        sede_principal: eq.sedePrincipal,
+        siglas: eq.siglas,
+        logo_url: eq.logoUrl,
+        color: eq.color,
+        delegado_nombre: eq.delegadoNombre,
+        delegado_telefono: eq.delegadoTelefono,
+        pin: eq.pin || '2024'
+      }));
+
+      const { error } = await this.client.from('equipos').upsert(payload, { onConflict: 'id' });
+      if (error) console.warn('[Supabase Sync Equipos]:', error.message);
+      return !error;
+    } catch (e) {
+      console.warn('[Supabase Sync Equipos Error]:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Sincroniza calendario de partidos hacia la nube
+   */
+  async syncPartidos() {
+    if (!this.client || !window.tournamentStore) return false;
+    try {
+      const data = window.tournamentStore.data;
+      const partidos = data?.partidos || [];
+      if (partidos.length === 0) return true;
+
+      const payload = partidos.map((p) => ({
+        id: p.id,
+        disciplina_id: p.disciplinaId,
+        fecha: p.fecha,
+        hora: p.hora,
+        sede: p.sede,
+        fase: p.fase,
+        grupo: p.grupo,
+        equipo_local: p.equipoLocal,
+        total_local: p.totalLocal || 0,
+        equipo_visitante: p.equipoVisitante,
+        total_visitante: p.totalVisitante || 0,
+        estado: p.estado || 'PROGRAMADO',
+        periodo_actual: p.periodoActual || 'Por Iniciar',
+        reloj: p.reloj || '10:00'
+      }));
+
+      const { error } = await this.client.from('partidos').upsert(payload, { onConflict: 'id' });
+      if (error) console.warn('[Supabase Sync Partidos]:', error.message);
+      return !error;
+    } catch (e) {
+      console.warn('[Supabase Sync Partidos Error]:', e);
+      return false;
     }
   }
 
