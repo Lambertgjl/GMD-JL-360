@@ -1,7 +1,7 @@
 // supabase.js - Cliente Oficial y Motor Realtime para Grupo Multiservicios Deportivo JL
 
-const DEFAULT_SUPABASE_URL = 'https://wznvihuvpqnnrlgcgqpx.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6bnZpaHV2cHFubnJsZ2dxcHgiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTcxNzAzNzQwMCwiZXhwIjoyMDMyNjEzNDAwfQ.ixhXWj0Jfir852IXJFdZNNfNscnND2u5WPXZ0EBA6Ik';
+const DEFAULT_SUPABASE_URL = 'https://wznvlhuvpqnnrlgcgqpx.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6bnZsaHV2cHFubnJsZ2NncXB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NDkyNDcsImV4cCI6MjEwODQyNTI0N30.ixhXWj0Jfir852lXJFdZNNfNscnND2u5WPXZ0EBA6lk';
 
 class SupabaseService {
   constructor() {
@@ -16,12 +16,23 @@ class SupabaseService {
 
   initClient() {
     const config = window.tournamentStore ? window.tournamentStore.getConfig() : {};
-    const storedUrl = localStorage.getItem('gmd_supabase_url');
-    const storedKey = localStorage.getItem('gmd_supabase_anon_key');
+    let storedUrl = localStorage.getItem('gmd_supabase_url');
+    let storedKey = localStorage.getItem('gmd_supabase_anon_key');
+
+    // Auto-migración si existían credenciales previas con errata o temporales
+    if (storedUrl && (storedUrl.includes('wznvihuvpqnnrlgcgqpx') || storedUrl.includes('xyz'))) {
+      storedUrl = DEFAULT_SUPABASE_URL;
+      storedKey = DEFAULT_SUPABASE_ANON_KEY;
+      localStorage.setItem('gmd_supabase_url', storedUrl);
+      localStorage.setItem('gmd_supabase_anon_key', storedKey);
+      if (window.tournamentStore) {
+        window.tournamentStore.updateConfig({ supabaseUrl: storedUrl, supabaseAnonKey: storedKey });
+      }
+    }
 
     // Usa las credenciales guardadas si son válidas; de lo contrario aplica las de producción
-    const url = (config.supabaseUrl || (storedUrl && !storedUrl.includes('xyz') ? storedUrl : '') || DEFAULT_SUPABASE_URL).trim();
-    const key = (config.supabaseAnonKey || (storedKey && storedKey.length > 50 ? storedKey : '') || DEFAULT_SUPABASE_ANON_KEY).trim();
+    const url = ((config.supabaseUrl && !config.supabaseUrl.includes('wznvihuvpqnnrlgcgqpx') ? config.supabaseUrl : '') || (storedUrl && !storedUrl.includes('xyz') ? storedUrl : '') || DEFAULT_SUPABASE_URL).trim();
+    const key = ((config.supabaseAnonKey && !config.supabaseAnonKey.includes('wznvihuvpqnnrlgcgqpx') ? config.supabaseAnonKey : '') || (storedKey && storedKey.length > 50 ? storedKey : '') || DEFAULT_SUPABASE_ANON_KEY).trim();
 
     this.url = url;
     this.key = key;

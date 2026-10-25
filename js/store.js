@@ -705,8 +705,8 @@ const DEFAULT_SEED_DATA = {
         creadoEn: '2026-01-01'
       }
     ],
-    supabaseUrl: 'https://wznvihuvpqnnrlgcgqpx.supabase.co',
-    supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6bnZpaHV2cHFubnJsZ2dxcHgiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTcxNzAzNzQwMCwiZXhwIjoyMDMyNjEzNDAwfQ.ixhXWj0Jfir852IXJFdZNNfNscnND2u5WPXZ0EBA6Ik',
+    supabaseUrl: 'https://wznvlhuvpqnnrlgcgqpx.supabase.co',
+    supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6bnZsaHV2cHFubnJsZ2NncXB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NDkyNDcsImV4cCI6MjEwODQyNTI0N30.ixhXWj0Jfir852lXJFdZNNfNscnND2u5WPXZ0EBA6lk',
     modoOffline: false,
     rostersCongelados: false, // Superadmin can lock rosters to prevent unregistered additions
     solicitudesBaja: [], // Formal discharge requests from delegates awaiting Superadmin approval
@@ -966,8 +966,8 @@ class TournamentStore {
       if (typeof mergedConfig.brilloInterfaz === 'undefined') mergedConfig.brilloInterfaz = 100;
       if (!mergedConfig.versionApp) mergedConfig.versionApp = DEFAULT_SEED_DATA.config.versionApp;
       if (!mergedConfig.admins || mergedConfig.admins.length === 0) mergedConfig.admins = DEFAULT_SEED_DATA.config.admins;
-      if (!mergedConfig.supabaseUrl || mergedConfig.supabaseUrl.includes('xyz')) mergedConfig.supabaseUrl = DEFAULT_SEED_DATA.config.supabaseUrl;
-      if (!mergedConfig.supabaseAnonKey || mergedConfig.supabaseAnonKey.length < 50) mergedConfig.supabaseAnonKey = DEFAULT_SEED_DATA.config.supabaseAnonKey;
+      if (!mergedConfig.supabaseUrl || mergedConfig.supabaseUrl.includes('xyz') || mergedConfig.supabaseUrl.includes('wznvihuvpqnnrlgcgqpx')) mergedConfig.supabaseUrl = DEFAULT_SEED_DATA.config.supabaseUrl;
+      if (!mergedConfig.supabaseAnonKey || mergedConfig.supabaseAnonKey.length < 50 || mergedConfig.supabaseAnonKey.includes('wznvihuvpqnnrlgcgqpx')) mergedConfig.supabaseAnonKey = DEFAULT_SEED_DATA.config.supabaseAnonKey;
 
       try {
         const savedSession = localStorage.getItem('gmd_jl_active_session');

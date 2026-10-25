@@ -6549,8 +6549,8 @@ const handleOpenSupabaseModal = () => {
   const cfg = window.tournamentStore?.getConfig() || {};
   const urlEl = document.getElementById('inputSupabaseUrl');
   const keyEl = document.getElementById('inputSupabaseKey');
-  if (urlEl) urlEl.value = cfg.supabaseUrl || window.supabaseService?.url || 'https://wznvihuvpqnnrlgcgqpx.supabase.co';
-  if (keyEl) keyEl.value = cfg.supabaseAnonKey || window.supabaseService?.key || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6bnZpaHV2cHFubnJsZ2dxcHgiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTcxNzAzNzQwMCwiZXhwIjoyMDMyNjEzNDAwfQ.ixhXWj0Jfir852IXJFdZNNfNscnND2u5WPXZ0EBA6Ik';
+  if (urlEl) urlEl.value = cfg.supabaseUrl || window.supabaseService?.url || 'https://wznvlhuvpqnnrlgcgqpx.supabase.co';
+  if (keyEl) keyEl.value = cfg.supabaseAnonKey || window.supabaseService?.key || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6bnZsaHV2cHFubnJsZ2NncXB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NDkyNDcsImV4cCI6MjEwODQyNTI0N30.ixhXWj0Jfir852lXJFdZNNfNscnND2u5WPXZ0EBA6lk';
   document.getElementById('modalSupabaseConfig')?.classList.add('open');
 };
 
