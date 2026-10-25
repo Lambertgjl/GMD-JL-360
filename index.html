@@ -26,7 +26,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./styles.css?v=2.0.0">
+  <link rel="stylesheet" href="./styles.css?v=2.1.0">
 </head>
 <body>
 
@@ -369,51 +369,51 @@
               </div>
             </div>
 
-            <!-- 7 Navigation Routes (Con iconos exactos y etiquetas) -->
+            <!-- 7 Navigation Routes (Con iconos exactos y etiquetas adaptadas a móvil y desktop) -->
             <nav class="sidebar-nav" aria-label="Navegación interna de la disciplina">
               <!-- 1. 📊 PANEL PRINCIPAL (DASHBOARD) -->
-              <button class="sidebar-nav-item active" data-module="moduleDashboard" id="navDashboard" type="button">
+              <button class="sidebar-nav-item active" data-module="moduleDashboard" id="navDashboard" type="button" title="Panel Principal">
                 <span class="nav-icon">📊</span>
-                <span class="nav-text">PANEL PRINCIPAL</span>
+                <span class="nav-text" data-short="Panel">PANEL PRINCIPAL</span>
               </button>
 
               <!-- 2. 👥 GESTIÓN EQUIPOS -->
-              <button class="sidebar-nav-item" data-module="moduleEquipos" id="navEquipos" type="button">
+              <button class="sidebar-nav-item" data-module="moduleEquipos" id="navEquipos" type="button" title="Gestión de Equipos">
                 <span class="nav-icon">👥</span>
-                <span class="nav-text">GESTIÓN EQUIPOS</span>
+                <span class="nav-text" data-short="Equipos">GESTIÓN EQUIPOS</span>
               </button>
 
               <!-- 3. ⚙️ CONFIG. GRUPOS -->
-              <button class="sidebar-nav-item" data-module="moduleGrupos" id="navGrupos" type="button">
+              <button class="sidebar-nav-item" data-module="moduleGrupos" id="navGrupos" type="button" title="Configuración de Grupos">
                 <span class="nav-icon">⚙️</span>
-                <span class="nav-text">CONFIG. GRUPOS</span>
+                <span class="nav-text" data-short="Grupos">CONFIG. GRUPOS</span>
               </button>
 
               <!-- 4. 📅 CALENDARIO -->
-              <button class="sidebar-nav-item" data-module="moduleCalendario" id="navCalendario" type="button">
+              <button class="sidebar-nav-item" data-module="moduleCalendario" id="navCalendario" type="button" title="Calendario y Jornadas">
                 <span class="nav-icon">📅</span>
-                <span class="nav-text">CALENDARIO</span>
+                <span class="nav-text" data-short="Juegos">CALENDARIO</span>
               </button>
 
               <!-- 5. ⚡ RESULTADOS LIVE -->
-              <button class="sidebar-nav-item" data-module="moduleResultadosLive" id="navResultadosLive" type="button">
+              <button class="sidebar-nav-item" data-module="moduleResultadosLive" id="navResultadosLive" type="button" title="Resultados y Marcador en Vivo">
                 <span class="nav-icon">⚡</span>
-                <span class="nav-text">RESULTADOS LIVE</span>
+                <span class="nav-text" data-short="En Vivo">RESULTADOS LIVE</span>
                 <span class="nav-live-dot" id="sidebarLiveDot"></span>
               </button>
 
               <!-- 6. 🏆 TABLA POSICIONES -->
-              <button class="sidebar-nav-item" data-module="modulePosiciones" id="navPosiciones" type="button">
+              <button class="sidebar-nav-item" data-module="modulePosiciones" id="navPosiciones" type="button" title="Tabla de Posiciones y Clasificación">
                 <span class="nav-icon">🏆</span>
-                <span class="nav-text">TABLA POSICIONES</span>
+                <span class="nav-text" data-short="Tabla">TABLA POSICIONES</span>
               </button>
 
               <div class="sidebar-divider"></div>
 
               <!-- 7. ⬅️ CAMBIAR DISCIPLINA / CERRAR SESIÓN -->
-              <button class="sidebar-nav-item nav-item-exit" id="navCambiarDisciplina" type="button">
+              <button class="sidebar-nav-item nav-item-exit" id="navCambiarDisciplina" type="button" title="Volver al Hub de Deportes">
                 <span class="nav-icon">⬅️</span>
-                <span class="nav-text">CAMBIAR DISCIPLINA</span>
+                <span class="nav-text" data-short="Deportes">CAMBIAR DISCIPLINA</span>
               </button>
             </nav>
           </aside>
