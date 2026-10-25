@@ -1415,7 +1415,7 @@ class TournamentStore {
     if (partidoId === undefined || partidoId === null) return null;
     const idStr = String(partidoId).trim();
     const existingMatch = this.getPartidoPorId(partidoId);
-    const discId = getCleanDisciplineId(existingMatch?.disciplinaId || this.data.config.disciplinaActual);
+    const discId = getCleanDisciplineId(existingMatch?.disciplinaId || patch?.disciplinaId || this.data.config.disciplinaActual);
     const matches = this.loadMatches(discId);
     const idx = matches.findIndex((p) => p.id === partidoId || String(p.id).trim() === idStr);
     if (idx !== -1) {
@@ -1433,6 +1433,48 @@ class TournamentStore {
         window.supabaseService.updatePartido(partidoId, patch);
       }
       return matches[idx];
+    } else if (patch && (patch.equipoLocal || patch.equipoVisitante)) {
+      // Upsert: si el partido no existía localmente pero trae datos válidos (ej. sincronización Realtime/Cloud)
+      const nuevo = {
+        id: partidoId,
+        disciplinaId: discId,
+        fecha: patch.fecha || new Date().toISOString().split('T')[0],
+        hora: patch.hora || '18:00',
+        sede: patch.sede || 'Gimnasio Pablo Higuerey',
+        fase: patch.fase || 'Fase de Grupos',
+        grupo: patch.grupo || 'Grupo A',
+        equipoLocal: patch.equipoLocal,
+        q1Loc: Number(patch.q1Loc) || 0,
+        q2Loc: Number(patch.q2Loc) || 0,
+        q3Loc: Number(patch.q3Loc) || 0,
+        q4Loc: Number(patch.q4Loc) || 0,
+        otLoc: Number(patch.otLoc) || 0,
+        totalLocal: Number(patch.totalLocal ?? patch.puntosLocal ?? 0),
+        puntosLocal: Number(patch.totalLocal ?? patch.puntosLocal ?? 0),
+        equipoVisitante: patch.equipoVisitante,
+        q1Vis: Number(patch.q1Vis) || 0,
+        q2Vis: Number(patch.q2Vis) || 0,
+        q3Vis: Number(patch.q3Vis) || 0,
+        q4Vis: Number(patch.q4Vis) || 0,
+        otVis: Number(patch.otVis) || 0,
+        totalVisitante: Number(patch.totalVisitante ?? patch.puntosVisitante ?? 0),
+        puntosVisitante: Number(patch.totalVisitante ?? patch.puntosVisitante ?? 0),
+        estado: patch.estado || 'PROGRAMADO',
+        periodoActual: patch.periodoActual || 'Por Iniciar',
+        reloj: patch.reloj || '10:00',
+        faltasLoc: Number(patch.faltasLoc) || 0,
+        faltasVis: Number(patch.faltasVis) || 0,
+        actualizadoEn: new Date().toISOString()
+      };
+      matches.push(nuevo);
+      this.saveMatches(discId, matches);
+      this.syncGlobalDataArrays();
+      this.notify({ action: 'match_added', id: partidoId, disciplinaId: discId });
+
+      if (syncCloud && window.supabaseService && window.supabaseService.status === 'CONNECTED') {
+        window.supabaseService.syncPartido(partidoId, nuevo);
+      }
+      return nuevo;
     }
     return null;
   }
@@ -1715,7 +1757,7 @@ class TournamentStore {
 
   updateEquipo(id, patch, syncCloud = true) {
     const eq = this.getEquipoPorId(id);
-    const discId = getCleanDisciplineId(eq?.disciplinaId || this.data.config.disciplinaActual);
+    const discId = getCleanDisciplineId(eq?.disciplinaId || patch?.disciplinaId || this.data.config.disciplinaActual);
     const teams = this.loadTeams(discId);
     const idx = teams.findIndex((item) => item.id === id);
     if (idx !== -1) {
@@ -1728,6 +1770,35 @@ class TournamentStore {
         window.supabaseService.updateEquipo(id, patch);
       }
       return teams[idx];
+    } else if (patch && patch.nombre) {
+      // Upsert: si no existía localmente pero trae datos válidos (ej. sincronización Realtime/Cloud)
+      const nuevo = {
+        id,
+        nombre: patch.nombre,
+        disciplinaId: discId,
+        grupo: patch.grupo || 'Grupo A',
+        sedePrincipal: patch.sedePrincipal || 'Gimnasio Pablo Higuerey',
+        siglas: patch.siglas || patch.nombre.substring(0, 3).toUpperCase(),
+        logoUrl: patch.logoUrl || './assets/logo.png',
+        color: patch.color || '#800020',
+        delegadoNombre: patch.delegadoNombre || '',
+        delegadoTelefono: patch.delegadoTelefono || '',
+        delegadoEmail: patch.delegadoEmail || '',
+        delegadoCedula: patch.delegadoCedula || '',
+        pin: patch.pin || '2024',
+        entrenador: patch.entrenador || '',
+        asistente: patch.asistente || '',
+        utilero: patch.utilero || ''
+      };
+      teams.push(nuevo);
+      this.saveTeams(discId, teams);
+      this.syncGlobalDataArrays();
+      this.notify({ action: 'team_added', id, disciplinaId: discId });
+
+      if (syncCloud && window.supabaseService && window.supabaseService.status === 'CONNECTED') {
+        window.supabaseService.syncEquipo(id, nuevo);
+      }
+      return nuevo;
     }
     return null;
   }
@@ -1842,7 +1913,7 @@ class TournamentStore {
   updateAtleta(id, patch, syncCloud = true) {
     const all = this.data?.atletas || [];
     const a = all.find((item) => item.id === id);
-    const discId = getCleanDisciplineId(a?.disciplinaId || this.data.config.disciplinaActual);
+    const discId = getCleanDisciplineId(a?.disciplinaId || patch?.disciplinaId || this.data.config.disciplinaActual);
     const athletes = this.loadAthletes(discId);
     const idx = athletes.findIndex((item) => item.id === id);
     if (idx !== -1) {
@@ -1855,6 +1926,30 @@ class TournamentStore {
         window.supabaseService.updateAtleta(id, patch);
       }
       return athletes[idx];
+    } else if (patch && (patch.nombres || patch.cedula)) {
+      // Upsert: si no existía localmente pero trae datos válidos (ej. sincronización Realtime/Cloud)
+      const nuevo = {
+        id,
+        disciplinaId: discId,
+        cedula: patch.cedula || '',
+        nombres: patch.nombres || '',
+        fechaNacimiento: patch.fechaNacimiento || '',
+        edad: Number(patch.edad) || 0,
+        camiseta: String(patch.camiseta || '0'),
+        posicion: patch.posicion || 'Alero',
+        equipo: patch.equipo || '',
+        rol: patch.rol || 'Atleta',
+        fotoUrl: patch.fotoUrl || ''
+      };
+      athletes.push(nuevo);
+      this.saveAthletes(discId, athletes);
+      this.syncGlobalDataArrays();
+      this.notify({ action: 'athlete_added', id, disciplinaId: discId });
+
+      if (syncCloud && window.supabaseService && window.supabaseService.status === 'CONNECTED') {
+        window.supabaseService.syncAtleta(id, nuevo);
+      }
+      return nuevo;
     }
     return null;
   }

@@ -12,7 +12,38 @@ class SupabaseService {
     this.key = DEFAULT_SUPABASE_ANON_KEY;
     this.listeners = new Set();
     this.isHydrating = false;
+    this.setupLifecycleListeners();
     this.initClient();
+  }
+
+  setupLifecycleListeners() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    let reactivationTimer = null;
+    const handleReactivation = () => {
+      clearTimeout(reactivationTimer);
+      reactivationTimer = setTimeout(() => {
+        console.log('[Supabase Lifecycle] Ventana activa / reconexión detectada. Verificando estado y sincronizando datos...');
+        if (!this.client) {
+          this.initClient();
+        } else {
+          this.verifyConnection().then((connected) => {
+            if (connected) {
+              this.hydrateFromSupabase();
+            }
+          }).catch(() => {});
+        }
+      }, 300);
+    };
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        handleReactivation();
+      }
+    });
+
+    window.addEventListener('online', handleReactivation);
+    window.addEventListener('focus', handleReactivation);
   }
 
   initClient() {
@@ -132,11 +163,7 @@ class SupabaseService {
             console.log('[Supabase Realtime] Cambio detectado en partidos:', payload);
             if (payload.new && window.tournamentStore) {
               const match = this.mapSupabasePartidoToLocal(payload.new);
-              if (payload.eventType === 'UPDATE') {
-                window.tournamentStore.updatePartido(match.id, match, false);
-              } else if (payload.eventType === 'INSERT') {
-                window.tournamentStore.addPartido(match, false);
-              }
+              window.tournamentStore.updatePartido(match.id, match, false);
               if (typeof window.renderAllViews === 'function') {
                 window.renderAllViews();
               }
@@ -155,11 +182,7 @@ class SupabaseService {
             console.log('[Supabase Realtime] Cambio detectado en equipos:', payload);
             if (payload.new && window.tournamentStore) {
               const eq = this.mapSupabaseEquipoToLocal(payload.new);
-              if (payload.eventType === 'UPDATE') {
-                window.tournamentStore.updateEquipo(eq.id, eq, false);
-              } else if (payload.eventType === 'INSERT') {
-                window.tournamentStore.addEquipo(eq, false);
-              }
+              window.tournamentStore.updateEquipo(eq.id, eq, false);
               if (typeof window.renderAllViews === 'function') {
                 window.renderAllViews();
               }
@@ -178,16 +201,49 @@ class SupabaseService {
             console.log('[Supabase Realtime] Cambio detectado en atletas:', payload);
             if (payload.new && window.tournamentStore) {
               const a = this.mapSupabaseAtletaToLocal(payload.new);
-              if (payload.eventType === 'UPDATE') {
-                window.tournamentStore.updateAtleta(a.id, a, false);
-              } else if (payload.eventType === 'INSERT') {
-                window.tournamentStore.addAtleta(a, false);
-              }
+              window.tournamentStore.updateAtleta(a.id, a, false);
               if (typeof window.renderAllViews === 'function') {
                 window.renderAllViews();
               }
             } else if (payload.eventType === 'DELETE' && payload.old && window.tournamentStore) {
               window.tournamentStore.deleteAtleta(payload.old.id, 'superadmin', false);
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'disciplinas' },
+          (payload) => {
+            console.log('[Supabase Realtime] Cambio detectado en disciplinas:', payload);
+            if (payload.new && window.tournamentStore) {
+              const rd = payload.new;
+              const discs = window.tournamentStore.getDisciplinas();
+              const existing = discs.find((d) => d.id === rd.id);
+              if (existing) {
+                existing.nombre = rd.nombre || existing.nombre;
+                existing.categoria = rd.categoria || existing.categoria;
+                existing.icono = rd.icono || existing.icono;
+                existing.color = rd.color || existing.color;
+                if (rd.avatar) existing.avatar = rd.avatar;
+                if (rd.banner) existing.banner = rd.banner;
+                if (rd.reglas) existing.reglas = rd.reglas;
+                window.tournamentStore.saveDisciplinasConfig(discs);
+              } else {
+                window.tournamentStore.addDisciplina({
+                  id: rd.id,
+                  nombre: rd.nombre,
+                  categoria: rd.categoria,
+                  icono: rd.icono,
+                  avatar: rd.avatar,
+                  banner: rd.banner,
+                  color: rd.color,
+                  activa: rd.activa !== false,
+                  reglas: rd.reglas
+                });
+              }
               if (typeof window.renderAllViews === 'function') {
                 window.renderAllViews();
               }
@@ -745,16 +801,34 @@ class SupabaseService {
       const { data: remoteDisciplinas, error: errDisc } = await this.client.from('disciplinas').select('*');
       if (!errDisc && Array.isArray(remoteDisciplinas) && remoteDisciplinas.length > 0 && window.tournamentStore) {
         remoteDisciplinas.forEach((rd) => {
-          const cleanId = rd.id;
-          const existing = window.tournamentStore.data.disciplinas.find((d) => d.id === cleanId);
+          const cleanId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(rd.id) : rd.id;
+          const existing = window.tournamentStore.data.disciplinas.find((d) => {
+            const eId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(d.id) : d.id;
+            return eId === cleanId;
+          });
           if (existing) {
             existing.nombre = rd.nombre || existing.nombre;
             existing.categoria = rd.categoria || existing.categoria;
             existing.icono = rd.icono || existing.icono;
             existing.color = rd.color || existing.color;
+            if (rd.avatar) existing.avatar = rd.avatar;
+            if (rd.banner) existing.banner = rd.banner;
             if (rd.reglas) existing.reglas = rd.reglas;
+          } else {
+            window.tournamentStore.data.disciplinas.push({
+              id: cleanId,
+              nombre: rd.nombre,
+              categoria: rd.categoria || 'Torneo Master / Libre',
+              icono: rd.icono || '🏆',
+              avatar: rd.avatar || './assets/logo.png',
+              banner: rd.banner || './assets/logo.png',
+              color: rd.color || '#D4AF37',
+              activa: rd.activa !== false,
+              reglas: rd.reglas || {}
+            });
           }
         });
+        window.tournamentStore.saveDisciplinasConfig(window.tournamentStore.data.disciplinas);
       }
 
       // 2. Equipos
@@ -765,9 +839,13 @@ class SupabaseService {
         // Guardar por disciplina
         const discs = window.tournamentStore.getDisciplinas();
         discs.forEach((d) => {
-          const discEqs = mappedEquipos.filter((e) => (e.disciplinaId || '').toLowerCase() === (d.id || '').toLowerCase());
+          const cleanDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(d.id) : (d.id || '').toLowerCase();
+          const discEqs = mappedEquipos.filter((e) => {
+            const eqDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(e.disciplinaId) : (e.disciplinaId || '').toLowerCase();
+            return eqDId === cleanDId;
+          });
           if (discEqs.length > 0) {
-            window.tournamentStore.saveTeams(d.id, discEqs, false);
+            window.tournamentStore.saveTeams(d.id, discEqs);
           }
         });
       }
@@ -779,9 +857,13 @@ class SupabaseService {
         window.tournamentStore.data.partidos = mappedPartidos;
         const discs = window.tournamentStore.getDisciplinas();
         discs.forEach((d) => {
-          const discPars = mappedPartidos.filter((p) => (p.disciplinaId || '').toLowerCase() === (d.id || '').toLowerCase());
+          const cleanDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(d.id) : (d.id || '').toLowerCase();
+          const discPars = mappedPartidos.filter((p) => {
+            const parDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(p.disciplinaId) : (p.disciplinaId || '').toLowerCase();
+            return parDId === cleanDId;
+          });
           if (discPars.length > 0) {
-            window.tournamentStore.saveMatches(d.id, discPars, false);
+            window.tournamentStore.saveMatches(d.id, discPars);
           }
         });
       }
@@ -793,9 +875,13 @@ class SupabaseService {
         window.tournamentStore.data.atletas = mappedAtletas;
         const discs = window.tournamentStore.getDisciplinas();
         discs.forEach((d) => {
-          const discAtls = mappedAtletas.filter((a) => (a.disciplinaId || '').toLowerCase() === (d.id || '').toLowerCase());
+          const cleanDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(d.id) : (d.id || '').toLowerCase();
+          const discAtls = mappedAtletas.filter((a) => {
+            const atlDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(a.disciplinaId) : (a.disciplinaId || '').toLowerCase();
+            return atlDId === cleanDId;
+          });
           if (discAtls.length > 0) {
-            window.tournamentStore.saveAthletes(d.id, discAtls, false);
+            window.tournamentStore.saveAthletes(d.id, discAtls);
           }
         });
       }
@@ -839,7 +925,7 @@ class SupabaseService {
       const disciplinas = window.tournamentStore.getDisciplinas() || [];
       if (disciplinas.length === 0) return true;
       const payload = disciplinas.map((d) => ({
-        id: d.id,
+        id: (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(d.id) : d.id,
         nombre: d.nombre,
         categoria: d.categoria,
         icono: d.icono,
@@ -861,7 +947,22 @@ class SupabaseService {
   async syncEquipos() {
     if (!this.client || !window.tournamentStore) return false;
     try {
-      const equipos = window.tournamentStore.data?.equipos || [];
+      if (typeof window.tournamentStore.syncGlobalDataArrays === 'function') {
+        window.tournamentStore.syncGlobalDataArrays();
+      }
+      let equipos = window.tournamentStore.data?.equipos || [];
+      const discs = window.tournamentStore.getDisciplinas ? window.tournamentStore.getDisciplinas() : [];
+      let aggregated = [];
+      discs.forEach((d) => {
+        if (typeof window.tournamentStore.loadTeams === 'function') {
+          aggregated = aggregated.concat(window.tournamentStore.loadTeams(d.id));
+        }
+      });
+      if (aggregated.length > 0) {
+        const map = new Map();
+        equipos.concat(aggregated).forEach((eq) => { if (eq && eq.id) map.set(eq.id, eq); });
+        equipos = Array.from(map.values());
+      }
       if (equipos.length === 0) return true;
       const payload = equipos.map((eq) => this.mapLocalEquipoToSupabase(eq)).filter(Boolean);
       const { error } = await this.client.from('equipos').upsert(payload, { onConflict: 'id' });
@@ -876,7 +977,22 @@ class SupabaseService {
   async syncAtletas() {
     if (!this.client || !window.tournamentStore) return false;
     try {
-      const atletas = window.tournamentStore.data?.atletas || [];
+      if (typeof window.tournamentStore.syncGlobalDataArrays === 'function') {
+        window.tournamentStore.syncGlobalDataArrays();
+      }
+      let atletas = window.tournamentStore.data?.atletas || [];
+      const discs = window.tournamentStore.getDisciplinas ? window.tournamentStore.getDisciplinas() : [];
+      let aggregated = [];
+      discs.forEach((d) => {
+        if (typeof window.tournamentStore.loadAthletes === 'function') {
+          aggregated = aggregated.concat(window.tournamentStore.loadAthletes(d.id));
+        }
+      });
+      if (aggregated.length > 0) {
+        const map = new Map();
+        atletas.concat(aggregated).forEach((a) => { if (a && a.id) map.set(a.id, a); });
+        atletas = Array.from(map.values());
+      }
       if (atletas.length === 0) return true;
       const payload = atletas.map((a) => this.mapLocalAtletaToSupabase(a)).filter(Boolean);
       const { error } = await this.client.from('atletas').upsert(payload, { onConflict: 'id' });
@@ -891,7 +1007,22 @@ class SupabaseService {
   async syncPartidos() {
     if (!this.client || !window.tournamentStore) return false;
     try {
-      const partidos = window.tournamentStore.data?.partidos || [];
+      if (typeof window.tournamentStore.syncGlobalDataArrays === 'function') {
+        window.tournamentStore.syncGlobalDataArrays();
+      }
+      let partidos = window.tournamentStore.data?.partidos || [];
+      const discs = window.tournamentStore.getDisciplinas ? window.tournamentStore.getDisciplinas() : [];
+      let aggregated = [];
+      discs.forEach((d) => {
+        if (typeof window.tournamentStore.loadMatches === 'function') {
+          aggregated = aggregated.concat(window.tournamentStore.loadMatches(d.id));
+        }
+      });
+      if (aggregated.length > 0) {
+        const map = new Map();
+        partidos.concat(aggregated).forEach((p) => { if (p && p.id) map.set(p.id, p); });
+        partidos = Array.from(map.values());
+      }
       if (partidos.length === 0) return true;
       const payload = partidos.map((p) => this.mapLocalPartidoToSupabase(p)).filter(Boolean);
       const { error } = await this.client.from('partidos').upsert(payload, { onConflict: 'id' });
