@@ -832,9 +832,10 @@ class SupabaseService {
       }
 
       // 2. Equipos
+      // 2. Equipos
       const { data: remoteEquipos, error: errEq } = await this.client.from('equipos').select('*');
-      if (!errEq && Array.isArray(remoteEquipos) && remoteEquipos.length > 0 && window.tournamentStore) {
-        const mappedEquipos = remoteEquipos.map((eq) => this.mapSupabaseEquipoToLocal(eq));
+      if (!errEq && Array.isArray(remoteEquipos) && window.tournamentStore) {
+        const mappedEquipos = remoteEquipos.map((eq) => this.mapSupabaseEquipoToLocal(eq)).filter(Boolean);
         window.tournamentStore.data.equipos = mappedEquipos;
         // Guardar por disciplina
         const discs = window.tournamentStore.getDisciplinas();
@@ -844,16 +845,14 @@ class SupabaseService {
             const eqDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(e.disciplinaId) : (e.disciplinaId || '').toLowerCase();
             return eqDId === cleanDId;
           });
-          if (discEqs.length > 0) {
-            window.tournamentStore.saveTeams(d.id, discEqs);
-          }
+          window.tournamentStore.saveTeams(d.id, discEqs);
         });
       }
 
       // 3. Partidos
       const { data: remotePartidos, error: errPar } = await this.client.from('partidos').select('*');
-      if (!errPar && Array.isArray(remotePartidos) && remotePartidos.length > 0 && window.tournamentStore) {
-        const mappedPartidos = remotePartidos.map((p) => this.mapSupabasePartidoToLocal(p));
+      if (!errPar && Array.isArray(remotePartidos) && window.tournamentStore) {
+        const mappedPartidos = remotePartidos.map((p) => this.mapSupabasePartidoToLocal(p)).filter(Boolean);
         window.tournamentStore.data.partidos = mappedPartidos;
         const discs = window.tournamentStore.getDisciplinas();
         discs.forEach((d) => {
@@ -862,16 +861,14 @@ class SupabaseService {
             const parDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(p.disciplinaId) : (p.disciplinaId || '').toLowerCase();
             return parDId === cleanDId;
           });
-          if (discPars.length > 0) {
-            window.tournamentStore.saveMatches(d.id, discPars);
-          }
+          window.tournamentStore.saveMatches(d.id, discPars);
         });
       }
 
       // 4. Atletas
       const { data: remoteAtletas, error: errAtl } = await this.client.from('atletas').select('*');
-      if (!errAtl && Array.isArray(remoteAtletas) && remoteAtletas.length > 0 && window.tournamentStore) {
-        const mappedAtletas = remoteAtletas.map((a) => this.mapSupabaseAtletaToLocal(a));
+      if (!errAtl && Array.isArray(remoteAtletas) && window.tournamentStore) {
+        const mappedAtletas = remoteAtletas.map((a) => this.mapSupabaseAtletaToLocal(a)).filter(Boolean);
         window.tournamentStore.data.atletas = mappedAtletas;
         const discs = window.tournamentStore.getDisciplinas();
         discs.forEach((d) => {
@@ -880,9 +877,7 @@ class SupabaseService {
             const atlDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(a.disciplinaId) : (a.disciplinaId || '').toLowerCase();
             return atlDId === cleanDId;
           });
-          if (discAtls.length > 0) {
-            window.tournamentStore.saveAthletes(d.id, discAtls);
-          }
+          window.tournamentStore.saveAthletes(d.id, discAtls);
         });
       }
 
@@ -1221,3 +1216,13 @@ END $$;
 }
 
 window.supabaseService = new SupabaseService();
+window.forceCloudSync = async () => {
+  if (window.supabaseService) {
+    const ok = await window.supabaseService.hydrateFromSupabase();
+    if (typeof window.renderAllViews === 'function') {
+      window.renderAllViews();
+    }
+    return ok;
+  }
+  return false;
+};

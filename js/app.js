@@ -1772,12 +1772,25 @@ window.appRouter = new AppRouter();
 // SERVICE WORKER & PWA INSTALLATION LOGIC
 // ==============================================================================
 function initPWA() {
-  // 1. Register Service Worker
+  // 1. Register Service Worker with Auto-Update detection
   if ('serviceWorker' in navigator) {
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        console.log('[PWA] Nuevo Service Worker activado. Recargando para actualizar contenidos...');
+        window.location.reload();
+      }
+    });
+
     window.addEventListener('load', () => {
       navigator.serviceWorker
         .register('./sw.js')
-        .then((reg) => console.log('[PWA] Service Worker registrado con éxito:', reg.scope))
+        .then((reg) => {
+          console.log('[PWA] Service Worker registrado con éxito:', reg.scope);
+          // Forzar comprobación de versión actualizada en el servidor
+          try { reg.update(); } catch (_) {}
+        })
         .catch((err) => console.warn('[PWA] Fallo al registrar Service Worker:', err));
     });
   }
@@ -6587,8 +6600,58 @@ const handleOpenSupabaseModal = () => {
 document.getElementById('btnConfigSupabaseModal')?.addEventListener('click', handleOpenSupabaseModal);
 document.getElementById('btnAdminSupabaseModal')?.addEventListener('click', handleOpenSupabaseModal);
 
+const updateHeaderSyncButton = (status) => {
+  const btn = document.getElementById('headerCloudSyncBtn');
+  const txt = document.getElementById('headerCloudSyncText');
+  if (!btn || !txt) return;
+
+  const currentStatus = status || window.supabaseService?.status || 'DISCONNECTED';
+  btn.classList.remove('syncing', 'error');
+
+  if (currentStatus === 'CONNECTED') {
+    btn.style.display = 'inline-flex';
+    txt.textContent = 'Nube Sincronizada';
+    btn.title = 'Conectado a Supabase en tiempo real. Haga clic para recargar datos.';
+  } else if (currentStatus === 'TABLES_MISSING') {
+    btn.style.display = 'inline-flex';
+    btn.classList.add('error');
+    txt.textContent = 'Faltan Tablas';
+    btn.title = 'Conectado a Supabase pero faltan tablas en la nube.';
+  } else if (currentStatus === 'ERROR') {
+    btn.style.display = 'inline-flex';
+    btn.classList.add('error');
+    txt.textContent = 'Error Nube';
+    btn.title = 'Error de conexión con Supabase. Clic para reintentar.';
+  } else {
+    btn.style.display = 'inline-flex';
+    txt.textContent = 'Modo Local';
+    btn.title = 'Modo local activo. Haga clic para intentar sincronizar con la nube.';
+  }
+};
+
+document.getElementById('headerCloudSyncBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('headerCloudSyncBtn');
+  const txt = document.getElementById('headerCloudSyncText');
+  if (btn) btn.classList.add('syncing');
+  if (txt) txt.textContent = 'Sincronizando...';
+
+  showToast('🔄 Comprobando sincronización con Supabase Cloud...', 'info');
+  if (window.supabaseService) {
+    const verified = await window.supabaseService.verifyConnection();
+    if (verified) {
+      await window.supabaseService.hydrateFromSupabase();
+      renderAllViews();
+      showToast('✅ ¡Datos actualizados y sincronizados desde la nube!', 'success');
+    } else {
+      showToast('⚠️ No se pudo sincronizar con la nube. Mostrando datos locales.', 'warning');
+    }
+    updateHeaderSyncButton(window.supabaseService.status);
+  }
+});
+
 window.supabaseService?.onStatusChange((newStatus) => {
   updateSupabaseStatusBox(newStatus);
+  updateHeaderSyncButton(newStatus);
 });
 
 document.getElementById('formSupabaseConfig')?.addEventListener('submit', async (e) => {
