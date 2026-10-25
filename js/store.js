@@ -1411,7 +1411,7 @@ class TournamentStore {
   }
 
   // Matches & Live Scoreboard
-  updatePartido(partidoId, patch) {
+  updatePartido(partidoId, patch, syncCloud = true) {
     if (partidoId === undefined || partidoId === null) return null;
     const idStr = String(partidoId).trim();
     const existingMatch = this.getPartidoPorId(partidoId);
@@ -1428,15 +1428,21 @@ class TournamentStore {
       this.saveMatches(discId, matches);
       this.syncGlobalDataArrays();
       this.notify({ action: 'match_updated', partidoId, patch, disciplinaId: discId });
+
+      if (syncCloud && window.supabaseService && window.supabaseService.status === 'CONNECTED') {
+        window.supabaseService.updatePartido(partidoId, patch);
+      }
       return matches[idx];
     }
     return null;
   }
 
-  addPartido(nuevoPartido) {
+  addPartido(nuevoPartido, syncCloud = true) {
     const discId = getCleanDisciplineId(nuevoPartido.disciplinaId || this.data.config.disciplinaActual || 'baloncesto-master');
     const matches = this.loadMatches(discId);
     const id = nuevoPartido.id || `PAR-${discId.substring(0, 3).toUpperCase()}-${String(matches.length + 1).padStart(3, '0')}`;
+    const totLoc = Number(nuevoPartido.totalLocal ?? nuevoPartido.puntosLocal ?? 0);
+    const totVis = Number(nuevoPartido.totalVisitante ?? nuevoPartido.puntosVisitante ?? 0);
     const partido = {
       id,
       disciplinaId: discId,
@@ -1450,13 +1456,17 @@ class TournamentStore {
       q2Loc: Number(nuevoPartido.q2Loc) || 0,
       q3Loc: Number(nuevoPartido.q3Loc) || 0,
       q4Loc: Number(nuevoPartido.q4Loc) || 0,
-      totalLocal: Number(nuevoPartido.totalLocal) || 0,
+      otLoc: Number(nuevoPartido.otLoc) || 0,
+      totalLocal: totLoc,
+      puntosLocal: totLoc,
       equipoVisitante: nuevoPartido.equipoVisitante,
       q1Vis: Number(nuevoPartido.q1Vis) || 0,
       q2Vis: Number(nuevoPartido.q2Vis) || 0,
       q3Vis: Number(nuevoPartido.q3Vis) || 0,
       q4Vis: Number(nuevoPartido.q4Vis) || 0,
-      totalVisitante: Number(nuevoPartido.totalVisitante) || 0,
+      otVis: Number(nuevoPartido.otVis) || 0,
+      totalVisitante: totVis,
+      puntosVisitante: totVis,
       estado: nuevoPartido.estado || 'PROGRAMADO',
       periodoActual: nuevoPartido.periodoActual || 'Por Iniciar',
       reloj: nuevoPartido.reloj || '10:00',
@@ -1468,10 +1478,14 @@ class TournamentStore {
     this.saveMatches(discId, matches);
     this.syncGlobalDataArrays();
     this.notify({ action: 'match_added', id, disciplinaId: discId });
+
+    if (syncCloud && window.supabaseService && window.supabaseService.status === 'CONNECTED') {
+      window.supabaseService.syncPartido(id, partido);
+    }
     return partido;
   }
 
-  deletePartido(id) {
+  deletePartido(id, syncCloud = true) {
     const match = this.getPartidoPorId(id);
     const discId = getCleanDisciplineId(match?.disciplinaId || this.data.config.disciplinaActual);
     let matches = this.loadMatches(discId);
@@ -1479,6 +1493,10 @@ class TournamentStore {
     this.saveMatches(discId, matches);
     this.syncGlobalDataArrays();
     this.notify({ action: 'match_deleted', id, disciplinaId: discId });
+
+    if (syncCloud && window.supabaseService && window.supabaseService.status === 'CONNECTED') {
+      window.supabaseService.deletePartido(id);
+    }
   }
 
   clearPartidos(disciplinaId = null) {
@@ -1662,7 +1680,7 @@ class TournamentStore {
   }
 
   // Teams
-  addEquipo(equipo) {
+  addEquipo(equipo, syncCloud = true) {
     const discId = getCleanDisciplineId(equipo.disciplinaId || this.data.config.disciplinaActual || 'baloncesto-master');
     const teams = this.loadTeams(discId);
     const id = equipo.id || `EQ-${discId.substring(0, 3).toUpperCase()}-${String(teams.length + 1).padStart(2, '0')}`;
@@ -1673,7 +1691,7 @@ class TournamentStore {
       grupo: equipo.grupo || 'Grupo A',
       sedePrincipal: equipo.sedePrincipal || 'Gimnasio Pablo Higuerey',
       siglas: equipo.siglas || equipo.nombre.substring(0, 3).toUpperCase(),
-      logoUrl: equipo.logoUrl || '',
+      logoUrl: equipo.logoUrl || './assets/logo.png',
       color: equipo.color || '#800020',
       delegadoNombre: equipo.delegadoNombre || '',
       delegadoTelefono: equipo.delegadoTelefono || '',
@@ -1688,10 +1706,14 @@ class TournamentStore {
     this.saveTeams(discId, teams);
     this.syncGlobalDataArrays();
     this.notify({ action: 'team_added', id, disciplinaId: discId });
+
+    if (syncCloud && window.supabaseService && window.supabaseService.status === 'CONNECTED') {
+      window.supabaseService.syncEquipo(id, nuevo);
+    }
     return nuevo;
   }
 
-  updateEquipo(id, patch) {
+  updateEquipo(id, patch, syncCloud = true) {
     const eq = this.getEquipoPorId(id);
     const discId = getCleanDisciplineId(eq?.disciplinaId || this.data.config.disciplinaActual);
     const teams = this.loadTeams(discId);
@@ -1701,12 +1723,16 @@ class TournamentStore {
       this.saveTeams(discId, teams);
       this.syncGlobalDataArrays();
       this.notify({ action: 'team_updated', id, disciplinaId: discId });
+
+      if (syncCloud && window.supabaseService && window.supabaseService.status === 'CONNECTED') {
+        window.supabaseService.updateEquipo(id, patch);
+      }
       return teams[idx];
     }
     return null;
   }
 
-  deleteEquipo(id, userRole = 'superadmin') {
+  deleteEquipo(id, userRole = 'superadmin', syncCloud = true) {
     const eq = this.getEquipoPorId(id);
     if (!eq) return false;
     const discId = getCleanDisciplineId(eq.disciplinaId || this.data.config.disciplinaActual);
@@ -1721,6 +1747,10 @@ class TournamentStore {
 
     this.syncGlobalDataArrays();
     this.notify({ action: 'team_deleted', id, equipoNombre: eq.nombre, disciplinaId: discId });
+
+    if (syncCloud && window.supabaseService && window.supabaseService.status === 'CONNECTED') {
+      window.supabaseService.deleteEquipo(id);
+    }
     return true;
   }
 
@@ -1781,7 +1811,7 @@ class TournamentStore {
   }
 
   // Athletes
-  addAtleta(atleta) {
+  addAtleta(atleta, syncCloud = true) {
     const discId = getCleanDisciplineId(atleta.disciplinaId || this.data.config.disciplinaActual || 'baloncesto-master');
     const athletes = this.loadAthletes(discId);
     const id = atleta.id || `ATL-${discId.substring(0, 3).toUpperCase()}-${String(athletes.length + 1).padStart(3, '0')}`;
@@ -1802,10 +1832,14 @@ class TournamentStore {
     this.saveAthletes(discId, athletes);
     this.syncGlobalDataArrays();
     this.notify({ action: 'athlete_added', id, disciplinaId: discId });
+
+    if (syncCloud && window.supabaseService && window.supabaseService.status === 'CONNECTED') {
+      window.supabaseService.syncAtleta(id, nuevo);
+    }
     return nuevo;
   }
 
-  updateAtleta(id, patch) {
+  updateAtleta(id, patch, syncCloud = true) {
     const all = this.data?.atletas || [];
     const a = all.find((item) => item.id === id);
     const discId = getCleanDisciplineId(a?.disciplinaId || this.data.config.disciplinaActual);
@@ -1816,12 +1850,16 @@ class TournamentStore {
       this.saveAthletes(discId, athletes);
       this.syncGlobalDataArrays();
       this.notify({ action: 'athlete_updated', id, disciplinaId: discId });
+
+      if (syncCloud && window.supabaseService && window.supabaseService.status === 'CONNECTED') {
+        window.supabaseService.updateAtleta(id, patch);
+      }
       return athletes[idx];
     }
     return null;
   }
 
-  deleteAtleta(id, userRole = 'superadmin') {
+  deleteAtleta(id, userRole = 'superadmin', syncCloud = true) {
     if (userRole !== 'superadmin') {
       console.warn('RESTRICCIÓN DE SEGURIDAD: Los delegados no pueden eliminar atletas directamente. Deben solicitar baja formal.');
       return false;
@@ -1834,6 +1872,10 @@ class TournamentStore {
     this.saveAthletes(discId, athletes);
     this.syncGlobalDataArrays();
     this.notify({ action: 'athlete_deleted', id, disciplinaId: discId });
+
+    if (syncCloud && window.supabaseService && window.supabaseService.status === 'CONNECTED') {
+      window.supabaseService.deleteAtleta(id);
+    }
     return true;
   }
 

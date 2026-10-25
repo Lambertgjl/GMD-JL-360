@@ -133,10 +133,15 @@ class SupabaseService {
             if (payload.new && window.tournamentStore) {
               const match = this.mapSupabasePartidoToLocal(payload.new);
               if (payload.eventType === 'UPDATE') {
-                window.tournamentStore.updatePartido(match.id, match);
+                window.tournamentStore.updatePartido(match.id, match, false);
               } else if (payload.eventType === 'INSERT') {
-                window.tournamentStore.addPartido(match);
+                window.tournamentStore.addPartido(match, false);
               }
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            } else if (payload.eventType === 'DELETE' && payload.old && window.tournamentStore) {
+              window.tournamentStore.deletePartido(payload.old.id, false);
               if (typeof window.renderAllViews === 'function') {
                 window.renderAllViews();
               }
@@ -151,10 +156,38 @@ class SupabaseService {
             if (payload.new && window.tournamentStore) {
               const eq = this.mapSupabaseEquipoToLocal(payload.new);
               if (payload.eventType === 'UPDATE') {
-                window.tournamentStore.updateEquipo(eq.id, eq);
+                window.tournamentStore.updateEquipo(eq.id, eq, false);
               } else if (payload.eventType === 'INSERT') {
-                window.tournamentStore.addEquipo(eq);
+                window.tournamentStore.addEquipo(eq, false);
               }
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            } else if (payload.eventType === 'DELETE' && payload.old && window.tournamentStore) {
+              window.tournamentStore.deleteEquipo(payload.old.id, 'superadmin', false);
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'atletas' },
+          (payload) => {
+            console.log('[Supabase Realtime] Cambio detectado en atletas:', payload);
+            if (payload.new && window.tournamentStore) {
+              const a = this.mapSupabaseAtletaToLocal(payload.new);
+              if (payload.eventType === 'UPDATE') {
+                window.tournamentStore.updateAtleta(a.id, a, false);
+              } else if (payload.eventType === 'INSERT') {
+                window.tournamentStore.addAtleta(a, false);
+              }
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            } else if (payload.eventType === 'DELETE' && payload.old && window.tournamentStore) {
+              window.tournamentStore.deleteAtleta(payload.old.id, 'superadmin', false);
               if (typeof window.renderAllViews === 'function') {
                 window.renderAllViews();
               }
@@ -167,7 +200,79 @@ class SupabaseService {
           ({ payload }) => {
             console.log('[Supabase Realtime Broadcast] Marcador recibido:', payload);
             if (payload && payload.partidoId && window.tournamentStore) {
-              window.tournamentStore.updatePartido(payload.partidoId, payload.patch);
+              window.tournamentStore.updatePartido(payload.partidoId, payload.patch, false);
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            }
+          }
+        )
+        .on(
+          'broadcast',
+          { event: 'match_synced' },
+          ({ payload }) => {
+            if (payload && payload.partido && window.tournamentStore) {
+              window.tournamentStore.updatePartido(payload.id, payload.partido, false);
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            }
+          }
+        )
+        .on(
+          'broadcast',
+          { event: 'match_deleted' },
+          ({ payload }) => {
+            if (payload && payload.id && window.tournamentStore) {
+              window.tournamentStore.deletePartido(payload.id, false);
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            }
+          }
+        )
+        .on(
+          'broadcast',
+          { event: 'team_synced' },
+          ({ payload }) => {
+            if (payload && payload.equipo && window.tournamentStore) {
+              window.tournamentStore.updateEquipo(payload.id, payload.equipo, false);
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            }
+          }
+        )
+        .on(
+          'broadcast',
+          { event: 'team_deleted' },
+          ({ payload }) => {
+            if (payload && payload.id && window.tournamentStore) {
+              window.tournamentStore.deleteEquipo(payload.id, 'superadmin', false);
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            }
+          }
+        )
+        .on(
+          'broadcast',
+          { event: 'athlete_synced' },
+          ({ payload }) => {
+            if (payload && payload.atleta && window.tournamentStore) {
+              window.tournamentStore.updateAtleta(payload.id, payload.atleta, false);
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            }
+          }
+        )
+        .on(
+          'broadcast',
+          { event: 'athlete_deleted' },
+          ({ payload }) => {
+            if (payload && payload.id && window.tournamentStore) {
+              window.tournamentStore.deleteAtleta(payload.id, 'superadmin', false);
               if (typeof window.renderAllViews === 'function') {
                 window.renderAllViews();
               }
@@ -186,6 +291,8 @@ class SupabaseService {
 
   mapSupabasePartidoToLocal(p) {
     if (!p) return null;
+    const totLoc = Number(p.total_local ?? p.puntos_local ?? 0);
+    const totVis = Number(p.total_visitante ?? p.puntos_visitante ?? 0);
     return {
       id: p.id,
       disciplinaId: p.disciplina_id || 'baloncesto-master',
@@ -195,32 +302,34 @@ class SupabaseService {
       fase: p.fase || 'Fase de Grupos',
       grupo: p.grupo || 'Grupo A',
       equipoLocal: p.equipo_local,
-      q1Loc: p.q1_loc ?? 0,
-      q2Loc: p.q2_loc ?? 0,
-      q3Loc: p.q3_loc ?? 0,
-      q4Loc: p.q4_loc ?? 0,
-      otLoc: p.ot_loc ?? 0,
-      totalLocal: p.total_local ?? p.puntos_local ?? 0,
-      puntosLocal: p.total_local ?? p.puntos_local ?? 0,
+      q1Loc: Number(p.q1_loc ?? 0),
+      q2Loc: Number(p.q2_loc ?? 0),
+      q3Loc: Number(p.q3_loc ?? 0),
+      q4Loc: Number(p.q4_loc ?? 0),
+      otLoc: Number(p.ot_loc ?? 0),
+      totalLocal: totLoc,
+      puntosLocal: totLoc,
       equipoVisitante: p.equipo_visitante,
-      q1Vis: p.q1_vis ?? 0,
-      q2Vis: p.q2_vis ?? 0,
-      q3Vis: p.q3_vis ?? 0,
-      q4Vis: p.q4_vis ?? 0,
-      otVis: p.ot_vis ?? 0,
-      totalVisitante: p.total_visitante ?? p.puntos_visitante ?? 0,
-      puntosVisitante: p.total_visitante ?? p.puntos_visitante ?? 0,
+      q1Vis: Number(p.q1_vis ?? 0),
+      q2Vis: Number(p.q2_vis ?? 0),
+      q3Vis: Number(p.q3_vis ?? 0),
+      q4Vis: Number(p.q4_vis ?? 0),
+      otVis: Number(p.ot_vis ?? 0),
+      totalVisitante: totVis,
+      puntosVisitante: totVis,
       estado: p.estado || 'PROGRAMADO',
       periodoActual: p.periodo_actual || 'Por Iniciar',
       reloj: p.reloj || '10:00',
-      faltasLoc: p.faltas_loc ?? 0,
-      faltasVis: p.faltas_vis ?? 0,
+      faltasLoc: Number(p.faltas_loc ?? 0),
+      faltasVis: Number(p.faltas_vis ?? 0),
       actualizadoEn: p.actualizado_en || new Date().toISOString()
     };
   }
 
   mapLocalPartidoToSupabase(p) {
     if (!p) return null;
+    const totLoc = Number(p.totalLocal ?? p.puntosLocal ?? 0);
+    const totVis = Number(p.totalVisitante ?? p.puntosVisitante ?? 0);
     return {
       id: p.id,
       disciplina_id: p.disciplinaId || 'baloncesto-master',
@@ -235,16 +344,16 @@ class SupabaseService {
       q3_loc: Number(p.q3Loc) || 0,
       q4_loc: Number(p.q4Loc) || 0,
       ot_loc: Number(p.otLoc) || 0,
-      total_local: Number(p.totalLocal ?? p.puntosLocal ?? 0),
-      puntos_local: Number(p.totalLocal ?? p.puntosLocal ?? 0),
+      total_local: totLoc,
+      puntos_local: totLoc,
       equipo_visitante: p.equipoVisitante,
       q1_vis: Number(p.q1Vis) || 0,
       q2_vis: Number(p.q2Vis) || 0,
       q3_vis: Number(p.q3Vis) || 0,
       q4_vis: Number(p.q4Vis) || 0,
       ot_vis: Number(p.otVis) || 0,
-      total_visitante: Number(p.totalVisitante ?? p.puntosVisitante ?? 0),
-      puntos_visitante: Number(p.totalVisitante ?? p.puntosVisitante ?? 0),
+      total_visitante: totVis,
+      puntos_visitante: totVis,
       estado: p.estado || 'PROGRAMADO',
       periodo_actual: p.periodoActual || 'Por Iniciar',
       reloj: p.reloj || '10:00',
@@ -306,9 +415,9 @@ class SupabaseService {
       cedula: atl.cedula,
       nombres: atl.nombres,
       fechaNacimiento: atl.fecha_nacimiento,
-      edad: atl.edad,
-      camiseta: atl.camiseta,
-      posicion: atl.posicion,
+      edad: atl.edad ? Number(atl.edad) : 0,
+      camiseta: atl.camiseta || '',
+      posicion: atl.posicion || '',
       equipo: atl.equipo,
       rol: atl.rol || 'Atleta',
       fotoUrl: atl.foto_url || ''
@@ -332,58 +441,294 @@ class SupabaseService {
     };
   }
 
-  // --- SINCRONIZACIÓN Y BROADCAST EN VIVO ---
+  // --- SINCRONIZACIÓN ATÓMICA DE MUTACIONES DESDE EL STORE ---
+
+  async syncPartido(id, p) {
+    if (!this.client || this.status !== 'CONNECTED') return false;
+    try {
+      const payload = this.mapLocalPartidoToSupabase(p);
+      if (!payload) return false;
+      const { error } = await this.client.from('partidos').upsert(payload, { onConflict: 'id' });
+      if (error) {
+        console.warn('[Supabase Sync Partido Error]:', error.message);
+        return false;
+      }
+      if (this.channel) {
+        await this.channel.send({
+          type: 'broadcast',
+          event: 'match_synced',
+          payload: { id, partido: p }
+        });
+      }
+      return true;
+    } catch (e) {
+      console.warn('[Supabase Sync Partido Exception]:', e);
+      return false;
+    }
+  }
+
+  async updatePartido(id, patch) {
+    if (!this.client || this.status !== 'CONNECTED') return false;
+    try {
+      const dbPatch = {};
+      if (patch.totalLocal !== undefined) {
+        dbPatch.total_local = Number(patch.totalLocal);
+        dbPatch.puntos_local = Number(patch.totalLocal);
+      }
+      if (patch.puntosLocal !== undefined) {
+        dbPatch.total_local = Number(patch.puntosLocal);
+        dbPatch.puntos_local = Number(patch.puntosLocal);
+      }
+      if (patch.totalVisitante !== undefined) {
+        dbPatch.total_visitante = Number(patch.totalVisitante);
+        dbPatch.puntos_visitante = Number(patch.totalVisitante);
+      }
+      if (patch.puntosVisitante !== undefined) {
+        dbPatch.total_visitante = Number(patch.puntosVisitante);
+        dbPatch.puntos_visitante = Number(patch.puntosVisitante);
+      }
+      if (patch.q1Loc !== undefined) dbPatch.q1_loc = Number(patch.q1Loc);
+      if (patch.q2Loc !== undefined) dbPatch.q2_loc = Number(patch.q2Loc);
+      if (patch.q3Loc !== undefined) dbPatch.q3_loc = Number(patch.q3Loc);
+      if (patch.q4Loc !== undefined) dbPatch.q4_loc = Number(patch.q4Loc);
+      if (patch.otLoc !== undefined) dbPatch.ot_loc = Number(patch.otLoc);
+      if (patch.q1Vis !== undefined) dbPatch.q1_vis = Number(patch.q1Vis);
+      if (patch.q2Vis !== undefined) dbPatch.q2_vis = Number(patch.q2Vis);
+      if (patch.q3Vis !== undefined) dbPatch.q3_vis = Number(patch.q3Vis);
+      if (patch.q4Vis !== undefined) dbPatch.q4_vis = Number(patch.q4Vis);
+      if (patch.otVis !== undefined) dbPatch.ot_vis = Number(patch.otVis);
+      if (patch.estado !== undefined) dbPatch.estado = patch.estado;
+      if (patch.periodoActual !== undefined) dbPatch.periodo_actual = patch.periodoActual;
+      if (patch.reloj !== undefined) dbPatch.reloj = patch.reloj;
+      if (patch.faltasLoc !== undefined) dbPatch.faltas_loc = Number(patch.faltasLoc);
+      if (patch.faltasVis !== undefined) dbPatch.faltas_vis = Number(patch.faltasVis);
+      if (patch.equipoLocal !== undefined) dbPatch.equipo_local = patch.equipoLocal;
+      if (patch.equipoVisitante !== undefined) dbPatch.equipo_visitante = patch.equipoVisitante;
+      if (patch.fecha !== undefined) dbPatch.fecha = patch.fecha;
+      if (patch.hora !== undefined) dbPatch.hora = patch.hora;
+      if (patch.sede !== undefined) dbPatch.sede = patch.sede;
+      if (patch.fase !== undefined) dbPatch.fase = patch.fase;
+      if (patch.grupo !== undefined) dbPatch.grupo = patch.grupo;
+      dbPatch.actualizado_en = new Date().toISOString();
+
+      if (Object.keys(dbPatch).length > 1) {
+        const { error } = await this.client.from('partidos').update(dbPatch).eq('id', id);
+        if (error) console.warn('[Supabase Update Partido Error]:', error.message);
+      }
+
+      if (this.channel) {
+        await this.channel.send({
+          type: 'broadcast',
+          event: 'score_update',
+          payload: { partidoId: id, patch }
+        });
+      }
+      return true;
+    } catch (e) {
+      console.warn('[Supabase Update Partido Exception]:', e);
+      return false;
+    }
+  }
+
+  async deletePartido(id) {
+    if (!this.client || this.status !== 'CONNECTED') return false;
+    try {
+      const { error } = await this.client.from('partidos').delete().eq('id', id);
+      if (error) console.warn('[Supabase Delete Partido Error]:', error.message);
+      if (this.channel) {
+        await this.channel.send({
+          type: 'broadcast',
+          event: 'match_deleted',
+          payload: { id }
+        });
+      }
+      return !error;
+    } catch (e) {
+      console.warn('[Supabase Delete Partido Exception]:', e);
+      return false;
+    }
+  }
+
+  async syncEquipo(id, eq) {
+    if (!this.client || this.status !== 'CONNECTED') return false;
+    try {
+      const payload = this.mapLocalEquipoToSupabase(eq);
+      if (!payload) return false;
+      const { error } = await this.client.from('equipos').upsert(payload, { onConflict: 'id' });
+      if (error) console.warn('[Supabase Sync Equipo Error]:', error.message);
+      if (this.channel) {
+        await this.channel.send({
+          type: 'broadcast',
+          event: 'team_synced',
+          payload: { id, equipo: eq }
+        });
+      }
+      return !error;
+    } catch (e) {
+      console.warn('[Supabase Sync Equipo Exception]:', e);
+      return false;
+    }
+  }
+
+  async updateEquipo(id, patch) {
+    if (!this.client || this.status !== 'CONNECTED') return false;
+    try {
+      const dbPatch = {};
+      if (patch.nombre !== undefined) dbPatch.nombre = patch.nombre;
+      if (patch.grupo !== undefined) dbPatch.grupo = patch.grupo;
+      if (patch.sedePrincipal !== undefined) dbPatch.sede_principal = patch.sedePrincipal;
+      if (patch.siglas !== undefined) dbPatch.siglas = patch.siglas;
+      if (patch.logoUrl !== undefined) dbPatch.logo_url = patch.logoUrl;
+      if (patch.color !== undefined) dbPatch.color = patch.color;
+      if (patch.delegadoNombre !== undefined) dbPatch.delegado_nombre = patch.delegadoNombre;
+      if (patch.delegadoTelefono !== undefined) dbPatch.delegado_telefono = patch.delegadoTelefono;
+      if (patch.delegadoEmail !== undefined) dbPatch.delegado_email = patch.delegadoEmail;
+      if (patch.delegadoCedula !== undefined) dbPatch.delegado_cedula = patch.delegadoCedula;
+      if (patch.pin !== undefined) dbPatch.pin = patch.pin;
+      if (patch.entrenador !== undefined) dbPatch.entrenador = patch.entrenador;
+      if (patch.asistente !== undefined) dbPatch.asistente = patch.asistente;
+      if (patch.utilero !== undefined) dbPatch.utilero = patch.utilero;
+
+      if (Object.keys(dbPatch).length > 0) {
+        const { error } = await this.client.from('equipos').update(dbPatch).eq('id', id);
+        if (error) console.warn('[Supabase Update Equipo Error]:', error.message);
+      }
+
+      if (this.channel) {
+        await this.channel.send({
+          type: 'broadcast',
+          event: 'team_synced',
+          payload: { id, equipo: patch }
+        });
+      }
+      return true;
+    } catch (e) {
+      console.warn('[Supabase Update Equipo Exception]:', e);
+      return false;
+    }
+  }
+
+  async deleteEquipo(id) {
+    if (!this.client || this.status !== 'CONNECTED') return false;
+    try {
+      const { error } = await this.client.from('equipos').delete().eq('id', id);
+      if (error) console.warn('[Supabase Delete Equipo Error]:', error.message);
+      if (this.channel) {
+        await this.channel.send({
+          type: 'broadcast',
+          event: 'team_deleted',
+          payload: { id }
+        });
+      }
+      return !error;
+    } catch (e) {
+      console.warn('[Supabase Delete Equipo Exception]:', e);
+      return false;
+    }
+  }
+
+  async syncAtleta(id, a) {
+    if (!this.client || this.status !== 'CONNECTED') return false;
+    try {
+      const payload = this.mapLocalAtletaToSupabase(a);
+      if (!payload) return false;
+      const { error } = await this.client.from('atletas').upsert(payload, { onConflict: 'id' });
+      if (error) console.warn('[Supabase Sync Atleta Error]:', error.message);
+      if (this.channel) {
+        await this.channel.send({
+          type: 'broadcast',
+          event: 'athlete_synced',
+          payload: { id, atleta: a }
+        });
+      }
+      return !error;
+    } catch (e) {
+      console.warn('[Supabase Sync Atleta Exception]:', e);
+      return false;
+    }
+  }
+
+  async updateAtleta(id, patch) {
+    if (!this.client || this.status !== 'CONNECTED') return false;
+    try {
+      const dbPatch = {};
+      if (patch.cedula !== undefined) dbPatch.cedula = patch.cedula;
+      if (patch.nombres !== undefined) dbPatch.nombres = patch.nombres;
+      if (patch.fechaNacimiento !== undefined) dbPatch.fecha_nacimiento = patch.fechaNacimiento;
+      if (patch.edad !== undefined) dbPatch.edad = Number(patch.edad);
+      if (patch.camiseta !== undefined) dbPatch.camiseta = patch.camiseta;
+      if (patch.posicion !== undefined) dbPatch.posicion = patch.posicion;
+      if (patch.equipo !== undefined) dbPatch.equipo = patch.equipo;
+      if (patch.rol !== undefined) dbPatch.rol = patch.rol;
+      if (patch.fotoUrl !== undefined) dbPatch.foto_url = patch.fotoUrl;
+
+      if (Object.keys(dbPatch).length > 0) {
+        const { error } = await this.client.from('atletas').update(dbPatch).eq('id', id);
+        if (error) console.warn('[Supabase Update Atleta Error]:', error.message);
+      }
+
+      if (this.channel) {
+        await this.channel.send({
+          type: 'broadcast',
+          event: 'athlete_synced',
+          payload: { id, atleta: patch }
+        });
+      }
+      return true;
+    } catch (e) {
+      console.warn('[Supabase Update Atleta Exception]:', e);
+      return false;
+    }
+  }
+
+  async deleteAtleta(id) {
+    if (!this.client || this.status !== 'CONNECTED') return false;
+    try {
+      const { error } = await this.client.from('atletas').delete().eq('id', id);
+      if (error) console.warn('[Supabase Delete Atleta Error]:', error.message);
+      if (this.channel) {
+        await this.channel.send({
+          type: 'broadcast',
+          event: 'athlete_deleted',
+          payload: { id }
+        });
+      }
+      return !error;
+    } catch (e) {
+      console.warn('[Supabase Delete Atleta Exception]:', e);
+      return false;
+    }
+  }
+
+  async syncDisciplina(id, d) {
+    if (!this.client || this.status !== 'CONNECTED') return false;
+    try {
+      const payload = {
+        id: d.id,
+        nombre: d.nombre,
+        categoria: d.categoria || 'Libre',
+        icono: d.icono || '🏆',
+        avatar: d.avatar || d.logoUrl || './assets/logo.png',
+        banner: d.banner || './assets/logo.png',
+        color: d.color || '#D4AF37',
+        activa: d.activa !== false,
+        reglas: d.reglas || {}
+      };
+      const { error } = await this.client.from('disciplinas').upsert(payload, { onConflict: 'id' });
+      return !error;
+    } catch (e) {
+      return false;
+    }
+  }
 
   async broadcastScore(partidoId, patch) {
     // 1. Guardar primero en el store local para respuesta instantánea
     if (window.tournamentStore) {
-      window.tournamentStore.updatePartido(partidoId, patch);
+      window.tournamentStore.updatePartido(partidoId, patch, false);
     }
 
-    // 2. Si Supabase está conectado, difundir por broadcast a todos los dispositivos
-    if (this.client && (this.status === 'CONNECTED' || this.channel)) {
-      try {
-        if (this.channel) {
-          await this.channel.send({
-            type: 'broadcast',
-            event: 'score_update',
-            payload: { partidoId, patch }
-          });
-        }
-
-        // 3. Persistir en la tabla partidos de Supabase
-        const dbPatch = {};
-        if (patch.totalLocal !== undefined) dbPatch.total_local = Number(patch.totalLocal);
-        if (patch.puntosLocal !== undefined) dbPatch.puntos_local = Number(patch.puntosLocal);
-        if (patch.totalVisitante !== undefined) dbPatch.total_visitante = Number(patch.totalVisitante);
-        if (patch.puntosVisitante !== undefined) dbPatch.puntos_visitante = Number(patch.puntosVisitante);
-        if (patch.q1Loc !== undefined) dbPatch.q1_loc = Number(patch.q1Loc);
-        if (patch.q2Loc !== undefined) dbPatch.q2_loc = Number(patch.q2Loc);
-        if (patch.q3Loc !== undefined) dbPatch.q3_loc = Number(patch.q3Loc);
-        if (patch.q4Loc !== undefined) dbPatch.q4_loc = Number(patch.q4Loc);
-        if (patch.otLoc !== undefined) dbPatch.ot_loc = Number(patch.otLoc);
-        if (patch.q1Vis !== undefined) dbPatch.q1_vis = Number(patch.q1Vis);
-        if (patch.q2Vis !== undefined) dbPatch.q2_vis = Number(patch.q2Vis);
-        if (patch.q3Vis !== undefined) dbPatch.q3_vis = Number(patch.q3Vis);
-        if (patch.q4Vis !== undefined) dbPatch.q4_vis = Number(patch.q4Vis);
-        if (patch.otVis !== undefined) dbPatch.ot_vis = Number(patch.otVis);
-        if (patch.estado !== undefined) dbPatch.estado = patch.estado;
-        if (patch.periodoActual !== undefined) dbPatch.periodo_actual = patch.periodoActual;
-        if (patch.reloj !== undefined) dbPatch.reloj = patch.reloj;
-        if (patch.faltasLoc !== undefined) dbPatch.faltas_loc = Number(patch.faltasLoc);
-        if (patch.faltasVis !== undefined) dbPatch.faltas_vis = Number(patch.faltasVis);
-        dbPatch.actualizado_en = new Date().toISOString();
-
-        if (Object.keys(dbPatch).length > 1 && this.status === 'CONNECTED') {
-          await this.client
-            .from('partidos')
-            .update(dbPatch)
-            .eq('id', partidoId);
-        }
-      } catch (e) {
-        console.warn('[Supabase Broadcast Score Error]:', e);
-      }
-    }
+    // 2. Transmitir por canal Realtime Broadcast y actualizar en Supabase
+    await this.updatePartido(partidoId, patch);
   }
 
   /**
@@ -394,47 +739,71 @@ class SupabaseService {
     this.isHydrating = true;
 
     try {
-      console.log('[Supabase Hydrate] Descargando datos cloud...');
+      console.log('[Supabase Hydrate] Descargando datos cloud desde Supabase...');
 
-      // 1. Equipos
+      // 1. Disciplinas
+      const { data: remoteDisciplinas, error: errDisc } = await this.client.from('disciplinas').select('*');
+      if (!errDisc && Array.isArray(remoteDisciplinas) && remoteDisciplinas.length > 0 && window.tournamentStore) {
+        remoteDisciplinas.forEach((rd) => {
+          const cleanId = rd.id;
+          const existing = window.tournamentStore.data.disciplinas.find((d) => d.id === cleanId);
+          if (existing) {
+            existing.nombre = rd.nombre || existing.nombre;
+            existing.categoria = rd.categoria || existing.categoria;
+            existing.icono = rd.icono || existing.icono;
+            existing.color = rd.color || existing.color;
+            if (rd.reglas) existing.reglas = rd.reglas;
+          }
+        });
+      }
+
+      // 2. Equipos
       const { data: remoteEquipos, error: errEq } = await this.client.from('equipos').select('*');
-      if (!errEq && remoteEquipos && remoteEquipos.length > 0 && window.tournamentStore) {
+      if (!errEq && Array.isArray(remoteEquipos) && remoteEquipos.length > 0 && window.tournamentStore) {
         const mappedEquipos = remoteEquipos.map((eq) => this.mapSupabaseEquipoToLocal(eq));
         window.tournamentStore.data.equipos = mappedEquipos;
         // Guardar por disciplina
         const discs = window.tournamentStore.getDisciplinas();
         discs.forEach((d) => {
-          const discEqs = mappedEquipos.filter((e) => e.disciplinaId === d.id);
+          const discEqs = mappedEquipos.filter((e) => (e.disciplinaId || '').toLowerCase() === (d.id || '').toLowerCase());
           if (discEqs.length > 0) {
-            window.tournamentStore.saveTeams(d.id, discEqs);
+            window.tournamentStore.saveTeams(d.id, discEqs, false);
           }
         });
       }
 
-      // 2. Partidos
+      // 3. Partidos
       const { data: remotePartidos, error: errPar } = await this.client.from('partidos').select('*');
-      if (!errPar && remotePartidos && remotePartidos.length > 0 && window.tournamentStore) {
+      if (!errPar && Array.isArray(remotePartidos) && remotePartidos.length > 0 && window.tournamentStore) {
         const mappedPartidos = remotePartidos.map((p) => this.mapSupabasePartidoToLocal(p));
         window.tournamentStore.data.partidos = mappedPartidos;
         const discs = window.tournamentStore.getDisciplinas();
         discs.forEach((d) => {
-          const discPars = mappedPartidos.filter((p) => p.disciplinaId === d.id);
+          const discPars = mappedPartidos.filter((p) => (p.disciplinaId || '').toLowerCase() === (d.id || '').toLowerCase());
           if (discPars.length > 0) {
-            window.tournamentStore.saveMatches(d.id, discPars);
+            window.tournamentStore.saveMatches(d.id, discPars, false);
           }
         });
       }
 
-      // 3. Atletas
+      // 4. Atletas
       const { data: remoteAtletas, error: errAtl } = await this.client.from('atletas').select('*');
-      if (!errAtl && remoteAtletas && remoteAtletas.length > 0 && window.tournamentStore) {
+      if (!errAtl && Array.isArray(remoteAtletas) && remoteAtletas.length > 0 && window.tournamentStore) {
         const mappedAtletas = remoteAtletas.map((a) => this.mapSupabaseAtletaToLocal(a));
         window.tournamentStore.data.atletas = mappedAtletas;
+        const discs = window.tournamentStore.getDisciplinas();
+        discs.forEach((d) => {
+          const discAtls = mappedAtletas.filter((a) => (a.disciplinaId || '').toLowerCase() === (d.id || '').toLowerCase());
+          if (discAtls.length > 0) {
+            window.tournamentStore.saveAthletes(d.id, discAtls, false);
+          }
+        });
       }
 
       if (window.tournamentStore) {
         window.tournamentStore.syncGlobalDataArrays();
         window.tournamentStore.saveToStorage();
+        window.tournamentStore.notify({ action: 'cloud_hydrated' });
       }
 
       if (typeof window.renderAllViews === 'function') {
@@ -474,8 +843,8 @@ class SupabaseService {
         nombre: d.nombre,
         categoria: d.categoria,
         icono: d.icono,
-        avatar: d.avatar,
-        banner: d.banner,
+        avatar: d.avatar || d.logoUrl || './assets/logo.png',
+        banner: d.banner || './assets/logo.png',
         color: d.color,
         activa: d.activa !== false,
         reglas: d.reglas || {}
@@ -716,71 +1085,6 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE public.posiciones;
     END IF;
 END $$;
-
--- 8. CARGA INICIAL DE DATOS OFICIALES (SEMILLAS DEL TORNEO)
-INSERT INTO public.disciplinas (id, nombre, categoria, icono, avatar, banner, color, activa, reglas)
-VALUES
-('baloncesto-master', 'Baloncesto', 'Torneo Master / Libre', '🏀', './assets/banner_baloncesto.jpg', './assets/banner_baloncesto.jpg', '#D4AF37', true, '{"periodos": 4, "nombrePeriodo": "Cuarto", "ptsGanador": 2, "ptsPerdedor": 1, "duracionMin": 10}'::jsonb),
-('voleibol-femenino', 'Voleibol', 'Femenino Libre', '🏐', './assets/banner_voleibol.jpg', './assets/banner_voleibol.jpg', '#38BDF8', true, '{"periodos": 3, "nombrePeriodo": "Set", "ptsGanador": 2, "ptsPerdedor": 1, "duracionMin": 25}'::jsonb),
-('futsal-copa', 'Futbol Sala', 'Copa JL Multiservicios', '⚽', './assets/banner_futsal.jpg', './assets/banner_futsal.jpg', '#10B981', true, '{"periodos": 2, "nombrePeriodo": "Tiempo", "ptsGanador": 3, "ptsPerdedor": 0, "ptsEmpate": 1, "duracionMin": 20}'::jsonb),
-('softbol-master', 'Sotfbol', 'Torneo Master / Modificado', '🥎', './assets/logo.png', './assets/logo.png', '#F59E0B', true, '{"periodos": 7, "nombrePeriodo": "Inning", "ptsGanador": 2, "ptsPerdedor": 1, "duracionMin": 15}'::jsonb)
-ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, categoria = EXCLUDED.categoria, icono = EXCLUDED.icono, color = EXCLUDED.color, reglas = EXCLUDED.reglas;
-
-INSERT INTO public.equipos (id, nombre, disciplina_id, grupo, sede_principal, siglas, logo_url, color, delegado_nombre, delegado_cedula, delegado_telefono, delegado_email, pin, entrenador, asistente, utilero)
-VALUES
-('EQ-01', 'Gigantes de Caripito', 'baloncesto-master', 'Grupo A', 'Domo Bolivariano', 'GDC', './assets/logo.png', '#D97706', 'Prof. Carlos Mendoza', '14589123', '+58 414-8765432', 'delegado.gigantes@gmdjl.com', '2024', 'Prof. Carlos Mendoza', 'Lic. Andrés Silva', 'Carlos Ramos'),
-('EQ-02', 'Tigres de la Sabana', 'baloncesto-master', 'Grupo A', 'Gimnasio Pablo Higuerey', 'TDS', './assets/logo.png', '#EA580C', 'Lic. Manuel Velásquez', '15987654', '+58 424-8123456', 'delegado.tigres@gmdjl.com', '2024', 'Lic. Manuel Velásquez', 'Prof. Javier Pinto', 'Ramón Díaz'),
-('EQ-03', 'Monagas BBC', 'baloncesto-master', 'Grupo B', 'Complejo Deportivo JL', 'MON', './assets/logo.png', '#1E3A8A', 'Ing. Pedro Castillo', '13456789', '+58 416-9281726', 'delegado.monagas@gmdjl.com', '2024', 'Ing. Pedro Castillo', 'Lic. Héctor Carreño', 'José Barrios'),
-('EQ-04', 'Indios de Punceres', 'baloncesto-master', 'Grupo B', 'Cancha Los Robles', 'IDP', './assets/logo.png', '#9E1B32', 'Téc. Nelson Figueroa', '17890123', '+58 412-3091823', 'delegado.indios@gmdjl.com', '2024', 'Téc. Nelson Figueroa', 'Prof. Kelvin Requena', 'Samuel Morales'),
-('EQ-VOL-01', 'Ángeles de Oriente', 'voleibol-femenino', 'Grupo A', 'Gimnasio Pablo Higuerey', 'ANG', './assets/logo.png', '#38BDF8', 'Lic. Mariana Soto', '20111222', '+58 414-2223344', 'delegado.angeles@gmdjl.com', '2024', NULL, NULL, NULL),
-('EQ-VOL-02', 'Sirenas del Morro', 'voleibol-femenino', 'Grupo A', 'Gimnasio Pablo Higuerey', 'SIR', './assets/logo.png', '#EC4899', 'Prof. Carmen Ruiz', '21222333', '+58 424-3334455', 'delegado.sirenas@gmdjl.com', '2024', NULL, NULL, NULL),
-('EQ-VOL-03', 'Guerreras JL', 'voleibol-femenino', 'Grupo B', 'Complejo Deportivo JL', 'GJL', './assets/logo.png', '#800020', 'Prof. Ana Silva', '22333444', '+58 412-4445566', 'delegado.guerreras@gmdjl.com', '2024', NULL, NULL, NULL),
-('EQ-VOL-04', 'Vencedoras VC', 'voleibol-femenino', 'Grupo B', 'Domo Bolivariano', 'VVC', './assets/logo.png', '#8B5CF6', 'Lic. Laura Peña', '23444555', '+58 416-5556677', 'delegado.vencedoras@gmdjl.com', '2024', NULL, NULL, NULL),
-('EQ-FUT-01', 'Titanes Futsal', 'futsal-copa', 'Grupo A', 'Cancha Los Robles', 'TIT', './assets/logo.png', '#10B981', 'Prof. Nelson Parra', '14555666', '+58 414-1112233', 'delegado.titanesfs@gmdjl.com', '2024', NULL, NULL, NULL),
-('EQ-FUT-02', 'Pumas de Puerto', 'futsal-copa', 'Grupo A', 'Cancha Los Robles', 'PUM', './assets/logo.png', '#F97316', 'Sr. Edgar Mendoza', '15666777', '+58 424-6667788', 'delegado.pumas@gmdjl.com', '2024', NULL, NULL, NULL),
-('EQ-FUT-03', 'Deportivo Higuerey', 'futsal-copa', 'Grupo B', 'Gimnasio Pablo Higuerey', 'DHY', './assets/logo.png', '#9E1B32', 'Prof. Iván Castillo', '16777888', '+58 412-7778899', 'delegado.deportivoh@gmdjl.com', '2024', NULL, NULL, NULL),
-('EQ-FUT-04', 'Atlético Oriente FS', 'futsal-copa', 'Grupo B', 'Complejo Deportivo JL', 'AOF', './assets/logo.png', '#2563EB', 'Lic. Andrés Bello', '17888999', '+58 416-8889900', 'delegado.atletico@gmdjl.com', '2024', NULL, NULL, NULL),
-('EQ-SOT-01', 'Cerveceros del Este', 'softbol-master', 'Grupo A', 'Estadio Manuel Carrasquel', 'CER', './assets/logo.png', '#F59E0B', 'Prof. Carlos Urbano', '18999000', '+58 414-9990011', 'delegado.cerveceros@gmdjl.com', '2024', NULL, NULL, NULL),
-('EQ-SOT-02', 'Guerreros del Diamante', 'softbol-master', 'Grupo A', 'Estadio Manuel Carrasquel', 'GDD', './assets/logo.png', '#DC2626', 'Lic. Pedro Marcano', '19000111', '+58 424-1110022', 'delegado.diamante@gmdjl.com', '2024', NULL, NULL, NULL),
-('EQ-SOT-03', 'Petroleros JL', 'softbol-master', 'Grupo B', 'Complejo Deportivo JL', 'PJL', './assets/logo.png', '#800020', 'Ing. José Lambert', '14621157', '+58 412-2221133', 'delegado.petroleros@gmdjl.com', '2024', NULL, NULL, NULL),
-('EQ-SOT-04', 'Cardenales Master', 'softbol-master', 'Grupo B', 'Estadio José Pérez', 'CDM', './assets/logo.png', '#B91C1C', 'Prof. Luis Marval', '20123456', '+58 416-3332244', 'delegado.cardenales@gmdjl.com', '2024', NULL, NULL, NULL)
-ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, disciplina_id = EXCLUDED.disciplina_id, grupo = EXCLUDED.grupo, siglas = EXCLUDED.siglas, delegado_nombre = EXCLUDED.delegado_nombre;
-
-INSERT INTO public.atletas (id, disciplina_id, cedula, nombres, fecha_nacimiento, edad, camiseta, posicion, equipo, rol, foto_url)
-VALUES
-('ATL-001', 'baloncesto-master', 'V-24589123', 'Carlos Eduardo Mendoza', '1996-05-14', 28, '7', 'Base', 'Gigantes de Caripito', 'Atleta', ''),
-('ATL-002', 'baloncesto-master', 'V-26102948', 'José Alejandro Salazar', '1998-11-20', 26, '11', 'Escolta', 'Gigantes de Caripito', 'Atleta', ''),
-('ATL-003', 'baloncesto-master', 'V-22441902', 'Miguel Ángel Rondón', '1994-03-08', 30, '15', 'Alero', 'Gigantes de Caripito', 'Capitán', ''),
-('ATL-004', 'baloncesto-master', 'V-25890124', 'David Jesús Marcano', '1997-09-12', 27, '23', 'Ala-Pívot', 'Gigantes de Caripito', 'Atleta', ''),
-('ATL-005', 'baloncesto-master', 'V-21394850', 'Luis Fernando Cedeño', '1993-01-30', 31, '33', 'Pívot', 'Gigantes de Caripito', 'Atleta', ''),
-('ATL-006', 'baloncesto-master', 'V-23948102', 'Gabriel Antonio Ramos', '1995-07-22', 29, '5', 'Base', 'Tigres de la Sabana', 'Atleta', ''),
-('ATL-007', 'baloncesto-master', 'V-25019284', 'Javier Alexander Pinto', '1997-04-18', 27, '10', 'Escolta', 'Tigres de la Sabana', 'Capitán', ''),
-('ATL-008', 'baloncesto-master', 'V-24102948', 'Andrés Eloy Rivas', '1996-08-05', 28, '12', 'Alero', 'Tigres de la Sabana', 'Atleta', ''),
-('ATL-009', 'baloncesto-master', 'V-22940182', 'Jesús Manuel Torres', '1994-12-19', 30, '21', 'Ala-Pívot', 'Tigres de la Sabana', 'Atleta', ''),
-('ATL-010', 'baloncesto-master', 'V-20891274', 'Víctor Alfonso Silva', '1992-06-11', 32, '34', 'Pívot', 'Tigres de la Sabana', 'Atleta', ''),
-('ATL-011', 'baloncesto-master', 'V-26891024', 'Daniel Enrique Guerra', '1999-02-14', 25, '3', 'Base', 'Monagas BBC', 'Atleta', ''),
-('ATL-012', 'baloncesto-master', 'V-24901823', 'Héctor Luis Carreño', '1996-10-25', 28, '8', 'Alero', 'Monagas BBC', 'Capitán', ''),
-('ATL-013', 'baloncesto-master', 'V-23190284', 'Ricardo José Barrios', '1995-03-17', 29, '14', 'Pívot', 'Monagas BBC', 'Atleta', ''),
-('ATL-014', 'baloncesto-master', 'V-25901824', 'Samuel David Morales', '1998-09-02', 26, '9', 'Base', 'Indios de Punceres', 'Atleta', ''),
-('ATL-015', 'baloncesto-master', 'V-24810294', 'Kelvin José Requena', '1996-12-08', 28, '24', 'Alero', 'Indios de Punceres', 'Capitán', '')
-ON CONFLICT (id) DO UPDATE SET disciplina_id = EXCLUDED.disciplina_id, nombres = EXCLUDED.nombres, camiseta = EXCLUDED.camiseta, posicion = EXCLUDED.posicion, equipo = EXCLUDED.equipo;
-
-INSERT INTO public.partidos (id, disciplina_id, fecha, hora, sede, fase, grupo, equipo_local, q1_loc, q2_loc, q3_loc, q4_loc, ot_loc, total_local, puntos_local, equipo_visitante, q1_vis, q2_vis, q3_vis, q4_vis, ot_vis, total_visitante, puntos_visitante, estado, periodo_actual, reloj, faltas_loc, faltas_vis)
-VALUES
-('PAR-BAL-01', 'baloncesto-master', '2026-10-18', '18:00', 'Gimnasio Pablo Higuerey', 'Jornada 1 (Fase Regular)', 'Grupo A', 'Gigantes de Caripito', 12, 10, 11, 10, 0, 43, 43, 'Tigres de la Sabana', 10, 12, 9, 11, 0, 42, 42, 'FINALIZADO', 'Final', '00:00', 2, 3),
-('PAR-BAL-02', 'baloncesto-master', '2026-10-18', '19:45', 'Gimnasio Pablo Higuerey', 'Jornada 1 (Fase Regular)', 'Grupo B', 'Monagas BBC', 14, 11, 12, 10, 0, 47, 47, 'Indios de Punceres', 11, 13, 10, 11, 0, 45, 45, 'FINALIZADO', 'Final', '00:00', 4, 1),
-('PAR-BAL-03', 'baloncesto-master', '2026-10-19', '18:00', 'Complejo Deportivo JL', 'Jornada 2 (Fase Regular)', 'Grupo A', 'Gigantes de Caripito', 8, 10, 6, 0, 0, 24, 24, 'Monagas BBC', 7, 9, 6, 0, 0, 22, 22, 'EN CURSO', 'Q3', '06:45', 1, 2),
-('PAR-BAL-04', 'baloncesto-master', '2026-10-19', '19:30', 'Cancha Los Robles', 'Jornada 2 (Fase Regular)', 'Grupo B', 'Tigres de la Sabana', 0, 0, 0, 0, 0, 0, 0, 'Indios de Punceres', 0, 0, 0, 0, 0, 0, 0, 'PROGRAMADO', 'Por Iniciar', '10:00', 0, 0),
-('PAR-VOL-01', 'voleibol-femenino', '2026-10-18', '17:00', 'Gimnasio Pablo Higuerey', 'Jornada 1', 'Grupo A', 'Ángeles de Oriente', 25, 22, 15, 0, 0, 2, 2, 'Sirenas del Morro', 21, 25, 12, 0, 0, 1, 1, 'FINALIZADO', 'Final', '00:00', 0, 0),
-('PAR-VOL-02', 'voleibol-femenino', '2026-10-19', '18:30', 'Complejo Deportivo JL', 'Jornada 2', 'Grupo B', 'Guerreras JL', 25, 19, 14, 0, 0, 1, 1, 'Vencedoras VC', 20, 25, 12, 0, 0, 1, 1, 'EN CURSO', 'Set 3', '14:20', 0, 0),
-('PAR-VOL-03', 'voleibol-femenino', '2026-10-20', '18:00', 'Domo Bolivariano', 'Jornada 3', 'Grupo A', 'Ángeles de Oriente', 0, 0, 0, 0, 0, 0, 0, 'Guerreras JL', 0, 0, 0, 0, 0, 0, 0, 'PROGRAMADO', 'Por Iniciar', '25:00', 0, 0),
-('PAR-FUT-01', 'futsal-copa', '2026-10-18', '17:30', 'Cancha Los Robles', 'Jornada 1', 'Grupo A', 'Titanes Futsal', 2, 2, 0, 0, 0, 4, 4, 'Pumas de Puerto', 1, 2, 0, 0, 0, 3, 3, 'FINALIZADO', 'Final', '00:00', 0, 0),
-('PAR-FUT-02', 'futsal-copa', '2026-10-19', '19:00', 'Gimnasio Pablo Higuerey', 'Jornada 2', 'Grupo B', 'Deportivo Higuerey', 1, 1, 0, 0, 0, 2, 2, 'Atlético Oriente FS', 1, 1, 0, 0, 0, 2, 2, 'EN CURSO', '2do Tiempo', '08:40', 0, 0),
-('PAR-FUT-03', 'futsal-copa', '2026-10-20', '19:30', 'Complejo Deportivo JL', 'Jornada 3', 'Grupo A', 'Titanes Futsal', 0, 0, 0, 0, 0, 0, 0, 'Deportivo Higuerey', 0, 0, 0, 0, 0, 0, 0, 'PROGRAMADO', 'Por Iniciar', '20:00', 0, 0),
-('PAR-SOT-01', 'softbol-master', '2026-10-18', '10:00', 'Estadio Manuel Carrasquel', 'Jornada 1', 'Grupo A', 'Cerveceros del Este', 2, 3, 2, 0, 0, 7, 7, 'Guerreros del Diamante', 1, 1, 3, 0, 0, 5, 5, 'FINALIZADO', 'Final', '00:00', 0, 0),
-('PAR-SOT-02', 'softbol-master', '2026-10-19', '14:00', 'Complejo Deportivo JL', 'Jornada 2', 'Grupo B', 'Petroleros JL', 2, 1, 1, 0, 0, 4, 4, 'Cardenales Master', 0, 2, 1, 0, 0, 3, 3, 'EN CURSO', 'Inning 5', '10:00', 0, 0),
-('PAR-SOT-03', 'softbol-master', '2026-10-20', '15:30', 'Estadio José Pérez', 'Jornada 3', 'Grupo A', 'Cerveceros del Este', 0, 0, 0, 0, 0, 0, 0, 'Petroleros JL', 0, 0, 0, 0, 0, 0, 0, 'PROGRAMADO', 'Por Iniciar', '15:00', 0, 0)
-ON CONFLICT (id) DO UPDATE SET total_local = EXCLUDED.total_local, total_visitante = EXCLUDED.total_visitante, estado = EXCLUDED.estado, periodo_actual = EXCLUDED.periodo_actual, reloj = EXCLUDED.reloj;
 `;
   }
 }

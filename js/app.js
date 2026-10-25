@@ -6719,6 +6719,7 @@ function renderAllViews() {
   renderStandings();
   checkActiveSession();
 }
+window.renderAllViews = renderAllViews;
 
 // React to Tournament Store updates
 window.tournamentStore.subscribe((data, meta) => {
@@ -7584,6 +7585,18 @@ function initAppBootstrap() {
   });
 
   try { renderAllViews(); } catch (e) { console.warn('renderAllViews error:', e); }
+
+  // Sincronización automática de Supabase Cloud en el arranque
+  if (window.supabaseService) {
+    window.supabaseService.verifyConnection().then((connected) => {
+      if (connected) {
+        console.log('[AppBootstrap] Supabase conectado con éxito. Descargando datos en tiempo real...');
+        window.supabaseService.hydrateFromSupabase();
+      }
+    }).catch((err) => {
+      console.warn('[AppBootstrap] Supabase bootstrap verify warning:', err);
+    });
+  }
 }
 
 if (document.readyState === 'loading') {
