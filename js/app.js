@@ -6545,17 +6545,51 @@ document.getElementById('btnResetAllStore')?.addEventListener('click', () => {
 });
 
 // --- SUPABASE CONFIG MODAL ---
+const updateSupabaseStatusBox = (status) => {
+  const box = document.getElementById('supabaseStatusBox');
+  if (!box) return;
+  const currentStatus = status || window.supabaseService?.status || 'DISCONNECTED';
+  box.style.display = 'block';
+
+  if (currentStatus === 'CONNECTED') {
+    box.style.background = 'rgba(16, 185, 129, 0.15)';
+    box.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+    box.style.color = '#34D399';
+    box.innerHTML = '✅ <strong>Supabase Conectado y Sincronizado:</strong> Las tablas (disciplinas, equipos, atletas, partidos) existen y el motor Realtime está transmitiendo cambios en tiempo real.';
+  } else if (currentStatus === 'TABLES_MISSING') {
+    box.style.background = 'rgba(245, 158, 11, 0.15)';
+    box.style.border = '1px solid rgba(245, 158, 11, 0.4)';
+    box.style.color = '#FBBF24';
+    box.innerHTML = '⚠️ <strong>Faltan las tablas en Supabase:</strong> Las credenciales son válidas, pero la base de datos aún no tiene las tablas creadas. Haga clic en <em>"Ver Script SQL para Crear Tablas"</em> abajo, cópielo y presione RUN en el SQL Editor de Supabase.';
+  } else if (currentStatus === 'ERROR') {
+    box.style.background = 'rgba(239, 68, 68, 0.15)';
+    box.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+    box.style.color = '#F87171';
+    box.innerHTML = '❌ <strong>Error de Conexión:</strong> No se pudo conectar con el proyecto de Supabase. Verifique su URL y clave pública.';
+  } else {
+    box.style.background = 'rgba(107, 114, 128, 0.15)';
+    box.style.border = '1px solid rgba(107, 114, 128, 0.4)';
+    box.style.color = '#9CA3AF';
+    box.innerHTML = 'ℹ️ <strong>Modo Local Activo:</strong> Los datos se almacenan localmente en el navegador.';
+  }
+};
+
 const handleOpenSupabaseModal = () => {
   const cfg = window.tournamentStore?.getConfig() || {};
   const urlEl = document.getElementById('inputSupabaseUrl');
   const keyEl = document.getElementById('inputSupabaseKey');
   if (urlEl) urlEl.value = cfg.supabaseUrl || window.supabaseService?.url || 'https://wznvlhuvpqnnrlgcgqpx.supabase.co';
   if (keyEl) keyEl.value = cfg.supabaseAnonKey || window.supabaseService?.key || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6bnZsaHV2cHFubnJsZ2NncXB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NDkyNDcsImV4cCI6MjEwODQyNTI0N30.ixhXWj0Jfir852lXJFdZNNfNscnND2u5WPXZ0EBA6lk';
+  updateSupabaseStatusBox();
   document.getElementById('modalSupabaseConfig')?.classList.add('open');
 };
 
 document.getElementById('btnConfigSupabaseModal')?.addEventListener('click', handleOpenSupabaseModal);
 document.getElementById('btnAdminSupabaseModal')?.addEventListener('click', handleOpenSupabaseModal);
+
+window.supabaseService?.onStatusChange((newStatus) => {
+  updateSupabaseStatusBox(newStatus);
+});
 
 document.getElementById('formSupabaseConfig')?.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -6564,15 +6598,23 @@ document.getElementById('formSupabaseConfig')?.addEventListener('submit', async 
 
   if (window.supabaseService) {
     window.supabaseService.configure(url, key);
-    showToast('Configuración de Supabase guardada. Verificando conexión...', 'info');
+    showToast('Configuración guardada. Comprobando estado de tablas en Supabase...', 'info');
     const verified = await window.supabaseService.verifyConnection();
+    updateSupabaseStatusBox();
+
     if (verified) {
-      showToast('☁️ Conexión con Supabase verificada y activa', 'success');
-      // Sincronizar automáticamente datos locales con la nube
-      window.supabaseService.syncEquipos();
-      window.supabaseService.syncPartidos();
+      showToast('☁️ Conexión con Supabase verificada y tablas activas', 'success');
+      window.supabaseService.syncAllToSupabase();
+    } else if (window.supabaseService.status === 'TABLES_MISSING') {
+      showToast('⚠️ Faltan las tablas en Supabase. Abra el Script SQL para crearlas.', 'warning');
+      const accordion = document.getElementById('sqlScriptAccordion');
+      const txt = document.getElementById('txtSQLScript');
+      if (accordion && txt) {
+        accordion.style.display = 'block';
+        txt.value = window.supabaseService.getSQLSchemaScript();
+      }
     } else {
-      showToast('Credenciales guardadas. Modo sincronización listo.', 'info');
+      showToast('Credenciales guardadas. Modo de sincronización listo.', 'info');
     }
   }
 });
@@ -6581,7 +6623,7 @@ document.getElementById('btnCopiarSQLSupabase')?.addEventListener('click', () =>
   const accordion = document.getElementById('sqlScriptAccordion');
   const txt = document.getElementById('txtSQLScript');
   if (accordion && txt) {
-    accordion.style.display = 'block';
+    accordion.style.display = accordion.style.display === 'block' ? 'none' : 'block';
     txt.value = window.supabaseService.getSQLSchemaScript();
   }
 });
@@ -6589,9 +6631,23 @@ document.getElementById('btnCopiarSQLSupabase')?.addEventListener('click', () =>
 document.getElementById('btnCopiarClipboardSQL')?.addEventListener('click', () => {
   const txt = document.getElementById('txtSQLScript');
   if (txt) {
+    if (!txt.value) txt.value = window.supabaseService?.getSQLSchemaScript() || '';
     navigator.clipboard.writeText(txt.value).then(() => {
-      showToast('¡Script SQL copiado al portapapeles! Péguelo en el SQL Editor de Supabase.', 'success');
+      showToast('📋 ¡Script SQL copiado! Ahora péguelo en el SQL Editor de Supabase y haga clic en RUN.', 'success');
+    }).catch(() => {
+      showToast('Seleccione y copie el texto del cuadro SQL manualmente.', 'info');
     });
+  }
+});
+
+document.getElementById('btnSyncAllSupabase')?.addEventListener('click', async () => {
+  if (!window.supabaseService) return;
+  showToast('Subiendo datos locales (disciplinas, equipos, atletas, partidos) a Supabase...', 'info');
+  const ok = await window.supabaseService.syncAllToSupabase();
+  if (ok) {
+    showToast('✅ Todos los datos fueron subidos exitosamente a Supabase.', 'success');
+  } else {
+    showToast('⚠️ No se pudieron subir los datos. Asegúrese de haber creado las tablas con el script SQL.', 'warning');
   }
 });
 

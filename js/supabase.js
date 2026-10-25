@@ -1,4 +1,4 @@
-// supabase.js - Cliente Oficial y Motor Realtime para Grupo Multiservicios Deportivo JL
+// supabase.js - Cliente Oficial, Motor Realtime y Sincronización Cloud para Grupo Multiservicios Deportivo JL
 
 const DEFAULT_SUPABASE_URL = 'https://wznvlhuvpqnnrlgcgqpx.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6bnZsaHV2cHFubnJsZ2NncXB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NDkyNDcsImV4cCI6MjEwODQyNTI0N30.ixhXWj0Jfir852lXJFdZNNfNscnND2u5WPXZ0EBA6lk';
@@ -6,11 +6,12 @@ const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3Mi
 class SupabaseService {
   constructor() {
     this.client = null;
-    this.status = 'DISCONNECTED'; // CONNECTED | DISCONNECTED | OFFLINE | ERROR
+    this.status = 'DISCONNECTED'; // CONNECTED | TABLES_MISSING | DISCONNECTED | OFFLINE | ERROR
     this.channel = null;
     this.url = DEFAULT_SUPABASE_URL;
     this.key = DEFAULT_SUPABASE_ANON_KEY;
     this.listeners = new Set();
+    this.isHydrating = false;
     this.initClient();
   }
 
@@ -37,7 +38,6 @@ class SupabaseService {
     this.url = url;
     this.key = key;
 
-    // Persistir en localStorage y sincronizar con tournamentStore
     try {
       localStorage.setItem('gmd_supabase_url', url);
       localStorage.setItem('gmd_supabase_anon_key', key);
@@ -61,37 +61,56 @@ class SupabaseService {
             }
           }
         });
-        this.status = 'CONNECTED';
         console.log('[Supabase] Cliente inicializado correctamente con', url);
         this.subscribeRealtime();
         this.verifyConnection();
       } catch (err) {
         console.warn('[Supabase] Error al inicializar cliente:', err);
         this.status = 'ERROR';
+        this.notifyStatus();
       }
     } else {
       this.status = 'DISCONNECTED';
-      console.log('[Supabase] Modo local activo (Esperando inicialización de SDK)');
+      console.log('[Supabase] Modo local activo (Esperando SDK)');
+      this.notifyStatus();
     }
-    this.notifyStatus();
   }
 
   async verifyConnection() {
-    if (!this.client) return false;
+    if (!this.client) {
+      this.status = 'DISCONNECTED';
+      this.notifyStatus();
+      return false;
+    }
+
     try {
       const { data, error } = await this.client.from('partidos').select('id').limit(1);
+
       if (!error) {
         this.status = 'CONNECTED';
-        console.log('[Supabase] Conexión y acceso verificado con éxito en el nuevo proyecto');
-      } else {
-        console.log('[Supabase] Conectado a la API. Respuesta de tabla:', error.message || error);
-        // Aun si la tabla no existe todavía en Supabase, el endpoint y la clave son válidos
-        this.status = 'CONNECTED';
+        console.log('[Supabase] Conexión y tablas verificadas con éxito en el proyecto');
+        this.notifyStatus();
+        // Sincronizar datos de la nube automáticamente
+        this.hydrateFromSupabase();
+        return true;
       }
+
+      // Código PGRST205 indica que la tabla no existe en el schema cache de Supabase
+      if (error.code === 'PGRST205' || (error.message && error.message.includes('schema cache'))) {
+        this.status = 'TABLES_MISSING';
+        console.warn('[Supabase] Conectado a Supabase pero FALTAN LAS TABLAS. Ejecute el script SQL.');
+        this.notifyStatus();
+        return false;
+      }
+
+      console.warn('[Supabase] Error de respuesta de tabla:', error.message || error);
+      this.status = 'ERROR';
       this.notifyStatus();
-      return true;
+      return false;
     } catch (e) {
       console.warn('[Supabase] Fallo al verificar conexión:', e);
+      this.status = 'ERROR';
+      this.notifyStatus();
       return false;
     }
   }
@@ -111,10 +130,16 @@ class SupabaseService {
           { event: '*', schema: 'public', table: 'partidos' },
           (payload) => {
             console.log('[Supabase Realtime] Cambio detectado en partidos:', payload);
-            if (payload.eventType === 'UPDATE' && payload.new && window.tournamentStore) {
-              window.tournamentStore.updatePartido(payload.new.id, payload.new);
-            } else if (payload.eventType === 'INSERT' && payload.new && window.tournamentStore) {
-              window.tournamentStore.addPartido(payload.new);
+            if (payload.new && window.tournamentStore) {
+              const match = this.mapSupabasePartidoToLocal(payload.new);
+              if (payload.eventType === 'UPDATE') {
+                window.tournamentStore.updatePartido(match.id, match);
+              } else if (payload.eventType === 'INSERT') {
+                window.tournamentStore.addPartido(match);
+              }
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
             }
           }
         )
@@ -123,10 +148,16 @@ class SupabaseService {
           { event: '*', schema: 'public', table: 'equipos' },
           (payload) => {
             console.log('[Supabase Realtime] Cambio detectado en equipos:', payload);
-            if (payload.eventType === 'UPDATE' && payload.new && window.tournamentStore) {
-              window.tournamentStore.updateEquipo(payload.new.id, payload.new);
-            } else if (payload.eventType === 'INSERT' && payload.new && window.tournamentStore) {
-              window.tournamentStore.addEquipo(payload.new);
+            if (payload.new && window.tournamentStore) {
+              const eq = this.mapSupabaseEquipoToLocal(payload.new);
+              if (payload.eventType === 'UPDATE') {
+                window.tournamentStore.updateEquipo(eq.id, eq);
+              } else if (payload.eventType === 'INSERT') {
+                window.tournamentStore.addEquipo(eq);
+              }
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
             }
           }
         )
@@ -137,29 +168,180 @@ class SupabaseService {
             console.log('[Supabase Realtime Broadcast] Marcador recibido:', payload);
             if (payload && payload.partidoId && window.tournamentStore) {
               window.tournamentStore.updatePartido(payload.partidoId, payload.patch);
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
             }
           }
         )
         .subscribe((status) => {
           console.log('[Supabase Realtime] Estatus del canal:', status);
-          if (status === 'SUBSCRIBED') {
-            this.status = 'CONNECTED';
-          }
-          this.notifyStatus();
         });
     } catch (e) {
       console.warn('[Supabase] Error configurando suscripción Realtime:', e);
     }
   }
 
+  // --- MAPEOS DE DATOS (snake_case <-> camelCase) ---
+
+  mapSupabasePartidoToLocal(p) {
+    if (!p) return null;
+    return {
+      id: p.id,
+      disciplinaId: p.disciplina_id || 'baloncesto-master',
+      fecha: p.fecha,
+      hora: p.hora,
+      sede: p.sede || 'Gimnasio Pablo Higuerey',
+      fase: p.fase || 'Fase de Grupos',
+      grupo: p.grupo || 'Grupo A',
+      equipoLocal: p.equipo_local,
+      q1Loc: p.q1_loc ?? 0,
+      q2Loc: p.q2_loc ?? 0,
+      q3Loc: p.q3_loc ?? 0,
+      q4Loc: p.q4_loc ?? 0,
+      otLoc: p.ot_loc ?? 0,
+      totalLocal: p.total_local ?? p.puntos_local ?? 0,
+      puntosLocal: p.total_local ?? p.puntos_local ?? 0,
+      equipoVisitante: p.equipo_visitante,
+      q1Vis: p.q1_vis ?? 0,
+      q2Vis: p.q2_vis ?? 0,
+      q3Vis: p.q3_vis ?? 0,
+      q4Vis: p.q4_vis ?? 0,
+      otVis: p.ot_vis ?? 0,
+      totalVisitante: p.total_visitante ?? p.puntos_visitante ?? 0,
+      puntosVisitante: p.total_visitante ?? p.puntos_visitante ?? 0,
+      estado: p.estado || 'PROGRAMADO',
+      periodoActual: p.periodo_actual || 'Por Iniciar',
+      reloj: p.reloj || '10:00',
+      faltasLoc: p.faltas_loc ?? 0,
+      faltasVis: p.faltas_vis ?? 0,
+      actualizadoEn: p.actualizado_en || new Date().toISOString()
+    };
+  }
+
+  mapLocalPartidoToSupabase(p) {
+    if (!p) return null;
+    return {
+      id: p.id,
+      disciplina_id: p.disciplinaId || 'baloncesto-master',
+      fecha: p.fecha || new Date().toISOString().split('T')[0],
+      hora: p.hora || '18:00',
+      sede: p.sede || 'Gimnasio Pablo Higuerey',
+      fase: p.fase || 'Fase de Grupos',
+      grupo: p.grupo || 'Grupo A',
+      equipo_local: p.equipoLocal,
+      q1_loc: Number(p.q1Loc) || 0,
+      q2_loc: Number(p.q2Loc) || 0,
+      q3_loc: Number(p.q3Loc) || 0,
+      q4_loc: Number(p.q4Loc) || 0,
+      ot_loc: Number(p.otLoc) || 0,
+      total_local: Number(p.totalLocal ?? p.puntosLocal ?? 0),
+      puntos_local: Number(p.totalLocal ?? p.puntosLocal ?? 0),
+      equipo_visitante: p.equipoVisitante,
+      q1_vis: Number(p.q1Vis) || 0,
+      q2_vis: Number(p.q2Vis) || 0,
+      q3_vis: Number(p.q3Vis) || 0,
+      q4_vis: Number(p.q4Vis) || 0,
+      ot_vis: Number(p.otVis) || 0,
+      total_visitante: Number(p.totalVisitante ?? p.puntosVisitante ?? 0),
+      puntos_visitante: Number(p.totalVisitante ?? p.puntosVisitante ?? 0),
+      estado: p.estado || 'PROGRAMADO',
+      periodo_actual: p.periodoActual || 'Por Iniciar',
+      reloj: p.reloj || '10:00',
+      faltas_loc: Number(p.faltasLoc) || 0,
+      faltas_vis: Number(p.faltasVis) || 0,
+      actualizado_en: p.actualizadoEn || new Date().toISOString()
+    };
+  }
+
+  mapSupabaseEquipoToLocal(eq) {
+    if (!eq) return null;
+    return {
+      id: eq.id,
+      nombre: eq.nombre,
+      disciplinaId: eq.disciplina_id || 'baloncesto-master',
+      grupo: eq.grupo || 'Grupo A',
+      sedePrincipal: eq.sede_principal || 'Gimnasio Pablo Higuerey',
+      siglas: eq.siglas || '',
+      logoUrl: eq.logo_url || './assets/logo.png',
+      color: eq.color || '#800020',
+      delegadoNombre: eq.delegado_nombre || '',
+      delegadoCedula: eq.delegado_cedula || '',
+      delegadoTelefono: eq.delegado_telefono || '',
+      delegadoEmail: eq.delegado_email || '',
+      pin: eq.pin || '2024',
+      entrenador: eq.entrenador || '',
+      asistente: eq.asistente || '',
+      utilero: eq.utilero || ''
+    };
+  }
+
+  mapLocalEquipoToSupabase(eq) {
+    if (!eq) return null;
+    return {
+      id: eq.id,
+      nombre: eq.nombre,
+      disciplina_id: eq.disciplinaId || 'baloncesto-master',
+      grupo: eq.grupo || 'Grupo A',
+      sede_principal: eq.sedePrincipal || 'Gimnasio Pablo Higuerey',
+      siglas: eq.siglas || '',
+      logo_url: eq.logoUrl || './assets/logo.png',
+      color: eq.color || '#800020',
+      delegado_nombre: eq.delegadoNombre || '',
+      delegado_cedula: eq.delegadoCedula || '',
+      delegado_telefono: eq.delegadoTelefono || '',
+      delegado_email: eq.delegadoEmail || '',
+      pin: eq.pin || '2024',
+      entrenador: eq.entrenador || null,
+      asistente: eq.asistente || null,
+      utilero: eq.utilero || null
+    };
+  }
+
+  mapSupabaseAtletaToLocal(atl) {
+    if (!atl) return null;
+    return {
+      id: atl.id,
+      disciplinaId: atl.disciplina_id || 'baloncesto-master',
+      cedula: atl.cedula,
+      nombres: atl.nombres,
+      fechaNacimiento: atl.fecha_nacimiento,
+      edad: atl.edad,
+      camiseta: atl.camiseta,
+      posicion: atl.posicion,
+      equipo: atl.equipo,
+      rol: atl.rol || 'Atleta',
+      fotoUrl: atl.foto_url || ''
+    };
+  }
+
+  mapLocalAtletaToSupabase(atl) {
+    if (!atl) return null;
+    return {
+      id: atl.id,
+      disciplina_id: atl.disciplinaId || 'baloncesto-master',
+      cedula: atl.cedula,
+      nombres: atl.nombres,
+      fecha_nacimiento: atl.fechaNacimiento || null,
+      edad: atl.edad ? Number(atl.edad) : null,
+      camiseta: atl.camiseta || '',
+      posicion: atl.posicion || '',
+      equipo: atl.equipo,
+      rol: atl.rol || 'Atleta',
+      foto_url: atl.fotoUrl || null
+    };
+  }
+
+  // --- SINCRONIZACIÓN Y BROADCAST EN VIVO ---
+
   async broadcastScore(partidoId, patch) {
-    // 1. Enviar primero al almacén local para respuesta instantánea
+    // 1. Guardar primero en el store local para respuesta instantánea
     if (window.tournamentStore) {
       window.tournamentStore.updatePartido(partidoId, patch);
     }
 
-    // 2. Si Supabase está conectado, difundir por broadcast y actualizar BD
-    if (this.client && this.status === 'CONNECTED') {
+    // 2. Si Supabase está conectado, difundir por broadcast a todos los dispositivos
+    if (this.client && (this.status === 'CONNECTED' || this.channel)) {
       try {
         if (this.channel) {
           await this.channel.send({
@@ -168,41 +350,151 @@ class SupabaseService {
             payload: { partidoId, patch }
           });
         }
-        // Persistir también en tabla partidos de Supabase
-        await this.client
-          .from('partidos')
-          .update(patch)
-          .eq('id', partidoId);
+
+        // 3. Persistir en la tabla partidos de Supabase
+        const dbPatch = {};
+        if (patch.totalLocal !== undefined) dbPatch.total_local = Number(patch.totalLocal);
+        if (patch.puntosLocal !== undefined) dbPatch.puntos_local = Number(patch.puntosLocal);
+        if (patch.totalVisitante !== undefined) dbPatch.total_visitante = Number(patch.totalVisitante);
+        if (patch.puntosVisitante !== undefined) dbPatch.puntos_visitante = Number(patch.puntosVisitante);
+        if (patch.q1Loc !== undefined) dbPatch.q1_loc = Number(patch.q1Loc);
+        if (patch.q2Loc !== undefined) dbPatch.q2_loc = Number(patch.q2Loc);
+        if (patch.q3Loc !== undefined) dbPatch.q3_loc = Number(patch.q3Loc);
+        if (patch.q4Loc !== undefined) dbPatch.q4_loc = Number(patch.q4Loc);
+        if (patch.otLoc !== undefined) dbPatch.ot_loc = Number(patch.otLoc);
+        if (patch.q1Vis !== undefined) dbPatch.q1_vis = Number(patch.q1Vis);
+        if (patch.q2Vis !== undefined) dbPatch.q2_vis = Number(patch.q2Vis);
+        if (patch.q3Vis !== undefined) dbPatch.q3_vis = Number(patch.q3Vis);
+        if (patch.q4Vis !== undefined) dbPatch.q4_vis = Number(patch.q4Vis);
+        if (patch.otVis !== undefined) dbPatch.ot_vis = Number(patch.otVis);
+        if (patch.estado !== undefined) dbPatch.estado = patch.estado;
+        if (patch.periodoActual !== undefined) dbPatch.periodo_actual = patch.periodoActual;
+        if (patch.reloj !== undefined) dbPatch.reloj = patch.reloj;
+        if (patch.faltasLoc !== undefined) dbPatch.faltas_loc = Number(patch.faltasLoc);
+        if (patch.faltasVis !== undefined) dbPatch.faltas_vis = Number(patch.faltasVis);
+        dbPatch.actualizado_en = new Date().toISOString();
+
+        if (Object.keys(dbPatch).length > 1 && this.status === 'CONNECTED') {
+          await this.client
+            .from('partidos')
+            .update(dbPatch)
+            .eq('id', partidoId);
+        }
       } catch (e) {
-        console.warn('[Supabase] Error transmitiendo marcador a la nube:', e);
+        console.warn('[Supabase Broadcast Score Error]:', e);
       }
     }
   }
 
   /**
-   * Sincroniza datos de equipos hacia la nube
+   * Descarga todos los datos de Supabase e hidrata el tournamentStore local
    */
+  async hydrateFromSupabase() {
+    if (!this.client || this.status !== 'CONNECTED' || this.isHydrating) return false;
+    this.isHydrating = true;
+
+    try {
+      console.log('[Supabase Hydrate] Descargando datos cloud...');
+
+      // 1. Equipos
+      const { data: remoteEquipos, error: errEq } = await this.client.from('equipos').select('*');
+      if (!errEq && remoteEquipos && remoteEquipos.length > 0 && window.tournamentStore) {
+        const mappedEquipos = remoteEquipos.map((eq) => this.mapSupabaseEquipoToLocal(eq));
+        window.tournamentStore.data.equipos = mappedEquipos;
+        // Guardar por disciplina
+        const discs = window.tournamentStore.getDisciplinas();
+        discs.forEach((d) => {
+          const discEqs = mappedEquipos.filter((e) => e.disciplinaId === d.id);
+          if (discEqs.length > 0) {
+            window.tournamentStore.saveTeams(d.id, discEqs);
+          }
+        });
+      }
+
+      // 2. Partidos
+      const { data: remotePartidos, error: errPar } = await this.client.from('partidos').select('*');
+      if (!errPar && remotePartidos && remotePartidos.length > 0 && window.tournamentStore) {
+        const mappedPartidos = remotePartidos.map((p) => this.mapSupabasePartidoToLocal(p));
+        window.tournamentStore.data.partidos = mappedPartidos;
+        const discs = window.tournamentStore.getDisciplinas();
+        discs.forEach((d) => {
+          const discPars = mappedPartidos.filter((p) => p.disciplinaId === d.id);
+          if (discPars.length > 0) {
+            window.tournamentStore.saveMatches(d.id, discPars);
+          }
+        });
+      }
+
+      // 3. Atletas
+      const { data: remoteAtletas, error: errAtl } = await this.client.from('atletas').select('*');
+      if (!errAtl && remoteAtletas && remoteAtletas.length > 0 && window.tournamentStore) {
+        const mappedAtletas = remoteAtletas.map((a) => this.mapSupabaseAtletaToLocal(a));
+        window.tournamentStore.data.atletas = mappedAtletas;
+      }
+
+      if (window.tournamentStore) {
+        window.tournamentStore.syncGlobalDataArrays();
+        window.tournamentStore.saveToStorage();
+      }
+
+      if (typeof window.renderAllViews === 'function') {
+        window.renderAllViews();
+      }
+
+      console.log('[Supabase Hydrate] Datos sincronizados desde Supabase exitosamente.');
+      return true;
+    } catch (e) {
+      console.warn('[Supabase Hydrate Error]:', e);
+      return false;
+    } finally {
+      this.isHydrating = false;
+    }
+  }
+
+  /**
+   * Sincroniza todos los datos locales hacia la base de datos de Supabase
+   */
+  async syncAllToSupabase() {
+    if (!this.client) return false;
+    console.log('[Supabase] Subiendo todos los datos locales a Supabase...');
+    const dOk = await this.syncDisciplinas();
+    const eOk = await this.syncEquipos();
+    const aOk = await this.syncAtletas();
+    const pOk = await this.syncPartidos();
+    return dOk && eOk && aOk && pOk;
+  }
+
+  async syncDisciplinas() {
+    if (!this.client || !window.tournamentStore) return false;
+    try {
+      const disciplinas = window.tournamentStore.getDisciplinas() || [];
+      if (disciplinas.length === 0) return true;
+      const payload = disciplinas.map((d) => ({
+        id: d.id,
+        nombre: d.nombre,
+        categoria: d.categoria,
+        icono: d.icono,
+        avatar: d.avatar,
+        banner: d.banner,
+        color: d.color,
+        activa: d.activa !== false,
+        reglas: d.reglas || {}
+      }));
+      const { error } = await this.client.from('disciplinas').upsert(payload, { onConflict: 'id' });
+      if (error) console.warn('[Supabase Sync Disciplinas]:', error.message);
+      return !error;
+    } catch (e) {
+      console.warn('[Supabase Sync Disciplinas Error]:', e);
+      return false;
+    }
+  }
+
   async syncEquipos() {
     if (!this.client || !window.tournamentStore) return false;
     try {
-      const data = window.tournamentStore.data;
-      const equipos = data?.equipos || [];
+      const equipos = window.tournamentStore.data?.equipos || [];
       if (equipos.length === 0) return true;
-
-      const payload = equipos.map((eq) => ({
-        id: eq.id,
-        nombre: eq.nombre,
-        disciplina_id: eq.disciplinaId,
-        grupo: eq.grupo,
-        sede_principal: eq.sedePrincipal,
-        siglas: eq.siglas,
-        logo_url: eq.logoUrl,
-        color: eq.color,
-        delegado_nombre: eq.delegadoNombre,
-        delegado_telefono: eq.delegadoTelefono,
-        pin: eq.pin || '2024'
-      }));
-
+      const payload = equipos.map((eq) => this.mapLocalEquipoToSupabase(eq)).filter(Boolean);
       const { error } = await this.client.from('equipos').upsert(payload, { onConflict: 'id' });
       if (error) console.warn('[Supabase Sync Equipos]:', error.message);
       return !error;
@@ -212,33 +504,27 @@ class SupabaseService {
     }
   }
 
-  /**
-   * Sincroniza calendario de partidos hacia la nube
-   */
+  async syncAtletas() {
+    if (!this.client || !window.tournamentStore) return false;
+    try {
+      const atletas = window.tournamentStore.data?.atletas || [];
+      if (atletas.length === 0) return true;
+      const payload = atletas.map((a) => this.mapLocalAtletaToSupabase(a)).filter(Boolean);
+      const { error } = await this.client.from('atletas').upsert(payload, { onConflict: 'id' });
+      if (error) console.warn('[Supabase Sync Atletas]:', error.message);
+      return !error;
+    } catch (e) {
+      console.warn('[Supabase Sync Atletas Error]:', e);
+      return false;
+    }
+  }
+
   async syncPartidos() {
     if (!this.client || !window.tournamentStore) return false;
     try {
-      const data = window.tournamentStore.data;
-      const partidos = data?.partidos || [];
+      const partidos = window.tournamentStore.data?.partidos || [];
       if (partidos.length === 0) return true;
-
-      const payload = partidos.map((p) => ({
-        id: p.id,
-        disciplina_id: p.disciplinaId,
-        fecha: p.fecha,
-        hora: p.hora,
-        sede: p.sede,
-        fase: p.fase,
-        grupo: p.grupo,
-        equipo_local: p.equipoLocal,
-        total_local: p.totalLocal || 0,
-        equipo_visitante: p.equipoVisitante,
-        total_visitante: p.totalVisitante || 0,
-        estado: p.estado || 'PROGRAMADO',
-        periodo_actual: p.periodoActual || 'Por Iniciar',
-        reloj: p.reloj || '10:00'
-      }));
-
+      const payload = partidos.map((p) => this.mapLocalPartidoToSupabase(p)).filter(Boolean);
       const { error } = await this.client.from('partidos').upsert(payload, { onConflict: 'id' });
       if (error) console.warn('[Supabase Sync Partidos]:', error.message);
       return !error;
@@ -272,9 +558,11 @@ class SupabaseService {
    */
   getSQLSchemaScript() {
     return `-- ==============================================================================
--- SCRIPT DE BASE DE DATOS Y REALTIME SUPABASE PARA:
--- "GRUPO MULTISERVICIOS DEPORTIVOS JL"
--- Copie y pegue este script completo en el SQL Editor de Supabase y presione RUN.
+-- GRUPO MULTISERVICIOS DEPORTIVOS JL
+-- SCRIPT DE INICIALIZACIÓN COMPLETA PARA SUPABASE (BASE DE DATOS Y REALTIME)
+-- ==============================================================================
+-- Proyecto: wznvlhuvpqnnrlgcgqpx (https://wznvlhuvpqnnrlgcgqpx.supabase.co)
+-- Enlace directo al editor: https://supabase.com/dashboard/project/wznvlhuvpqnnrlgcgqpx/sql/new
 -- ==============================================================================
 
 -- 1. TABLA DISCIPLINAS
@@ -283,6 +571,7 @@ CREATE TABLE IF NOT EXISTS public.disciplinas (
     nombre TEXT NOT NULL,
     categoria TEXT,
     icono TEXT,
+    avatar TEXT,
     banner TEXT,
     color TEXT,
     activa BOOLEAN DEFAULT true,
@@ -290,7 +579,7 @@ CREATE TABLE IF NOT EXISTS public.disciplinas (
     creado_en TIMESTAMPTZ DEFAULT now()
 );
 
--- 2. TABLA EQUIPOS (CONFIG_GRUPOS)
+-- 2. TABLA EQUIPOS
 CREATE TABLE IF NOT EXISTS public.equipos (
     id TEXT PRIMARY KEY,
     nombre TEXT NOT NULL,
@@ -301,14 +590,20 @@ CREATE TABLE IF NOT EXISTS public.equipos (
     logo_url TEXT,
     color TEXT DEFAULT '#800020',
     delegado_nombre TEXT,
+    delegado_cedula TEXT,
     delegado_telefono TEXT,
+    delegado_email TEXT,
     pin TEXT DEFAULT '2024',
+    entrenador TEXT,
+    asistente TEXT,
+    utilero TEXT,
     creado_en TIMESTAMPTZ DEFAULT now()
 );
 
--- 3. TABLA ATLETAS (ROSTER)
+-- 3. TABLA ATLETAS (ROSTERS)
 CREATE TABLE IF NOT EXISTS public.atletas (
     id TEXT PRIMARY KEY,
+    disciplina_id TEXT REFERENCES public.disciplinas(id) ON DELETE SET NULL,
     cedula TEXT NOT NULL,
     nombres TEXT NOT NULL,
     fecha_nacimiento DATE,
@@ -335,13 +630,17 @@ CREATE TABLE IF NOT EXISTS public.partidos (
     q2_loc INTEGER DEFAULT 0,
     q3_loc INTEGER DEFAULT 0,
     q4_loc INTEGER DEFAULT 0,
+    ot_loc INTEGER DEFAULT 0,
     total_local INTEGER DEFAULT 0,
+    puntos_local INTEGER DEFAULT 0,
     equipo_visitante TEXT NOT NULL,
     q1_vis INTEGER DEFAULT 0,
     q2_vis INTEGER DEFAULT 0,
     q3_vis INTEGER DEFAULT 0,
     q4_vis INTEGER DEFAULT 0,
+    ot_vis INTEGER DEFAULT 0,
     total_visitante INTEGER DEFAULT 0,
+    puntos_visitante INTEGER DEFAULT 0,
     estado TEXT DEFAULT 'PROGRAMADO', -- PROGRAMADO | EN CURSO | FINALIZADO
     periodo_actual TEXT DEFAULT 'Por Iniciar',
     reloj TEXT DEFAULT '10:00',
@@ -350,7 +649,7 @@ CREATE TABLE IF NOT EXISTS public.partidos (
     actualizado_en TIMESTAMPTZ DEFAULT now()
 );
 
--- 5. TABLA POSICIONES (TABLA_POSICIONES)
+-- 5. TABLA POSICIONES (TABLA GENERAL / CLASIFICACIÓN)
 CREATE TABLE IF NOT EXISTS public.posiciones (
     id SERIAL PRIMARY KEY,
     disciplina_id TEXT REFERENCES public.disciplinas(id) ON DELETE CASCADE,
@@ -368,36 +667,121 @@ CREATE TABLE IF NOT EXISTS public.posiciones (
     actualizado_en TIMESTAMPTZ DEFAULT now()
 );
 
--- 6. HABILITAR ROW LEVEL SECURITY (RLS)
+-- 6. SEGURIDAD Y POLÍTICAS ROW LEVEL SECURITY (RLS)
 ALTER TABLE public.disciplinas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.equipos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.atletas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.partidos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.posiciones ENABLE ROW LEVEL SECURITY;
 
--- Políticas de lectura pública para aficionados
-CREATE POLICY "Lectura pública para disciplinas" ON public.disciplinas FOR SELECT USING (true);
-CREATE POLICY "Lectura pública para equipos" ON public.equipos FOR SELECT USING (true);
-CREATE POLICY "Lectura pública para atletas" ON public.atletas FOR SELECT USING (true);
-CREATE POLICY "Lectura pública para partidos" ON public.partidos FOR SELECT USING (true);
-CREATE POLICY "Lectura pública para posiciones" ON public.posiciones FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Lectura pública disciplinas" ON public.disciplinas;
+DROP POLICY IF EXISTS "Acceso total disciplinas" ON public.disciplinas;
+DROP POLICY IF EXISTS "Lectura pública equipos" ON public.equipos;
+DROP POLICY IF EXISTS "Acceso total equipos" ON public.equipos;
+DROP POLICY IF EXISTS "Lectura pública atletas" ON public.atletas;
+DROP POLICY IF EXISTS "Acceso total atletas" ON public.atletas;
+DROP POLICY IF EXISTS "Lectura pública partidos" ON public.partidos;
+DROP POLICY IF EXISTS "Acceso total partidos" ON public.partidos;
+DROP POLICY IF EXISTS "Lectura pública posiciones" ON public.posiciones;
+DROP POLICY IF EXISTS "Acceso total posiciones" ON public.posiciones;
 
--- Políticas de inserción y modificación total para la app
-CREATE POLICY "Acceso total para disciplinas" ON public.disciplinas FOR ALL USING (true);
-CREATE POLICY "Acceso total para equipos" ON public.equipos FOR ALL USING (true);
-CREATE POLICY "Acceso total para atletas" ON public.atletas FOR ALL USING (true);
-CREATE POLICY "Acceso total para partidos" ON public.partidos FOR ALL USING (true);
-CREATE POLICY "Acceso total para posiciones" ON public.posiciones FOR ALL USING (true);
+CREATE POLICY "Lectura pública disciplinas" ON public.disciplinas FOR SELECT USING (true);
+CREATE POLICY "Lectura pública equipos" ON public.equipos FOR SELECT USING (true);
+CREATE POLICY "Lectura pública atletas" ON public.atletas FOR SELECT USING (true);
+CREATE POLICY "Lectura pública partidos" ON public.partidos FOR SELECT USING (true);
+CREATE POLICY "Lectura pública posiciones" ON public.posiciones FOR SELECT USING (true);
 
--- 7. ACTIVAR SUPABASE REALTIME PARA TRANSMISIÓN INSTANTÁNEA
--- Esto permite que cualquier cambio en la mesa técnica se transmita sin recargar la página
-ALTER PUBLICATION supabase_realtime ADD TABLE public.partidos;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.equipos;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.posiciones;
+CREATE POLICY "Acceso total disciplinas" ON public.disciplinas FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acceso total equipos" ON public.equipos FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acceso total atletas" ON public.atletas FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acceso total partidos" ON public.partidos FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acceso total posiciones" ON public.posiciones FOR ALL USING (true) WITH CHECK (true);
 
--- ==============================================================================
--- ¡LISTO! La base de datos de Grupo Multiservicios Deportivo JL está configurada.
--- ==============================================================================`;
+-- 7. ACTIVAR SUPABASE REALTIME (PUBLICACIÓN POSTGRES)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'partidos') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.partidos;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'equipos') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.equipos;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'atletas') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.atletas;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'disciplinas') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.disciplinas;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'posiciones') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.posiciones;
+    END IF;
+END $$;
+
+-- 8. CARGA INICIAL DE DATOS OFICIALES (SEMILLAS DEL TORNEO)
+INSERT INTO public.disciplinas (id, nombre, categoria, icono, avatar, banner, color, activa, reglas)
+VALUES
+('baloncesto-master', 'Baloncesto', 'Torneo Master / Libre', '🏀', './assets/banner_baloncesto.jpg', './assets/banner_baloncesto.jpg', '#D4AF37', true, '{"periodos": 4, "nombrePeriodo": "Cuarto", "ptsGanador": 2, "ptsPerdedor": 1, "duracionMin": 10}'::jsonb),
+('voleibol-femenino', 'Voleibol', 'Femenino Libre', '🏐', './assets/banner_voleibol.jpg', './assets/banner_voleibol.jpg', '#38BDF8', true, '{"periodos": 3, "nombrePeriodo": "Set", "ptsGanador": 2, "ptsPerdedor": 1, "duracionMin": 25}'::jsonb),
+('futsal-copa', 'Futbol Sala', 'Copa JL Multiservicios', '⚽', './assets/banner_futsal.jpg', './assets/banner_futsal.jpg', '#10B981', true, '{"periodos": 2, "nombrePeriodo": "Tiempo", "ptsGanador": 3, "ptsPerdedor": 0, "ptsEmpate": 1, "duracionMin": 20}'::jsonb),
+('softbol-master', 'Sotfbol', 'Torneo Master / Modificado', '🥎', './assets/logo.png', './assets/logo.png', '#F59E0B', true, '{"periodos": 7, "nombrePeriodo": "Inning", "ptsGanador": 2, "ptsPerdedor": 1, "duracionMin": 15}'::jsonb)
+ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, categoria = EXCLUDED.categoria, icono = EXCLUDED.icono, color = EXCLUDED.color, reglas = EXCLUDED.reglas;
+
+INSERT INTO public.equipos (id, nombre, disciplina_id, grupo, sede_principal, siglas, logo_url, color, delegado_nombre, delegado_cedula, delegado_telefono, delegado_email, pin, entrenador, asistente, utilero)
+VALUES
+('EQ-01', 'Gigantes de Caripito', 'baloncesto-master', 'Grupo A', 'Domo Bolivariano', 'GDC', './assets/logo.png', '#D97706', 'Prof. Carlos Mendoza', '14589123', '+58 414-8765432', 'delegado.gigantes@gmdjl.com', '2024', 'Prof. Carlos Mendoza', 'Lic. Andrés Silva', 'Carlos Ramos'),
+('EQ-02', 'Tigres de la Sabana', 'baloncesto-master', 'Grupo A', 'Gimnasio Pablo Higuerey', 'TDS', './assets/logo.png', '#EA580C', 'Lic. Manuel Velásquez', '15987654', '+58 424-8123456', 'delegado.tigres@gmdjl.com', '2024', 'Lic. Manuel Velásquez', 'Prof. Javier Pinto', 'Ramón Díaz'),
+('EQ-03', 'Monagas BBC', 'baloncesto-master', 'Grupo B', 'Complejo Deportivo JL', 'MON', './assets/logo.png', '#1E3A8A', 'Ing. Pedro Castillo', '13456789', '+58 416-9281726', 'delegado.monagas@gmdjl.com', '2024', 'Ing. Pedro Castillo', 'Lic. Héctor Carreño', 'José Barrios'),
+('EQ-04', 'Indios de Punceres', 'baloncesto-master', 'Grupo B', 'Cancha Los Robles', 'IDP', './assets/logo.png', '#9E1B32', 'Téc. Nelson Figueroa', '17890123', '+58 412-3091823', 'delegado.indios@gmdjl.com', '2024', 'Téc. Nelson Figueroa', 'Prof. Kelvin Requena', 'Samuel Morales'),
+('EQ-VOL-01', 'Ángeles de Oriente', 'voleibol-femenino', 'Grupo A', 'Gimnasio Pablo Higuerey', 'ANG', './assets/logo.png', '#38BDF8', 'Lic. Mariana Soto', '20111222', '+58 414-2223344', 'delegado.angeles@gmdjl.com', '2024', NULL, NULL, NULL),
+('EQ-VOL-02', 'Sirenas del Morro', 'voleibol-femenino', 'Grupo A', 'Gimnasio Pablo Higuerey', 'SIR', './assets/logo.png', '#EC4899', 'Prof. Carmen Ruiz', '21222333', '+58 424-3334455', 'delegado.sirenas@gmdjl.com', '2024', NULL, NULL, NULL),
+('EQ-VOL-03', 'Guerreras JL', 'voleibol-femenino', 'Grupo B', 'Complejo Deportivo JL', 'GJL', './assets/logo.png', '#800020', 'Prof. Ana Silva', '22333444', '+58 412-4445566', 'delegado.guerreras@gmdjl.com', '2024', NULL, NULL, NULL),
+('EQ-VOL-04', 'Vencedoras VC', 'voleibol-femenino', 'Grupo B', 'Domo Bolivariano', 'VVC', './assets/logo.png', '#8B5CF6', 'Lic. Laura Peña', '23444555', '+58 416-5556677', 'delegado.vencedoras@gmdjl.com', '2024', NULL, NULL, NULL),
+('EQ-FUT-01', 'Titanes Futsal', 'futsal-copa', 'Grupo A', 'Cancha Los Robles', 'TIT', './assets/logo.png', '#10B981', 'Prof. Nelson Parra', '14555666', '+58 414-1112233', 'delegado.titanesfs@gmdjl.com', '2024', NULL, NULL, NULL),
+('EQ-FUT-02', 'Pumas de Puerto', 'futsal-copa', 'Grupo A', 'Cancha Los Robles', 'PUM', './assets/logo.png', '#F97316', 'Sr. Edgar Mendoza', '15666777', '+58 424-6667788', 'delegado.pumas@gmdjl.com', '2024', NULL, NULL, NULL),
+('EQ-FUT-03', 'Deportivo Higuerey', 'futsal-copa', 'Grupo B', 'Gimnasio Pablo Higuerey', 'DHY', './assets/logo.png', '#9E1B32', 'Prof. Iván Castillo', '16777888', '+58 412-7778899', 'delegado.deportivoh@gmdjl.com', '2024', NULL, NULL, NULL),
+('EQ-FUT-04', 'Atlético Oriente FS', 'futsal-copa', 'Grupo B', 'Complejo Deportivo JL', 'AOF', './assets/logo.png', '#2563EB', 'Lic. Andrés Bello', '17888999', '+58 416-8889900', 'delegado.atletico@gmdjl.com', '2024', NULL, NULL, NULL),
+('EQ-SOT-01', 'Cerveceros del Este', 'softbol-master', 'Grupo A', 'Estadio Manuel Carrasquel', 'CER', './assets/logo.png', '#F59E0B', 'Prof. Carlos Urbano', '18999000', '+58 414-9990011', 'delegado.cerveceros@gmdjl.com', '2024', NULL, NULL, NULL),
+('EQ-SOT-02', 'Guerreros del Diamante', 'softbol-master', 'Grupo A', 'Estadio Manuel Carrasquel', 'GDD', './assets/logo.png', '#DC2626', 'Lic. Pedro Marcano', '19000111', '+58 424-1110022', 'delegado.diamante@gmdjl.com', '2024', NULL, NULL, NULL),
+('EQ-SOT-03', 'Petroleros JL', 'softbol-master', 'Grupo B', 'Complejo Deportivo JL', 'PJL', './assets/logo.png', '#800020', 'Ing. José Lambert', '14621157', '+58 412-2221133', 'delegado.petroleros@gmdjl.com', '2024', NULL, NULL, NULL),
+('EQ-SOT-04', 'Cardenales Master', 'softbol-master', 'Grupo B', 'Estadio José Pérez', 'CDM', './assets/logo.png', '#B91C1C', 'Prof. Luis Marval', '20123456', '+58 416-3332244', 'delegado.cardenales@gmdjl.com', '2024', NULL, NULL, NULL)
+ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, disciplina_id = EXCLUDED.disciplina_id, grupo = EXCLUDED.grupo, siglas = EXCLUDED.siglas, delegado_nombre = EXCLUDED.delegado_nombre;
+
+INSERT INTO public.atletas (id, disciplina_id, cedula, nombres, fecha_nacimiento, edad, camiseta, posicion, equipo, rol, foto_url)
+VALUES
+('ATL-001', 'baloncesto-master', 'V-24589123', 'Carlos Eduardo Mendoza', '1996-05-14', 28, '7', 'Base', 'Gigantes de Caripito', 'Atleta', ''),
+('ATL-002', 'baloncesto-master', 'V-26102948', 'José Alejandro Salazar', '1998-11-20', 26, '11', 'Escolta', 'Gigantes de Caripito', 'Atleta', ''),
+('ATL-003', 'baloncesto-master', 'V-22441902', 'Miguel Ángel Rondón', '1994-03-08', 30, '15', 'Alero', 'Gigantes de Caripito', 'Capitán', ''),
+('ATL-004', 'baloncesto-master', 'V-25890124', 'David Jesús Marcano', '1997-09-12', 27, '23', 'Ala-Pívot', 'Gigantes de Caripito', 'Atleta', ''),
+('ATL-005', 'baloncesto-master', 'V-21394850', 'Luis Fernando Cedeño', '1993-01-30', 31, '33', 'Pívot', 'Gigantes de Caripito', 'Atleta', ''),
+('ATL-006', 'baloncesto-master', 'V-23948102', 'Gabriel Antonio Ramos', '1995-07-22', 29, '5', 'Base', 'Tigres de la Sabana', 'Atleta', ''),
+('ATL-007', 'baloncesto-master', 'V-25019284', 'Javier Alexander Pinto', '1997-04-18', 27, '10', 'Escolta', 'Tigres de la Sabana', 'Capitán', ''),
+('ATL-008', 'baloncesto-master', 'V-24102948', 'Andrés Eloy Rivas', '1996-08-05', 28, '12', 'Alero', 'Tigres de la Sabana', 'Atleta', ''),
+('ATL-009', 'baloncesto-master', 'V-22940182', 'Jesús Manuel Torres', '1994-12-19', 30, '21', 'Ala-Pívot', 'Tigres de la Sabana', 'Atleta', ''),
+('ATL-010', 'baloncesto-master', 'V-20891274', 'Víctor Alfonso Silva', '1992-06-11', 32, '34', 'Pívot', 'Tigres de la Sabana', 'Atleta', ''),
+('ATL-011', 'baloncesto-master', 'V-26891024', 'Daniel Enrique Guerra', '1999-02-14', 25, '3', 'Base', 'Monagas BBC', 'Atleta', ''),
+('ATL-012', 'baloncesto-master', 'V-24901823', 'Héctor Luis Carreño', '1996-10-25', 28, '8', 'Alero', 'Monagas BBC', 'Capitán', ''),
+('ATL-013', 'baloncesto-master', 'V-23190284', 'Ricardo José Barrios', '1995-03-17', 29, '14', 'Pívot', 'Monagas BBC', 'Atleta', ''),
+('ATL-014', 'baloncesto-master', 'V-25901824', 'Samuel David Morales', '1998-09-02', 26, '9', 'Base', 'Indios de Punceres', 'Atleta', ''),
+('ATL-015', 'baloncesto-master', 'V-24810294', 'Kelvin José Requena', '1996-12-08', 28, '24', 'Alero', 'Indios de Punceres', 'Capitán', '')
+ON CONFLICT (id) DO UPDATE SET disciplina_id = EXCLUDED.disciplina_id, nombres = EXCLUDED.nombres, camiseta = EXCLUDED.camiseta, posicion = EXCLUDED.posicion, equipo = EXCLUDED.equipo;
+
+INSERT INTO public.partidos (id, disciplina_id, fecha, hora, sede, fase, grupo, equipo_local, q1_loc, q2_loc, q3_loc, q4_loc, ot_loc, total_local, puntos_local, equipo_visitante, q1_vis, q2_vis, q3_vis, q4_vis, ot_vis, total_visitante, puntos_visitante, estado, periodo_actual, reloj, faltas_loc, faltas_vis)
+VALUES
+('PAR-BAL-01', 'baloncesto-master', '2026-10-18', '18:00', 'Gimnasio Pablo Higuerey', 'Jornada 1 (Fase Regular)', 'Grupo A', 'Gigantes de Caripito', 12, 10, 11, 10, 0, 43, 43, 'Tigres de la Sabana', 10, 12, 9, 11, 0, 42, 42, 'FINALIZADO', 'Final', '00:00', 2, 3),
+('PAR-BAL-02', 'baloncesto-master', '2026-10-18', '19:45', 'Gimnasio Pablo Higuerey', 'Jornada 1 (Fase Regular)', 'Grupo B', 'Monagas BBC', 14, 11, 12, 10, 0, 47, 47, 'Indios de Punceres', 11, 13, 10, 11, 0, 45, 45, 'FINALIZADO', 'Final', '00:00', 4, 1),
+('PAR-BAL-03', 'baloncesto-master', '2026-10-19', '18:00', 'Complejo Deportivo JL', 'Jornada 2 (Fase Regular)', 'Grupo A', 'Gigantes de Caripito', 8, 10, 6, 0, 0, 24, 24, 'Monagas BBC', 7, 9, 6, 0, 0, 22, 22, 'EN CURSO', 'Q3', '06:45', 1, 2),
+('PAR-BAL-04', 'baloncesto-master', '2026-10-19', '19:30', 'Cancha Los Robles', 'Jornada 2 (Fase Regular)', 'Grupo B', 'Tigres de la Sabana', 0, 0, 0, 0, 0, 0, 0, 'Indios de Punceres', 0, 0, 0, 0, 0, 0, 0, 'PROGRAMADO', 'Por Iniciar', '10:00', 0, 0),
+('PAR-VOL-01', 'voleibol-femenino', '2026-10-18', '17:00', 'Gimnasio Pablo Higuerey', 'Jornada 1', 'Grupo A', 'Ángeles de Oriente', 25, 22, 15, 0, 0, 2, 2, 'Sirenas del Morro', 21, 25, 12, 0, 0, 1, 1, 'FINALIZADO', 'Final', '00:00', 0, 0),
+('PAR-VOL-02', 'voleibol-femenino', '2026-10-19', '18:30', 'Complejo Deportivo JL', 'Jornada 2', 'Grupo B', 'Guerreras JL', 25, 19, 14, 0, 0, 1, 1, 'Vencedoras VC', 20, 25, 12, 0, 0, 1, 1, 'EN CURSO', 'Set 3', '14:20', 0, 0),
+('PAR-VOL-03', 'voleibol-femenino', '2026-10-20', '18:00', 'Domo Bolivariano', 'Jornada 3', 'Grupo A', 'Ángeles de Oriente', 0, 0, 0, 0, 0, 0, 0, 'Guerreras JL', 0, 0, 0, 0, 0, 0, 0, 'PROGRAMADO', 'Por Iniciar', '25:00', 0, 0),
+('PAR-FUT-01', 'futsal-copa', '2026-10-18', '17:30', 'Cancha Los Robles', 'Jornada 1', 'Grupo A', 'Titanes Futsal', 2, 2, 0, 0, 0, 4, 4, 'Pumas de Puerto', 1, 2, 0, 0, 0, 3, 3, 'FINALIZADO', 'Final', '00:00', 0, 0),
+('PAR-FUT-02', 'futsal-copa', '2026-10-19', '19:00', 'Gimnasio Pablo Higuerey', 'Jornada 2', 'Grupo B', 'Deportivo Higuerey', 1, 1, 0, 0, 0, 2, 2, 'Atlético Oriente FS', 1, 1, 0, 0, 0, 2, 2, 'EN CURSO', '2do Tiempo', '08:40', 0, 0),
+('PAR-FUT-03', 'futsal-copa', '2026-10-20', '19:30', 'Complejo Deportivo JL', 'Jornada 3', 'Grupo A', 'Titanes Futsal', 0, 0, 0, 0, 0, 0, 0, 'Deportivo Higuerey', 0, 0, 0, 0, 0, 0, 0, 'PROGRAMADO', 'Por Iniciar', '20:00', 0, 0),
+('PAR-SOT-01', 'softbol-master', '2026-10-18', '10:00', 'Estadio Manuel Carrasquel', 'Jornada 1', 'Grupo A', 'Cerveceros del Este', 2, 3, 2, 0, 0, 7, 7, 'Guerreros del Diamante', 1, 1, 3, 0, 0, 5, 5, 'FINALIZADO', 'Final', '00:00', 0, 0),
+('PAR-SOT-02', 'softbol-master', '2026-10-19', '14:00', 'Complejo Deportivo JL', 'Jornada 2', 'Grupo B', 'Petroleros JL', 2, 1, 1, 0, 0, 4, 4, 'Cardenales Master', 0, 2, 1, 0, 0, 3, 3, 'EN CURSO', 'Inning 5', '10:00', 0, 0),
+('PAR-SOT-03', 'softbol-master', '2026-10-20', '15:30', 'Estadio José Pérez', 'Jornada 3', 'Grupo A', 'Cerveceros del Este', 0, 0, 0, 0, 0, 0, 0, 'Petroleros JL', 0, 0, 0, 0, 0, 0, 0, 'PROGRAMADO', 'Por Iniciar', '15:00', 0, 0)
+ON CONFLICT (id) DO UPDATE SET total_local = EXCLUDED.total_local, total_visitante = EXCLUDED.total_visitante, estado = EXCLUDED.estado, periodo_actual = EXCLUDED.periodo_actual, reloj = EXCLUDED.reloj;
+`;
   }
 }
 

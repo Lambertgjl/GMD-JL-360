@@ -1710,20 +1710,38 @@
             <input type="password" class="form-input" id="inputSupabaseKey" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6bnZsaHV2cHFubnJsZ2NncXB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NDkyNDcsImV4cCI6MjEwODQyNTI0N30.ixhXWj0Jfir852lXJFdZNNfNscnND2u5WPXZ0EBA6lk" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
           </div>
 
-          <div style="display: flex; gap: 0.6rem; margin-top: 1rem;">
+          <div id="supabaseStatusBox" style="margin-top: 0.8rem; padding: 0.75rem; border-radius: 6px; font-size: 0.82rem; display: none;"></div>
+
+          <div style="display: flex; gap: 0.6rem; margin-top: 1rem; flex-wrap: wrap;">
             <button type="submit" class="btn btn-gold btn-sm">Guardar y Probar Conexión</button>
             <button type="button" class="btn btn-outline btn-sm" id="btnCopiarSQLSupabase">
-              📋 Ver Script SQL para Supabase
+              📋 Ver Script SQL para Crear Tablas
+            </button>
+            <button type="button" class="btn btn-outline-gold btn-sm" id="btnSyncAllSupabase">
+              ☁️ Subir Todo a Supabase
             </button>
           </div>
         </form>
 
-        <div id="sqlScriptAccordion" style="display: none; margin-top: 1rem;">
-          <label class="form-label">Script SQL Completo (Copiar y pegar en SQL Editor de Supabase):</label>
-          <textarea class="form-textarea" id="txtSQLScript" rows="8" readonly style="font-family: monospace; font-size: 0.75rem; width: 100%;"></textarea>
-          <button class="btn btn-outline-gold btn-sm" style="margin-top: 0.5rem;" id="btnCopiarClipboardSQL">
-            Copiar Código SQL al Portapapeles
-          </button>
+        <div id="sqlScriptAccordion" style="display: none; margin-top: 1rem; border: 1px solid var(--border-color); padding: 0.8rem; border-radius: 6px; background: rgba(0,0,0,0.2);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+            <label class="form-label" style="margin-bottom: 0; font-weight: bold; color: var(--gold-light);">Script SQL de Inicialización (Tablas, RLS, Realtime y Datos):</label>
+            <a href="https://supabase.com/dashboard/project/wznvlhuvpqnnrlgcgqpx/sql/new" target="_blank" rel="noopener noreferrer" class="btn btn-gold btn-sm" style="font-size: 0.75rem; text-decoration: none;">
+              🚀 Abrir SQL Editor de Supabase
+            </a>
+          </div>
+          <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+            Haga clic en <strong>"Copiar Código SQL"</strong>, luego en <strong>"Abrir SQL Editor de Supabase"</strong>, pegue el código y presione <strong>RUN</strong> para crear las tablas de inmediato.
+          </p>
+          <textarea class="form-textarea" id="txtSQLScript" rows="9" readonly style="font-family: monospace; font-size: 0.75rem; width: 100%;"></textarea>
+          <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-gold btn-sm" id="btnCopiarClipboardSQL">
+              📋 Copiar Código SQL al Portapapeles
+            </button>
+            <a href="https://supabase.com/dashboard/project/wznvlhuvpqnnrlgcgqpx/sql/new" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="font-size: 0.75rem; text-decoration: none;">
+              Ir a SQL Editor ↗
+            </a>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
