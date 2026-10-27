@@ -47,41 +47,20 @@ class SupabaseService {
   }
 
   initClient() {
-    const config = window.tournamentStore ? window.tournamentStore.getConfig() : {};
-    let storedUrl = localStorage.getItem('gmd_supabase_url');
-    let storedKey = localStorage.getItem('gmd_supabase_anon_key');
-
-    // Auto-migración si existían credenciales previas con errata o temporales
-    if (storedUrl && (storedUrl.includes('wznvihuvpqnnrlgcgqpx') || storedUrl.includes('xyz'))) {
-      storedUrl = DEFAULT_SUPABASE_URL;
-      storedKey = DEFAULT_SUPABASE_ANON_KEY;
-      localStorage.setItem('gmd_supabase_url', storedUrl);
-      localStorage.setItem('gmd_supabase_anon_key', storedKey);
-      if (window.tournamentStore) {
-        window.tournamentStore.updateConfig({ supabaseUrl: storedUrl, supabaseAnonKey: storedKey });
-      }
-    }
-
-    // Usa las credenciales guardadas si son válidas; de lo contrario aplica las de producción
-    const url = ((config.supabaseUrl && !config.supabaseUrl.includes('wznvihuvpqnnrlgcgqpx') ? config.supabaseUrl : '') || (storedUrl && !storedUrl.includes('xyz') ? storedUrl : '') || DEFAULT_SUPABASE_URL).trim();
-    const key = ((config.supabaseAnonKey && !config.supabaseAnonKey.includes('wznvihuvpqnnrlgcgqpx') ? config.supabaseAnonKey : '') || (storedKey && storedKey.length > 50 ? storedKey : '') || DEFAULT_SUPABASE_ANON_KEY).trim();
-
-    this.url = url;
-    this.key = key;
+    this.url = DEFAULT_SUPABASE_URL;
+    this.key = DEFAULT_SUPABASE_ANON_KEY;
 
     try {
-      localStorage.setItem('gmd_supabase_url', url);
-      localStorage.setItem('gmd_supabase_anon_key', key);
-      if (window.tournamentStore && (!config.supabaseUrl || !config.supabaseAnonKey)) {
-        window.tournamentStore.updateConfig({ supabaseUrl: url, supabaseAnonKey: key });
+      if (window.tournamentStore) {
+        window.tournamentStore.updateConfig({ supabaseUrl: this.url, supabaseAnonKey: this.key });
       }
     } catch (e) {
-      console.warn('[Supabase] Warning al guardar credenciales en storage:', e);
+      console.warn('[Supabase] Warning al registrar credenciales:', e);
     }
 
-    if (url && key && window.supabase) {
+    if (this.url && this.key && window.supabase) {
       try {
-        this.client = window.supabase.createClient(url, key, {
+        this.client = window.supabase.createClient(this.url, this.key, {
           auth: {
             persistSession: false,
             autoRefreshToken: false
@@ -92,7 +71,7 @@ class SupabaseService {
             }
           }
         });
-        console.log('[Supabase] Cliente inicializado correctamente con', url);
+        console.log('[Supabase] Cliente inicializado correctamente con', this.url);
         this.subscribeRealtime();
         this.verifyConnection();
       } catch (err) {
@@ -220,8 +199,12 @@ class SupabaseService {
             console.log('[Supabase Realtime] Cambio detectado en disciplinas:', payload);
             if (payload.new && window.tournamentStore) {
               const rd = payload.new;
+              const cleanRdId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(rd.id) : rd.id;
               const discs = window.tournamentStore.getDisciplinas();
-              const existing = discs.find((d) => d.id === rd.id);
+              const existing = discs.find((d) => {
+                const cleanDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(d.id) : d.id;
+                return cleanDId === cleanRdId;
+              });
               if (existing) {
                 existing.nombre = rd.nombre || existing.nombre;
                 existing.categoria = rd.categoria || existing.categoria;
@@ -230,10 +213,12 @@ class SupabaseService {
                 if (rd.avatar) existing.avatar = rd.avatar;
                 if (rd.banner) existing.banner = rd.banner;
                 if (rd.reglas) existing.reglas = rd.reglas;
+                existing.activa = rd.activa !== false;
                 window.tournamentStore.saveDisciplinasConfig(discs);
+                window.tournamentStore.saveToStorage();
               } else {
                 window.tournamentStore.addDisciplina({
-                  id: rd.id,
+                  id: cleanRdId,
                   nombre: rd.nombre,
                   categoria: rd.categoria,
                   icono: rd.icono,
@@ -242,8 +227,56 @@ class SupabaseService {
                   color: rd.color,
                   activa: rd.activa !== false,
                   reglas: rd.reglas
-                });
+                }, false);
               }
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            } else if (payload.eventType === 'DELETE' && payload.old && window.tournamentStore) {
+              const cleanOldId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(payload.old.id) : payload.old.id;
+              window.tournamentStore.deleteDisciplina(cleanOldId, false);
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            }
+          }
+        )
+        .on(
+          'broadcast',
+          { event: 'discipline_synced' },
+          ({ payload }) => {
+            if (payload && payload.disciplina && window.tournamentStore) {
+              const d = payload.disciplina;
+              const cleanDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(d.id) : d.id;
+              const discs = window.tournamentStore.getDisciplinas();
+              const existing = discs.find((x) => ((typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(x.id) : x.id) === cleanDId);
+              if (existing) {
+                existing.nombre = d.nombre || existing.nombre;
+                existing.categoria = d.categoria || existing.categoria;
+                existing.icono = d.icono || existing.icono;
+                existing.color = d.color || existing.color;
+                if (d.avatar) existing.avatar = d.avatar;
+                if (d.banner) existing.banner = d.banner;
+                if (d.reglas) existing.reglas = d.reglas;
+                existing.activa = d.activa !== false;
+                window.tournamentStore.saveDisciplinasConfig(discs);
+                window.tournamentStore.saveToStorage();
+              } else {
+                window.tournamentStore.addDisciplina(d, false);
+              }
+              if (typeof window.renderAllViews === 'function') {
+                window.renderAllViews();
+              }
+            }
+          }
+        )
+        .on(
+          'broadcast',
+          { event: 'discipline_deleted' },
+          ({ payload }) => {
+            if (payload && payload.id && window.tournamentStore) {
+              const cleanDelId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(payload.id) : payload.id;
+              window.tournamentStore.deleteDisciplina(cleanDelId, false);
               if (typeof window.renderAllViews === 'function') {
                 window.renderAllViews();
               }
@@ -500,14 +533,25 @@ class SupabaseService {
   // --- SINCRONIZACIÓN ATÓMICA DE MUTACIONES DESDE EL STORE ---
 
   async syncPartido(id, p) {
-    if (!this.client || this.status !== 'CONNECTED') return false;
+    if (!this.client) this.initClient();
+    if (!this.client) return false;
     try {
+      if (p.disciplinaId && window.tournamentStore) {
+        const disc = window.tournamentStore.getDisciplinaPorId(p.disciplinaId);
+        if (disc) {
+          await this.syncDisciplina(disc.id, disc);
+        }
+      }
       const payload = this.mapLocalPartidoToSupabase(p);
       if (!payload) return false;
       const { error } = await this.client.from('partidos').upsert(payload, { onConflict: 'id' });
       if (error) {
         console.warn('[Supabase Sync Partido Error]:', error.message);
         return false;
+      }
+      if (this.status !== 'CONNECTED') {
+        this.status = 'CONNECTED';
+        this.notifyStatus();
       }
       if (this.channel) {
         await this.channel.send({
@@ -524,7 +568,8 @@ class SupabaseService {
   }
 
   async updatePartido(id, patch) {
-    if (!this.client || this.status !== 'CONNECTED') return false;
+    if (!this.client) this.initClient();
+    if (!this.client) return false;
     try {
       const dbPatch = {};
       if (patch.totalLocal !== undefined) {
@@ -587,7 +632,8 @@ class SupabaseService {
   }
 
   async deletePartido(id) {
-    if (!this.client || this.status !== 'CONNECTED') return false;
+    if (!this.client) this.initClient();
+    if (!this.client) return false;
     try {
       const { error } = await this.client.from('partidos').delete().eq('id', id);
       if (error) console.warn('[Supabase Delete Partido Error]:', error.message);
@@ -606,12 +652,23 @@ class SupabaseService {
   }
 
   async syncEquipo(id, eq) {
-    if (!this.client || this.status !== 'CONNECTED') return false;
+    if (!this.client) this.initClient();
+    if (!this.client) return false;
     try {
+      if (eq.disciplinaId && window.tournamentStore) {
+        const disc = window.tournamentStore.getDisciplinaPorId(eq.disciplinaId);
+        if (disc) {
+          await this.syncDisciplina(disc.id, disc);
+        }
+      }
       const payload = this.mapLocalEquipoToSupabase(eq);
       if (!payload) return false;
       const { error } = await this.client.from('equipos').upsert(payload, { onConflict: 'id' });
       if (error) console.warn('[Supabase Sync Equipo Error]:', error.message);
+      if (this.status !== 'CONNECTED') {
+        this.status = 'CONNECTED';
+        this.notifyStatus();
+      }
       if (this.channel) {
         await this.channel.send({
           type: 'broadcast',
@@ -627,7 +684,8 @@ class SupabaseService {
   }
 
   async updateEquipo(id, patch) {
-    if (!this.client || this.status !== 'CONNECTED') return false;
+    if (!this.client) this.initClient();
+    if (!this.client) return false;
     try {
       const dbPatch = {};
       if (patch.nombre !== undefined) dbPatch.nombre = patch.nombre;
@@ -665,15 +723,21 @@ class SupabaseService {
   }
 
   async deleteEquipo(id) {
-    if (!this.client || this.status !== 'CONNECTED') return false;
+    if (!this.client) this.initClient();
+    if (!this.client) return false;
     try {
+      const eq = window.tournamentStore ? window.tournamentStore.getEquipoPorId(id) : null;
+      const teamName = eq ? eq.nombre : null;
+      if (teamName) {
+        await this.client.from('atletas').delete().eq('equipo', teamName);
+      }
       const { error } = await this.client.from('equipos').delete().eq('id', id);
       if (error) console.warn('[Supabase Delete Equipo Error]:', error.message);
       if (this.channel) {
         await this.channel.send({
           type: 'broadcast',
           event: 'team_deleted',
-          payload: { id }
+          payload: { id, equipoNombre: teamName }
         });
       }
       return !error;
@@ -684,12 +748,23 @@ class SupabaseService {
   }
 
   async syncAtleta(id, a) {
-    if (!this.client || this.status !== 'CONNECTED') return false;
+    if (!this.client) this.initClient();
+    if (!this.client) return false;
     try {
+      if (a.disciplinaId && window.tournamentStore) {
+        const disc = window.tournamentStore.getDisciplinaPorId(a.disciplinaId);
+        if (disc) {
+          await this.syncDisciplina(disc.id, disc);
+        }
+      }
       const payload = this.mapLocalAtletaToSupabase(a);
       if (!payload) return false;
       const { error } = await this.client.from('atletas').upsert(payload, { onConflict: 'id' });
       if (error) console.warn('[Supabase Sync Atleta Error]:', error.message);
+      if (this.status !== 'CONNECTED') {
+        this.status = 'CONNECTED';
+        this.notifyStatus();
+      }
       if (this.channel) {
         await this.channel.send({
           type: 'broadcast',
@@ -705,7 +780,8 @@ class SupabaseService {
   }
 
   async updateAtleta(id, patch) {
-    if (!this.client || this.status !== 'CONNECTED') return false;
+    if (!this.client) this.initClient();
+    if (!this.client) return false;
     try {
       const dbPatch = {};
       if (patch.cedula !== undefined) dbPatch.cedula = patch.cedula;
@@ -738,7 +814,8 @@ class SupabaseService {
   }
 
   async deleteAtleta(id) {
-    if (!this.client || this.status !== 'CONNECTED') return false;
+    if (!this.client) this.initClient();
+    if (!this.client) return false;
     try {
       const { error } = await this.client.from('atletas').delete().eq('id', id);
       if (error) console.warn('[Supabase Delete Atleta Error]:', error.message);
@@ -757,22 +834,80 @@ class SupabaseService {
   }
 
   async syncDisciplina(id, d) {
-    if (!this.client || this.status !== 'CONNECTED') return false;
+    if (!this.client) {
+      this.initClient();
+    }
+    if (!this.client) {
+      console.warn('[Supabase Sync Disciplina] Cliente no disponible para sincronizar');
+      return false;
+    }
     try {
+      const cleanId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(id || d.id) : (id || d.id);
+      const logoCandidate = (d.avatar || d.logoUrl || d.logo || d.banner || '').trim();
       const payload = {
-        id: d.id,
+        id: cleanId,
         nombre: d.nombre,
         categoria: d.categoria || 'Libre',
         icono: d.icono || '🏆',
-        avatar: d.avatar || d.logoUrl || './assets/logo.png',
-        banner: d.banner || './assets/logo.png',
+        avatar: (d.avatar || logoCandidate || './assets/logo.png').trim(),
+        banner: (d.banner || logoCandidate || './assets/logo.png').trim(),
         color: d.color || '#D4AF37',
         activa: d.activa !== false,
-        reglas: d.reglas || {}
+        reglas: d.reglas || { periodos: 4, nombrePeriodo: 'Cuarto', ptsGanador: 2, ptsPerdedor: 1, duracionMin: 10 }
       };
-      const { error } = await this.client.from('disciplinas').upsert(payload, { onConflict: 'id' });
-      return !error;
+
+      const { data, error } = await this.client.from('disciplinas').upsert(payload, { onConflict: 'id' }).select();
+      if (error) {
+        console.warn('[Supabase Sync Disciplina Error]:', error.message || error);
+        return false;
+      }
+
+      console.log(`[Supabase Sync] Disciplina "${payload.nombre}" (${cleanId}) guardada con éxito en Supabase:`, data);
+      if (this.status !== 'CONNECTED') {
+        this.status = 'CONNECTED';
+        this.notifyStatus();
+      }
+
+      if (this.channel) {
+        await this.channel.send({
+          type: 'broadcast',
+          event: 'discipline_synced',
+          payload: { id: cleanId, disciplina: payload }
+        });
+      }
+      return true;
     } catch (e) {
+      console.warn('[Supabase Sync Disciplina Exception]:', e);
+      return false;
+    }
+  }
+
+  async deleteDisciplina(id) {
+    if (!this.client) {
+      this.initClient();
+    }
+    if (!this.client) return false;
+    try {
+      const cleanId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(id) : id;
+      await this.client.from('partidos').delete().eq('disciplina_id', cleanId);
+      await this.client.from('atletas').delete().eq('disciplina_id', cleanId);
+      await this.client.from('equipos').delete().eq('disciplina_id', cleanId);
+      const { error } = await this.client.from('disciplinas').delete().eq('id', cleanId);
+      if (error) {
+        console.warn('[Supabase Delete Disciplina Error]:', error.message || error);
+        return false;
+      }
+      console.log(`[Supabase Sync] Disciplina (${cleanId}) y registros asociados eliminados con éxito en Supabase.`);
+      if (this.channel) {
+        await this.channel.send({
+          type: 'broadcast',
+          event: 'discipline_deleted',
+          payload: { id: cleanId }
+        });
+      }
+      return true;
+    } catch (e) {
+      console.warn('[Supabase Delete Disciplina Exception]:', e);
       return false;
     }
   }
@@ -791,31 +926,29 @@ class SupabaseService {
    * Descarga todos los datos de Supabase e hidrata el tournamentStore local
    */
   async hydrateFromSupabase() {
-    if (!this.client || this.status !== 'CONNECTED' || this.isHydrating) return false;
+    if (!this.client) {
+      this.initClient();
+    }
+    if (!this.client) return false;
+    if (this.hydrationPromise) {
+      return this.hydrationPromise;
+    }
     this.isHydrating = true;
 
-    try {
-      console.log('[Supabase Hydrate] Descargando datos cloud desde Supabase...');
+    this.hydrationPromise = (async () => {
+      try {
+        console.log('[Supabase Cloud] Descargando y sincronizando datos directamente desde la base de datos...');
 
-      // 1. Disciplinas
-      const { data: remoteDisciplinas, error: errDisc } = await this.client.from('disciplinas').select('*');
-      if (!errDisc && Array.isArray(remoteDisciplinas) && remoteDisciplinas.length > 0 && window.tournamentStore) {
-        remoteDisciplinas.forEach((rd) => {
-          const cleanId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(rd.id) : rd.id;
-          const existing = window.tournamentStore.data.disciplinas.find((d) => {
-            const eId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(d.id) : d.id;
-            return eId === cleanId;
-          });
-          if (existing) {
-            existing.nombre = rd.nombre || existing.nombre;
-            existing.categoria = rd.categoria || existing.categoria;
-            existing.icono = rd.icono || existing.icono;
-            existing.color = rd.color || existing.color;
-            if (rd.avatar) existing.avatar = rd.avatar;
-            if (rd.banner) existing.banner = rd.banner;
-            if (rd.reglas) existing.reglas = rd.reglas;
-          } else {
-            window.tournamentStore.data.disciplinas.push({
+        // 1. Disciplinas
+        const { data: remoteDisciplinas, error: errDisc } = await this.client
+          .from('disciplinas')
+          .select('*')
+          .order('creado_en', { ascending: true });
+
+        if (!errDisc && Array.isArray(remoteDisciplinas) && window.tournamentStore) {
+          const discs = remoteDisciplinas.map((rd) => {
+            const cleanId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(rd.id) : rd.id;
+            return {
               id: cleanId,
               nombre: rd.nombre,
               categoria: rd.categoria || 'Torneo Master / Libre',
@@ -824,81 +957,75 @@ class SupabaseService {
               banner: rd.banner || './assets/logo.png',
               color: rd.color || '#D4AF37',
               activa: rd.activa !== false,
-              reglas: rd.reglas || {}
-            });
+              reglas: rd.reglas || { periodos: 4, nombrePeriodo: 'Cuarto', ptsGanador: 2, ptsPerdedor: 1, duracionMin: 10 }
+            };
+          });
+          window.tournamentStore.data.disciplinas = discs;
+          if (window.tournamentStore.data.config) {
+            window.tournamentStore.data.config.disciplinas = discs;
+            const currentDisc = window.tournamentStore.data.config.disciplinaActual;
+            if (!discs.some((d) => d.id === currentDisc) && discs.length > 0) {
+              window.tournamentStore.data.config.disciplinaActual = discs[0].id;
+            }
           }
-        });
-        window.tournamentStore.saveDisciplinasConfig(window.tournamentStore.data.disciplinas);
-      }
+        }
 
-      // 2. Equipos
-      // 2. Equipos
-      const { data: remoteEquipos, error: errEq } = await this.client.from('equipos').select('*');
-      if (!errEq && Array.isArray(remoteEquipos) && window.tournamentStore) {
-        const mappedEquipos = remoteEquipos.map((eq) => this.mapSupabaseEquipoToLocal(eq)).filter(Boolean);
-        window.tournamentStore.data.equipos = mappedEquipos;
-        // Guardar por disciplina
-        const discs = window.tournamentStore.getDisciplinas();
-        discs.forEach((d) => {
-          const cleanDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(d.id) : (d.id || '').toLowerCase();
-          const discEqs = mappedEquipos.filter((e) => {
-            const eqDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(e.disciplinaId) : (e.disciplinaId || '').toLowerCase();
-            return eqDId === cleanDId;
-          });
-          window.tournamentStore.saveTeams(d.id, discEqs);
-        });
-      }
+        // 2. Equipos
+        const { data: remoteEquipos, error: errEq } = await this.client
+          .from('equipos')
+          .select('*')
+          .order('id', { ascending: true });
 
-      // 3. Partidos
-      const { data: remotePartidos, error: errPar } = await this.client.from('partidos').select('*');
-      if (!errPar && Array.isArray(remotePartidos) && window.tournamentStore) {
-        const mappedPartidos = remotePartidos.map((p) => this.mapSupabasePartidoToLocal(p)).filter(Boolean);
-        window.tournamentStore.data.partidos = mappedPartidos;
-        const discs = window.tournamentStore.getDisciplinas();
-        discs.forEach((d) => {
-          const cleanDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(d.id) : (d.id || '').toLowerCase();
-          const discPars = mappedPartidos.filter((p) => {
-            const parDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(p.disciplinaId) : (p.disciplinaId || '').toLowerCase();
-            return parDId === cleanDId;
-          });
-          window.tournamentStore.saveMatches(d.id, discPars);
-        });
-      }
+        if (!errEq && Array.isArray(remoteEquipos) && window.tournamentStore) {
+          const mappedEquipos = remoteEquipos.map((eq) => this.mapSupabaseEquipoToLocal(eq)).filter(Boolean);
+          window.tournamentStore.data.equipos = mappedEquipos;
+        }
 
-      // 4. Atletas
-      const { data: remoteAtletas, error: errAtl } = await this.client.from('atletas').select('*');
-      if (!errAtl && Array.isArray(remoteAtletas) && window.tournamentStore) {
-        const mappedAtletas = remoteAtletas.map((a) => this.mapSupabaseAtletaToLocal(a)).filter(Boolean);
-        window.tournamentStore.data.atletas = mappedAtletas;
-        const discs = window.tournamentStore.getDisciplinas();
-        discs.forEach((d) => {
-          const cleanDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(d.id) : (d.id || '').toLowerCase();
-          const discAtls = mappedAtletas.filter((a) => {
-            const atlDId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(a.disciplinaId) : (a.disciplinaId || '').toLowerCase();
-            return atlDId === cleanDId;
-          });
-          window.tournamentStore.saveAthletes(d.id, discAtls);
-        });
-      }
+        // 3. Atletas
+        const { data: remoteAtletas, error: errAtl } = await this.client
+          .from('atletas')
+          .select('*')
+          .order('id', { ascending: true });
 
-      if (window.tournamentStore) {
-        window.tournamentStore.syncGlobalDataArrays();
-        window.tournamentStore.saveToStorage();
-        window.tournamentStore.notify({ action: 'cloud_hydrated' });
-      }
+        if (!errAtl && Array.isArray(remoteAtletas) && window.tournamentStore) {
+          const mappedAtletas = remoteAtletas.map((a) => this.mapSupabaseAtletaToLocal(a)).filter(Boolean);
+          window.tournamentStore.data.atletas = mappedAtletas;
+        }
 
-      if (typeof window.renderAllViews === 'function') {
-        window.renderAllViews();
-      }
+        // 4. Partidos
+        const { data: remotePartidos, error: errPar } = await this.client
+          .from('partidos')
+          .select('*')
+          .order('fecha', { ascending: true });
 
-      console.log('[Supabase Hydrate] Datos sincronizados desde Supabase exitosamente.');
-      return true;
-    } catch (e) {
-      console.warn('[Supabase Hydrate Error]:', e);
-      return false;
-    } finally {
-      this.isHydrating = false;
-    }
+        if (!errPar && Array.isArray(remotePartidos) && window.tournamentStore) {
+          const mappedPartidos = remotePartidos.map((p) => this.mapSupabasePartidoToLocal(p)).filter(Boolean);
+          window.tournamentStore.data.partidos = mappedPartidos;
+        }
+
+        this.status = 'CONNECTED';
+        this.notifyStatus();
+
+        if (window.tournamentStore) {
+          window.tournamentStore.notify({ action: 'cloud_hydrated' });
+        }
+
+        if (typeof window.renderAllViews === 'function') {
+          window.renderAllViews();
+        }
+
+        console.log(`[Supabase Cloud] Sincronización exitosa: ${window.tournamentStore.data.disciplinas.length} disciplinas, ${window.tournamentStore.data.equipos.length} equipos, ${window.tournamentStore.data.atletas.length} atletas, ${window.tournamentStore.data.partidos.length} partidos.`);
+        return true;
+      } catch (e) {
+        console.warn('[Supabase Cloud Hydrate Error]:', e);
+        return false;
+      } finally {
+        this.isHydrating = false;
+        this.hydrationPromise = null;
+      }
+    })();
+
+    return this.hydrationPromise;
   }
 
   /**
@@ -1033,8 +1160,6 @@ class SupabaseService {
     if (window.tournamentStore) {
       window.tournamentStore.updateConfig({ supabaseUrl: url, supabaseAnonKey: key });
     }
-    localStorage.setItem('gmd_supabase_url', url);
-    localStorage.setItem('gmd_supabase_anon_key', key);
     this.initClient();
   }
 

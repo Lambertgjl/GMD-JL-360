@@ -1,15 +1,15 @@
 // Service Worker - Grupo Multiservicios Deportivo JL PWA
-const CACHE_NAME = 'gmd-jl-cache-v2.1.0';
+const CACHE_NAME = 'gmd-jl-cache-v3.0.0';
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './styles.css?v=2.1.0',
+  './styles.css?v=3.0.0',
   './manifest.webmanifest',
-  './js/app.js?v=2.0.0',
-  './js/store.js?v=2.0.0',
-  './js/standings.js?v=2.0.0',
-  './js/csv-importer.js?v=2.0.0',
-  './js/supabase.js?v=2.0.0',
+  './js/app.js?v=3.0.0',
+  './js/store.js?v=3.0.0',
+  './js/standings.js?v=3.0.0',
+  './js/csv-importer.js?v=3.0.0',
+  './js/supabase.js?v=3.0.0',
   './assets/logo.png',
   './assets/icon-192.png',
   './assets/icon-512.png',
@@ -57,15 +57,8 @@ self.addEventListener('fetch', (event) => {
   // Ignore chrome-extension or non-HTTP requests
   if (!event.request.url.startsWith('http')) return;
 
-  // For Supabase API or external calls, try network first then fallback to empty/cached
+  // Supabase Cloud: Bypass Service Worker completely to guarantee pure direct REST/Realtime network calls
   if (requestUrl.hostname.includes('supabase.co')) {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return new Response(JSON.stringify({ offline: true, message: 'Offline mode active' }), {
-          headers: { 'Content-Type': 'application/json' }
-        });
-      })
-    );
     return;
   }
 

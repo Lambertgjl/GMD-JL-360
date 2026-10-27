@@ -1030,47 +1030,37 @@ const SOFTBOL_HUB_SVG = `<svg width="68" height="68" viewBox="0 0 100 100" fill=
  */
 /**
  * Manejo de Limpieza de Emergencia de localStorage:
- * Si ocurre un error de cuota o al iniciar, limpia claves huérfanas o pesadas innecesarias
- * y purga cadenas Base64 monstruosas (> 8 KB) para liberar memoria local inmediatamente.
- * @returns {number} Cantidad estimada de bytes liberados
+ * Purga inmediatamente cualquier clave huérfana o dato previo de torneos locales
+ * para garantizar que la app funcione exclusivamente con Supabase Cloud.
  */
 function emergencyQuotaCleanup() {
   if (typeof localStorage === 'undefined') return 0;
   let bytesFreed = 0;
   try {
-    const keysToInspect = [];
+    const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k) keysToInspect.push(k);
+      if (k && (
+        k.startsWith('teams_') || k.startsWith('gmd_teams_') ||
+        k.startsWith('matches_') || k.startsWith('gmd_matches_') ||
+        k.startsWith('athletes_') || k.startsWith('gmd_athletes_') ||
+        k.startsWith('temp_') || k.startsWith('debug_') || k.startsWith('cache_') ||
+        k === 'gmd_jl_tournament_data_v1' ||
+        k === 'gmd_disciplinas_config' ||
+        k === 'gmd_config_global'
+      )) {
+        keysToRemove.push(k);
+      }
     }
-
-    keysToInspect.forEach((key) => {
+    keysToRemove.forEach((key) => {
       try {
         const val = localStorage.getItem(key);
-        if (!val) return;
-
-        // 1. Eliminar claves temporales, de depuración o huérfanas
-        if (key.startsWith('temp_') || key.startsWith('debug_') || key.startsWith('cache_')) {
-          localStorage.removeItem(key);
-          bytesFreed += val.length;
-          return;
-        }
-
-        // 2. Si la clave contiene Base64 sobredimensionado (> 8000 caracteres)
-        if (typeof val === 'string' && val.includes('data:image/')) {
-          const cleaned = val.replace(/data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]{8000,}/g, './assets/logo.png');
-          if (cleaned !== val) {
-            bytesFreed += (val.length - cleaned.length);
-            localStorage.setItem(key, cleaned);
-          }
-        }
-      } catch (kErr) {
-        console.warn(`[emergencyQuotaCleanup] Error al procesar clave "${key}":`, kErr);
-      }
+        if (val) bytesFreed += val.length;
+        localStorage.removeItem(key);
+      } catch (_) {}
     });
-
     if (bytesFreed > 0) {
-      console.info(`[emergencyQuotaCleanup] Limpieza de emergencia completada: se liberaron ${(bytesFreed / 1024).toFixed(1)} KB.`);
+      console.info(`[emergencyQuotaCleanup] Claves locales purgadas: ${(bytesFreed / 1024).toFixed(1)} KB liberados.`);
     }
   } catch (e) {
     console.warn('[emergencyQuotaCleanup] Error global:', e);
@@ -1080,58 +1070,12 @@ function emergencyQuotaCleanup() {
 window.emergencyQuotaCleanup = emergencyQuotaCleanup;
 
 /**
- * Almacenamiento seguro en localStorage con detección y control de QuotaExceededError.
- * Ejecuta limpieza de emergencia automática y alerta limpiamente al usuario.
- * @param {string} key Clave de localStorage
- * @param {string} value Valor serializado
- * @returns {boolean} true si se persistió con éxito, false si falló
+ * Persistencia en localStorage desactivada permanentemente:
+ * GRUPO MULTISERVICIOS DEPORTIVOS JL utiliza exclusivamente Supabase Cloud (wznvlhuvpqnnrlgcgqpx) como única fuente de verdad.
  */
 function safeLocalStorageSetItem(key, value) {
-  try {
-    localStorage.setItem(key, value);
-    return true;
-  } catch (e) {
-    const isQuota = e && (
-      e.name === 'QuotaExceededError' ||
-      e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
-      e.code === 22 ||
-      e.code === 1014 ||
-      e.number === -2147024882 ||
-      (e.message && String(e.message).toLowerCase().includes('quota'))
-    );
-    if (isQuota) {
-      console.warn(`[QuotaExceededError] Capacidad superada en localStorage al guardar "${key}". Ejecutando limpieza de emergencia...`);
-
-      // 1. Limpieza de emergencia de claves huérfanas y Base64 pesados
-      emergencyQuotaCleanup();
-
-      // 2. Sanitizar el valor actual si contiene imágenes pesadas para que quepa
-      let safeVal = value;
-      if (typeof safeVal === 'string' && safeVal.includes('data:image/')) {
-        safeVal = safeVal.replace(/data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]{8000,}/g, './assets/logo.png');
-      }
-
-      // 3. Reintento de guardado
-      try {
-        localStorage.setItem(key, safeVal);
-        console.info(`[safeLocalStorageSetItem] Clave "${key}" guardada con éxito tras limpieza de emergencia.`);
-        const msg = '✅ Almacenamiento optimizado con éxito. Las imágenes fueron comprimidas para liberar memoria local.';
-        if (typeof showToast === 'function') {
-          showToast(msg, 'success');
-        }
-        return true;
-      } catch (retryErr) {
-        console.error(`[QuotaExceededError] Capacidad persistentemente llena para "${key}":`, retryErr);
-        const msg = '⚠️ Capacidad de almacenamiento superada. Se ha optimizado el espacio para evitar pérdidas de datos.';
-        if (typeof showToast === 'function') {
-          showToast(msg, 'info');
-        }
-      }
-    } else {
-      console.error(`Error inesperado al guardar "${key}" en localStorage:`, e);
-    }
-    return false;
-  }
+  // No-op para evitar desincronizaciones entre navegadores
+  return true;
 }
 window.safeLocalStorageSetItem = safeLocalStorageSetItem;
 
@@ -1297,52 +1241,11 @@ window.compressImage = compressImage;
 window.compressImageToBase64 = compressImage;
 
 function loadDisciplinasFromLocalStorage() {
-  try {
-    // 1. Clave principal oficial estructurada
-    const rawConfig = localStorage.getItem('gmd_disciplinas_config');
-    if (rawConfig) {
-      const parsed = JSON.parse(rawConfig);
-      if (parsed) {
-        if (Array.isArray(parsed.disciplinas) && parsed.disciplinas.length > 0) {
-          return parsed.disciplinas;
-        }
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-        if (typeof parsed === 'object') {
-          const pool = parsed.porId || parsed;
-          const vals = Object.values(pool).filter((x) => x && typeof x === 'object' && (x.id || x.nombre));
-          if (vals.length > 0) return vals;
-        }
-      }
-    }
-
-    // 2. Respaldo en configuración global
-    const rawGlobal = localStorage.getItem('gmd_config_global');
-    if (rawGlobal) {
-      const parsedGlobal = JSON.parse(rawGlobal);
-      if (parsedGlobal && Array.isArray(parsedGlobal.disciplinas) && parsedGlobal.disciplinas.length > 0) {
-        return parsedGlobal.disciplinas;
-      }
-    }
-
-    // 3. Respaldo en paquete de datos del torneo
-    const rawTourney = localStorage.getItem('gmd_jl_tournament_data_v1');
-    if (rawTourney) {
-      const parsedTourney = JSON.parse(rawTourney);
-      if (parsedTourney) {
-        if (Array.isArray(parsedTourney.disciplinas) && parsedTourney.disciplinas.length > 0) {
-          return parsedTourney.disciplinas;
-        }
-        if (parsedTourney.config && Array.isArray(parsedTourney.config.disciplinas) && parsedTourney.config.disciplinas.length > 0) {
-          return parsedTourney.config.disciplinas;
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('Error al consultar disciplinas desde localStorage:', e);
+  if (window.tournamentStore && typeof window.tournamentStore.getDisciplinas === 'function') {
+    const fromStore = window.tournamentStore.getDisciplinas();
+    if (Array.isArray(fromStore) && fromStore.length > 0) return fromStore;
   }
-  return null;
+  return [];
 }
 window.loadDisciplinasFromLocalStorage = loadDisciplinasFromLocalStorage;
 
@@ -1359,13 +1262,7 @@ function saveDisciplineConfig(disciplinas) {
     disciplinas: discs.map((d) => {
       const cleanId = (d.id || '').toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
       let effectiveLogo = (d.logoUrl || d.avatar || d.logo || d.banner || '').trim();
-      if (effectiveLogo.startsWith('data:') && effectiveLogo.length > 8000) {
-        effectiveLogo = './assets/logo.png';
-      }
       let banner = (d.banner || effectiveLogo).trim();
-      if (banner.startsWith('data:') && banner.length > 8000) {
-        banner = effectiveLogo;
-      }
       return {
         ...d,
         id: cleanId,
@@ -1389,26 +1286,6 @@ function saveDisciplineConfig(disciplinas) {
     structured.porId[d.id] = d;
     structured[d.id] = d;
   });
-
-  const ok = safeLocalStorageSetItem('gmd_disciplinas_config', JSON.stringify(structured));
-  if (!ok) {
-    // Si falló por cuota, intentar guardar versión hiper-ligera con logos no-base64 o truncados
-    try {
-      const lightweight = {
-        ...structured,
-        disciplinas: structured.disciplinas.map((d) => ({
-          ...d,
-          avatar: d.avatar && d.avatar.startsWith('data:') ? './assets/logo.png' : d.avatar,
-          logoUrl: d.logoUrl && d.logoUrl.startsWith('data:') ? './assets/logo.png' : d.logoUrl,
-          logo: d.logo && d.logo.startsWith('data:') ? './assets/logo.png' : d.logo,
-          banner: d.banner && d.banner.startsWith('data:') ? './assets/logo.png' : d.banner
-        }))
-      };
-      safeLocalStorageSetItem('gmd_disciplinas_config', JSON.stringify(lightweight));
-    } catch (fallbackErr) {
-      console.error('Error al aplicar recuperación de cuota:', fallbackErr);
-    }
-  }
 
   if (window.tournamentStore && typeof window.tournamentStore.saveDisciplinasConfig === 'function') {
     window.tournamentStore.saveDisciplinasConfig(structured);
@@ -1468,33 +1345,20 @@ function renderHubDisciplinesGrid() {
   const container = document.getElementById('disciplinesHubGrid');
   if (!container) return;
 
-  // 1. BLINDAJE OBLIGATORIO: SIEMPRE consultar primero el localStorage
-  const savedDiscs = loadDisciplinasFromLocalStorage();
-
-  let listToRender = [];
-  if (Array.isArray(savedDiscs) && savedDiscs.length > 0) {
-    // Si existen datos guardados por el usuario, utilizarlos tal cual SIN fallbacks estáticos
-    const activeDiscs = savedDiscs.filter((d) => d.activa !== false);
-    listToRender = activeDiscs.length > 0 ? activeDiscs : savedDiscs;
-
-    // Sincronizar en memoria de tournamentStore
-    if (window.tournamentStore && window.tournamentStore.data) {
-      window.tournamentStore.data.disciplinas = savedDiscs;
-      if (window.tournamentStore.data.config) {
-        window.tournamentStore.data.config.disciplinas = savedDiscs;
-      }
-    }
-  } else {
-    // Fallback secundario a tournamentStore solo si no hay datos en localStorage
-    const storeDiscs = window.tournamentStore && typeof window.tournamentStore.getDisciplinas === 'function'
-      ? window.tournamentStore.getDisciplinas()
-      : [];
-    const activeDiscs = storeDiscs.filter((d) => d.activa !== false);
-    listToRender = activeDiscs.length > 0 ? activeDiscs : storeDiscs;
-  }
+  const storeDiscs = window.tournamentStore && typeof window.tournamentStore.getDisciplinas === 'function'
+    ? window.tournamentStore.getDisciplinas()
+    : [];
+  const activeDiscs = storeDiscs.filter((d) => d.activa !== false);
+  const listToRender = activeDiscs.length > 0 ? activeDiscs : storeDiscs;
 
   if (listToRender.length === 0) {
-    container.innerHTML = '<div style="color: var(--text-muted); grid-column: 1/-1; text-align: center; padding: 2rem;">No hay disciplinas disponibles en este momento.</div>';
+    container.innerHTML = `
+      <div style="color: var(--text-muted); grid-column: 1/-1; text-align: center; padding: 3rem 1.5rem;">
+        <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid rgba(212,175,55,0.2); border-top-color: var(--primary, #D4AF37); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 0.8rem;"></div>
+        <div style="font-weight: 600; font-size: 1.05rem; color: var(--text-primary, #fff);">Cargando disciplinas oficiales desde Supabase Cloud...</div>
+        <div style="font-size: 0.85rem; color: var(--text-muted, #94a3b8); margin-top: 0.35rem;">Sincronizando información en vivo con la base de datos</div>
+      </div>
+    `;
     return;
   }
 
@@ -2939,7 +2803,7 @@ function openProgramarPartidoModal() {
 }
 
 function initProgramarPartidoModal() {
-  document.getElementById('formProgramarPartidoModal')?.addEventListener('submit', (e) => {
+  document.getElementById('formProgramarPartidoModal')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const local = document.getElementById('progMatchLocal')?.value;
     const vis = document.getElementById('progMatchVis')?.value;
@@ -2965,7 +2829,7 @@ function initProgramarPartidoModal() {
     const sede = document.getElementById('progMatchVenue')?.value?.trim() || 'Gimnasio Pablo Higuerey';
     const fase = document.getElementById('progMatchPhase')?.value || 'Fase de Grupos';
 
-    window.tournamentStore.addPartido({
+    const nuevoPartido = window.tournamentStore.addPartido({
       disciplinaId: disc.id,
       equipoLocal: local,
       equipoVisitante: vis,
@@ -2989,8 +2853,12 @@ function initProgramarPartidoModal() {
       periodoActual: 'Por Iniciar'
     });
 
+    if (window.supabaseService) {
+      await window.supabaseService.syncPartido(nuevoPartido.id, nuevoPartido);
+    }
+
     document.getElementById('modalProgramarPartido')?.classList.remove('open');
-    showToast(`Partido "${local} vs ${vis}" programado exitosamente`, 'success');
+    showToast(`Partido "${local} vs ${vis}" programado y guardado en la nube`, 'success');
     renderMatches();
     renderHeroScoreboard();
     renderStandings();
@@ -3061,7 +2929,7 @@ function openEditarPartidoModal(partidoId) {
 }
 
 function initEditarPartidoModal() {
-  document.getElementById('formEditarPartidoModal')?.addEventListener('submit', (e) => {
+  document.getElementById('formEditarPartidoModal')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('editMatchId')?.value;
     const local = document.getElementById('editMatchLocal')?.value;
@@ -3112,8 +2980,11 @@ function initEditarPartidoModal() {
     }
 
     window.tournamentStore.updatePartido(id, patch);
+    if (window.supabaseService) {
+      await window.supabaseService.updatePartido(id, patch);
+    }
     document.getElementById('modalEditarPartido')?.classList.remove('open');
-    showToast(`Partido "${local} vs ${vis}" actualizado exitosamente`, 'success');
+    showToast(`Partido "${local} vs ${vis}" actualizado y sincronizado en la nube`, 'success');
     renderMatches();
     renderHeroScoreboard();
     renderStandings();
@@ -3121,13 +2992,16 @@ function initEditarPartidoModal() {
   });
 }
 
-function handleDeletePartido(partidoId) {
+async function handleDeletePartido(partidoId) {
   const partido = window.tournamentStore.getPartidoPorId(partidoId);
   if (!partido) return;
   const msg = `¿Estás seguro de que deseas eliminar del calendario el siguiente partido?\n\n• ${partido.equipoLocal} vs ${partido.equipoVisitante}\n• Fecha: ${partido.fecha} a las ${partido.hora}\n• Estado: ${partido.estado}`;
   if (confirm(msg)) {
     window.tournamentStore.deletePartido(partidoId);
-    showToast(`Partido "${partido.equipoLocal} vs ${partido.equipoVisitante}" eliminado del calendario`, 'info');
+    if (window.supabaseService) {
+      await window.supabaseService.deletePartido(partidoId);
+    }
+    showToast(`Partido "${partido.equipoLocal} vs ${partido.equipoVisitante}" eliminado de la base de datos`, 'info');
     renderMatches();
     renderHeroScoreboard();
     renderStandings();
@@ -3135,7 +3009,7 @@ function handleDeletePartido(partidoId) {
   }
 }
 
-function handleLimpiarCalendario() {
+async function handleLimpiarCalendario() {
   const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master', nombre: 'Baloncesto' };
   const matches = window.tournamentStore.getPartidos(disc.id);
   if (matches.length === 0) {
@@ -3145,7 +3019,11 @@ function handleLimpiarCalendario() {
   const msg = `⚠️ ATENCIÓN: ¿Deseas vaciar y reiniciar TODOS los partidos programados (${matches.length}) para "${disc.nombre}"?\n\nEsta acción reiniciará toda la programación si deseas reestructurar el torneo desde cero.`;
   if (confirm(msg)) {
     window.tournamentStore.clearPartidos(disc.id);
-    showToast(`Se han eliminado todos los partidos del calendario de ${disc.nombre}.`, 'info');
+    if (window.supabaseService && window.supabaseService.client) {
+      const cleanId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(disc.id) : disc.id;
+      await window.supabaseService.client.from('partidos').delete().eq('disciplina_id', cleanId);
+    }
+    showToast(`Se han eliminado todos los partidos del calendario de ${disc.nombre} en la nube.`, 'info');
     renderMatches();
     renderHeroScoreboard();
     renderStandings();
@@ -3153,7 +3031,7 @@ function handleLimpiarCalendario() {
   }
 }
 
-function handleGenerarCalendario(replace = true) {
+async function handleGenerarCalendario(replace = true) {
   const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master', nombre: 'Baloncesto' };
   const equipos = window.tournamentStore.getEquipos(disc.id);
   if (equipos.length < 2) {
@@ -3181,7 +3059,15 @@ function handleGenerarCalendario(replace = true) {
 
   const res = window.tournamentStore.generateScheduleForDiscipline(disc.id, true);
   if (res.success) {
-    showToast(`¡Calendario generado exitosamente! Se programaron ${res.count} encuentros.`, 'success');
+    if (window.supabaseService && window.supabaseService.client && Array.isArray(res.matches) && res.matches.length > 0) {
+      const cleanId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(disc.id) : disc.id;
+      if (replace) {
+        await window.supabaseService.client.from('partidos').delete().eq('disciplina_id', cleanId);
+      }
+      const mapped = res.matches.map((m) => window.supabaseService.mapLocalPartidoToSupabase(m)).filter(Boolean);
+      await window.supabaseService.client.from('partidos').upsert(mapped, { onConflict: 'id' });
+    }
+    showToast(`¡Calendario generado y sincronizado en la nube! Se programaron ${res.count} encuentros.`, 'success');
     renderMatches();
     renderHeroScoreboard();
     renderStandings();
@@ -3301,13 +3187,16 @@ function initNuevoEquipoModal() {
   });
 
   // Delete button inside modal
-  document.getElementById('btnEliminarEquipoModal')?.addEventListener('click', () => {
+  document.getElementById('btnEliminarEquipoModal')?.addEventListener('click', async () => {
     const id = document.getElementById('newTeamId')?.value;
     if (!id) return;
     const eq = window.tournamentStore.getEquipoPorId(id);
     const teamName = eq ? eq.nombre : 'el equipo';
-    if (confirm(`¿Está seguro de que desea eliminar permanentemente la franquicia "${teamName}" y todos sus atletas asociados de la base local?\n\nEsta acción no se puede deshacer.`)) {
+    if (confirm(`¿Está seguro de que desea eliminar permanentemente la franquicia "${teamName}" y todos sus atletas asociados de la base de datos?\n\nEsta acción no se puede deshacer.`)) {
       window.tournamentStore.deleteEquipo(id, 'superadmin');
+      if (window.supabaseService) {
+        await window.supabaseService.deleteEquipo(id);
+      }
       document.getElementById('modalNuevoEquipo')?.classList.remove('open');
       showToast(`Franquicia "${teamName}" y sus atletas eliminados exitosamente`, 'info');
       renderTeamsAndRosters();
@@ -3351,7 +3240,7 @@ function initNuevoEquipoModal() {
     const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
 
     if (id) {
-      window.tournamentStore.updateEquipo(id, {
+      const payload = {
         nombre,
         logoUrl,
         siglas,
@@ -3361,10 +3250,14 @@ function initNuevoEquipoModal() {
         asistente,
         utilero,
         disciplinaId: disc.id
-      });
-      showToast(`Datos del equipo "${nombre}" actualizados con éxito`, 'success');
+      };
+      window.tournamentStore.updateEquipo(id, payload);
+      if (window.supabaseService) {
+        await window.supabaseService.updateEquipo(id, payload);
+      }
+      showToast(`Datos del equipo "${nombre}" actualizados con éxito en la nube`, 'success');
     } else {
-      window.tournamentStore.addEquipo({
+      const nuevo = window.tournamentStore.addEquipo({
         nombre,
         logoUrl,
         siglas,
@@ -3376,7 +3269,10 @@ function initNuevoEquipoModal() {
         utilero,
         disciplinaId: disc.id
       });
-      showToast(`Franquicia "${nombre}" registrada con éxito`, 'success');
+      if (window.supabaseService) {
+        await window.supabaseService.syncEquipo(nuevo.id, nuevo);
+      }
+      showToast(`Franquicia "${nombre}" registrada con éxito en la nube`, 'success');
     }
 
     document.getElementById('modalNuevoEquipo')?.classList.remove('open');
@@ -4013,11 +3909,14 @@ function renderTeamsAndRosters() {
 
   // Eliminar Equipo (Confirmación y borrado permanente de franquicia y atletas)
   container.querySelectorAll('.btn-eliminar-equipo').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const teamId = btn.getAttribute('data-id');
       const teamName = btn.getAttribute('data-team');
-      if (confirm(`¿Está seguro de que desea eliminar permanentemente el equipo "${teamName}" y todos sus atletas asociados de la base local?\n\nEsta acción no se puede deshacer.`)) {
+      if (confirm(`¿Está seguro de que desea eliminar permanentemente el equipo "${teamName}" y todos sus atletas asociados de la base de datos?\n\nEsta acción no se puede deshacer.`)) {
         window.tournamentStore.deleteEquipo(teamId, 'superadmin');
+        if (window.supabaseService) {
+          await window.supabaseService.deleteEquipo(teamId);
+        }
         showToast(`Franquicia "${teamName}" y sus atletas eliminados exitosamente`, 'info');
         renderTeamsAndRosters();
         renderGroupsStructure();
@@ -4572,7 +4471,7 @@ document.getElementById('atletaFechaNac')?.addEventListener('change', (e) => {
   }
 });
 
-document.getElementById('formAtleta')?.addEventListener('submit', (e) => {
+document.getElementById('formAtleta')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = document.getElementById('atletaId').value;
   const user = window.tournamentStore.getUsuarioActual();
@@ -4613,10 +4512,16 @@ document.getElementById('formAtleta')?.addEventListener('submit', (e) => {
 
   if (id) {
     window.tournamentStore.updateAtleta(id, data);
-    showToast(`Atleta "${data.nombres}" actualizado con éxito`, 'success');
+    if (window.supabaseService) {
+      await window.supabaseService.updateAtleta(id, data);
+    }
+    showToast(`Atleta "${data.nombres}" actualizado con éxito en la nube`, 'success');
   } else {
-    window.tournamentStore.addAtleta(data);
-    showToast(`Atleta "${data.nombres}" inscrito correctamente`, 'success');
+    const nuevo = window.tournamentStore.addAtleta(data);
+    if (window.supabaseService) {
+      await window.supabaseService.syncAtleta(nuevo.id, nuevo);
+    }
+    showToast(`Atleta "${data.nombres}" inscrito correctamente en la nube`, 'success');
   }
 
   document.getElementById('modalEditAtleta').classList.remove('open');
@@ -4912,11 +4817,13 @@ async function handleSaveDisciplinaModal(e) {
     };
 
     let effectiveId = id;
+    let savedDisc = null;
     if (id) {
-      window.tournamentStore.updateDisciplina(id, discPayload);
+      savedDisc = window.tournamentStore.updateDisciplina(id, discPayload);
     } else {
-      effectiveId = 'disc_' + Date.now();
-      window.tournamentStore.addDisciplina({
+      const cleanSlug = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(nombre) : nombre.toLowerCase().replace(/\s+/g, '-');
+      effectiveId = cleanSlug || ('disc_' + Date.now());
+      savedDisc = window.tournamentStore.addDisciplina({
         id: effectiveId,
         ...discPayload
       });
@@ -4926,6 +4833,12 @@ async function handleSaveDisciplinaModal(e) {
     const currentDiscs = window.tournamentStore.getDisciplinas();
     saveDisciplineConfig(currentDiscs);
     window.tournamentStore.saveToStorage();
+
+    // Sincronización explícita con Supabase
+    if (window.supabaseService) {
+      const discToSync = savedDisc || window.tournamentStore.getDisciplinaPorId(effectiveId) || { id: effectiveId, ...discPayload };
+      await window.supabaseService.syncDisciplina(effectiveId, discToSync);
+    }
 
     // Cerrar modal
     document.getElementById('modalEditDisciplina')?.classList.remove('open');
@@ -5047,8 +4960,11 @@ async function handleSaveNuevaDisciplina(e) {
     }
 
     const finalLogo = (avatar || './assets/logo.png').trim();
+    const cleanId = (typeof getCleanDisciplineId === 'function') ? getCleanDisciplineId(nombre) : nombre.toLowerCase().replace(/\s+/g, '-');
+    const effectiveId = cleanId || ('disc_' + Date.now());
 
-    window.tournamentStore.addDisciplina({
+    const nueva = window.tournamentStore.addDisciplina({
+      id: effectiveId,
       nombre,
       categoria,
       descripcion,
@@ -5066,8 +4982,13 @@ async function handleSaveNuevaDisciplina(e) {
     saveDisciplineConfig(currentDiscs);
     window.tournamentStore.saveToStorage();
 
+    // Sincronización directa obligatoria a Supabase
+    if (window.supabaseService) {
+      await window.supabaseService.syncDisciplina(nueva.id, nueva);
+    }
+
     document.getElementById('modalNuevaDisciplina')?.classList.remove('open');
-    showToast(`Disciplina "${nombre}" agregada al torneo y sincronizada`, 'success');
+    showToast(`✅ Disciplina "${nombre}" creada y sincronizada en Supabase con éxito.`, 'success');
 
     try { renderHubDisciplinesGrid(); } catch (err) {}
     try { renderDisciplinesBar(); } catch (err) {}
@@ -5384,11 +5305,14 @@ function renderAdminMasterRoster() {
   });
 
   tbody.querySelectorAll('.btn-del-atleta-master').forEach((b) => {
-    b.addEventListener('click', () => {
+    b.addEventListener('click', async () => {
       const id = b.getAttribute('data-id');
       const atleta = window.tournamentStore.data.atletas.find((x) => x.id === id);
       if (confirm(`¿SuperAdmin: Desea eliminar definitivamente al atleta "${atleta?.nombres}" de la base de datos?`)) {
         window.tournamentStore.deleteAtleta(id, 'superadmin');
+        if (window.supabaseService) {
+          await window.supabaseService.deleteAtleta(id);
+        }
         renderAdminMasterRoster();
         renderTeamsAndRosters();
         showToast('Atleta eliminado definitivamente por SuperAdmin', 'info');
@@ -5490,7 +5414,7 @@ function populateManualFormSelects() {
 }
 
 // Manual Team Form
-document.getElementById('formManualTeam')?.addEventListener('submit', (e) => {
+document.getElementById('formManualTeam')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const nombre = document.getElementById('manTeamName').value;
   const grupo = document.getElementById('manTeamGroup').value;
@@ -5500,7 +5424,7 @@ document.getElementById('formManualTeam')?.addEventListener('submit', (e) => {
   const tel = document.getElementById('manTeamPhone').value;
   const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
 
-  window.tournamentStore.addEquipo({
+  const nuevo = window.tournamentStore.addEquipo({
     nombre,
     grupo,
     siglas,
@@ -5510,14 +5434,18 @@ document.getElementById('formManualTeam')?.addEventListener('submit', (e) => {
     disciplinaId: disc.id
   });
 
-  showToast(`Equipo "${nombre}" registrado con éxito`, 'success');
+  if (window.supabaseService) {
+    await window.supabaseService.syncEquipo(nuevo.id, nuevo);
+  }
+
+  showToast(`Equipo "${nombre}" registrado con éxito en la nube`, 'success');
   document.getElementById('formManualTeam').reset();
   populateManualFormSelects();
   renderTeamsAndRosters();
 });
 
 // Manual Match Form
-document.getElementById('formManualMatch')?.addEventListener('submit', (e) => {
+document.getElementById('formManualMatch')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const local = document.getElementById('manMatchLocal').value;
   const vis = document.getElementById('manMatchVis').value;
@@ -5533,7 +5461,7 @@ document.getElementById('formManualMatch')?.addEventListener('submit', (e) => {
   const fase = document.getElementById('manMatchPhase').value;
   const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
 
-  window.tournamentStore.addPartido({
+  const nuevo = window.tournamentStore.addPartido({
     equipoLocal: local,
     equipoVisitante: vis,
     fecha,
@@ -5544,7 +5472,11 @@ document.getElementById('formManualMatch')?.addEventListener('submit', (e) => {
     disciplinaId: disc.id
   });
 
-  showToast('Partido programado en el calendario', 'success');
+  if (window.supabaseService) {
+    await window.supabaseService.syncPartido(nuevo.id, nuevo);
+  }
+
+  showToast('Partido programado y sincronizado en la nube', 'success');
   renderMatches();
 });
 
@@ -6495,7 +6427,7 @@ function renderAdminDelegatesCredentials() {
   });
 }
 
-document.getElementById('formEditCredencialDelegado')?.addEventListener('submit', (e) => {
+document.getElementById('formEditCredencialDelegado')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const equipoId = document.getElementById('credEquipoId').value;
   const delegadoNombre = document.getElementById('credDelegadoNombre').value.trim();
@@ -6503,15 +6435,21 @@ document.getElementById('formEditCredencialDelegado')?.addEventListener('submit'
   const delegadoTelefono = document.getElementById('credDelegadoTelefono').value.trim();
   const pin = document.getElementById('credDelegadoPin').value.trim();
 
-  window.tournamentStore.updateDelegadoCredenciales(equipoId, {
+  const patch = {
     delegadoNombre,
     delegadoEmail,
     delegadoTelefono,
     pin
-  });
+  };
+
+  window.tournamentStore.updateDelegadoCredenciales(equipoId, patch);
+
+  if (window.supabaseService) {
+    await window.supabaseService.updateEquipo(equipoId, patch);
+  }
 
   document.getElementById('modalEditCredencialDelegado')?.classList.remove('open');
-  showToast('Credenciales y PIN de acceso actualizados correctamente', 'success');
+  showToast('Credenciales y PIN actualizados con éxito en la nube', 'success');
   renderAdminDelegatesCredentials();
 });
 
@@ -7030,13 +6968,16 @@ function renderConfigDisciplines() {
 
   // Listeners Eliminar
   container.querySelectorAll('.btn-del-cfg-disc').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
       const disc = window.tournamentStore.data.disciplinas.find((d) => d.id === id);
       const name = disc ? disc.nombre : id;
       if (confirm(`¿Estás seguro de eliminar la disciplina "${name}"? Esta acción removerá la categoría de la plataforma.`)) {
         const ok = window.tournamentStore.deleteDisciplina(id);
         if (ok) {
+          if (window.supabaseService) {
+            await window.supabaseService.deleteDisciplina(id);
+          }
           try {
             saveDisciplineConfig(window.tournamentStore.getDisciplinas());
           } catch (e) {}
@@ -7525,18 +7466,13 @@ async function handleGuardarCambiosGlobales(e) {
       disciplinas: currentDisciplinas
     };
 
-    // 4. Guardar en Store y almacenamiento persistente
+    // 4. Guardar en Store y sincronizar directamente a Supabase Cloud
     window.tournamentStore.updateConfig(updatedConfig);
     window.tournamentStore.saveGlobalConfig(updatedConfig);
-    window.tournamentStore.saveToStorage();
-
-    // Guardado estructurado definitivo de disciplinas y logos en localStorage (gmd_disciplinas_config)
     saveDisciplineConfig(currentDisciplinas);
 
-    try {
-      safeLocalStorageSetItem('gmd_config_global', JSON.stringify(updatedConfig));
-    } catch (e) {
-      console.warn('Error al guardar datos redundantes en localStorage:', e);
+    if (window.supabaseService) {
+      await window.supabaseService.syncDisciplinas();
     }
 
     // 5. Aplicar inmediatamente a toda la UI (título, logo, filtros)
@@ -7583,7 +7519,7 @@ function initGestionGrupoModalEvents() {
   document.getElementById('btnCancelarModalGrupo')?.addEventListener('click', () => {
     document.getElementById('modalGestionGrupo')?.classList.remove('open');
   });
-  document.getElementById('formGestionGrupo')?.addEventListener('submit', (e) => {
+  document.getElementById('formGestionGrupo')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const inputNombre = document.getElementById('inputNombreGrupo');
     const inputModo = document.getElementById('inputGrupoModo');
@@ -7601,7 +7537,18 @@ function initGestionGrupoModalEvents() {
         const idx = activeGroupOptions.indexOf(oldName);
         if (idx !== -1) activeGroupOptions[idx] = nombre;
       }
-      showToast(`Grupo "${oldName}" renombrado a "${nombre}"`, 'success');
+      const disc = window.tournamentStore.getDisciplinaActual();
+      const teams = window.tournamentStore.getEquipos(disc?.id);
+      for (const t of teams) {
+        if (t.grupo === oldName) {
+          t.grupo = nombre;
+          window.tournamentStore.updateEquipo(t.id, { grupo: nombre });
+          if (window.supabaseService) {
+            await window.supabaseService.updateEquipo(t.id, { grupo: nombre });
+          }
+        }
+      }
+      showToast(`Grupo "${oldName}" renombrado a "${nombre}" y sincronizado en la nube`, 'success');
     } else {
       if (typeof activeGroupOptions !== 'undefined' && Array.isArray(activeGroupOptions)) {
         if (!activeGroupOptions.includes(nombre)) activeGroupOptions.push(nombre);
@@ -7619,8 +7566,28 @@ window.initGestionGrupoModalEvents = initGestionGrupoModalEvents;
 // ==============================================================================
 // INITIALIZATION ON DOM READY / IMMEDIATE BOOTSTRAP
 // ==============================================================================
-function initAppBootstrap() {
-  try { emergencyQuotaCleanup(); } catch (e) { console.warn('emergencyQuotaCleanup error:', e); }
+async function initAppBootstrap() {
+  // 1. Purga total de cualquier dato antiguo o residual en localStorage
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (
+        k.startsWith('teams_') || k.startsWith('gmd_teams_') ||
+        k.startsWith('matches_') || k.startsWith('gmd_matches_') ||
+        k.startsWith('athletes_') || k.startsWith('gmd_athletes_') ||
+        k === 'gmd_jl_tournament_data_v1' ||
+        k === 'gmd_disciplinas_config' ||
+        k === 'gmd_config_global'
+      )) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch (e) {
+    console.warn('Error purgando localStorage en arranque:', e);
+  }
+
   try { initPWA(); } catch (e) { console.warn('initPWA error:', e); }
   try { initNetworkListeners(); } catch (e) { console.warn('initNetworkListeners error:', e); }
   try { initCSVUploadEvents(); } catch (e) { console.warn('initCSVUploadEvents error:', e); }
@@ -7630,9 +7597,23 @@ function initAppBootstrap() {
   try { initSystemConfigModalEvents(); } catch (e) { console.warn('initSystemConfigModalEvents error:', e); }
   try { initGestionGrupoModalEvents(); } catch (e) { console.warn('initGestionGrupoModalEvents error:', e); }
 
-  // Apply saved system configuration
+  // Render inicial para mostrar estado de carga en portada mientras Supabase responde
+  try { renderHubDisciplinesGrid(); } catch (e) { console.warn('renderHubDisciplinesGrid error:', e); }
+
+  // 2. Descarga directa y obligatoria desde Supabase Cloud antes del renderizado completo
+  if (window.supabaseService) {
+    console.log('[AppBootstrap] Conectando y descargando datos en vivo desde Supabase Cloud...');
+    try {
+      await window.supabaseService.hydrateFromSupabase();
+    } catch (err) {
+      console.warn('[AppBootstrap] Supabase bootstrap hydration error:', err);
+    }
+  }
+
+  // 3. Renderizado maestro con datos en vivo oficiales de Supabase
   try { applyGlobalSystemConfig(window.tournamentStore.getConfig()); } catch (e) { console.warn('applyGlobalSystemConfig error:', e); }
   try { renderHubDisciplinesGrid(); } catch (e) { console.warn('renderHubDisciplinesGrid error:', e); }
+  try { renderAllViews(); } catch (e) { console.warn('renderAllViews error:', e); }
 
   // Close modals on overlay backdrop click and sync cover if needed
   document.querySelectorAll('.modal-overlay').forEach((overlay) => {
@@ -7646,24 +7627,10 @@ function initAppBootstrap() {
       }
     });
   });
-
-  try { renderAllViews(); } catch (e) { console.warn('renderAllViews error:', e); }
-
-  // Sincronización automática de Supabase Cloud en el arranque
-  if (window.supabaseService) {
-    window.supabaseService.verifyConnection().then((connected) => {
-      if (connected) {
-        console.log('[AppBootstrap] Supabase conectado con éxito. Descargando datos en tiempo real...');
-        window.supabaseService.hydrateFromSupabase();
-      }
-    }).catch((err) => {
-      console.warn('[AppBootstrap] Supabase bootstrap verify warning:', err);
-    });
-  }
 }
 
 if (document.readyState === 'loading') {
-  window.addEventListener('DOMContentLoaded', initAppBootstrap);
+  window.addEventListener('DOMContentLoaded', () => { initAppBootstrap(); });
 } else {
   initAppBootstrap();
 }
