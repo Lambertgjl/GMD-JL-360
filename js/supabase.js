@@ -536,7 +536,7 @@ class SupabaseService {
     if (!this.client) this.initClient();
     if (!this.client) return false;
     try {
-      if (p.disciplinaId && window.tournamentStore) {
+      if (p.disciplinaId && window.tournamentStore && typeof window.tournamentStore.getDisciplinaPorId === 'function') {
         const disc = window.tournamentStore.getDisciplinaPorId(p.disciplinaId);
         if (disc) {
           await this.syncDisciplina(disc.id, disc);
@@ -655,7 +655,7 @@ class SupabaseService {
     if (!this.client) this.initClient();
     if (!this.client) return false;
     try {
-      if (eq.disciplinaId && window.tournamentStore) {
+      if (eq.disciplinaId && window.tournamentStore && typeof window.tournamentStore.getDisciplinaPorId === 'function') {
         const disc = window.tournamentStore.getDisciplinaPorId(eq.disciplinaId);
         if (disc) {
           await this.syncDisciplina(disc.id, disc);
@@ -687,6 +687,10 @@ class SupabaseService {
     if (!this.client) this.initClient();
     if (!this.client) return false;
     try {
+      const fullEq = (window.tournamentStore && typeof window.tournamentStore.getEquipoPorId === 'function') ? window.tournamentStore.getEquipoPorId(id) : null;
+      if (fullEq) {
+        return await this.syncEquipo(id, { ...fullEq, ...patch, id });
+      }
       const dbPatch = {};
       if (patch.nombre !== undefined) dbPatch.nombre = patch.nombre;
       if (patch.grupo !== undefined) dbPatch.grupo = patch.grupo;
@@ -702,6 +706,7 @@ class SupabaseService {
       if (patch.entrenador !== undefined) dbPatch.entrenador = patch.entrenador;
       if (patch.asistente !== undefined) dbPatch.asistente = patch.asistente;
       if (patch.utilero !== undefined) dbPatch.utilero = patch.utilero;
+      if (patch.disciplinaId !== undefined) dbPatch.disciplina_id = patch.disciplinaId;
 
       if (Object.keys(dbPatch).length > 0) {
         const { error } = await this.client.from('equipos').update(dbPatch).eq('id', id);
@@ -751,7 +756,7 @@ class SupabaseService {
     if (!this.client) this.initClient();
     if (!this.client) return false;
     try {
-      if (a.disciplinaId && window.tournamentStore) {
+      if (a.disciplinaId && window.tournamentStore && typeof window.tournamentStore.getDisciplinaPorId === 'function') {
         const disc = window.tournamentStore.getDisciplinaPorId(a.disciplinaId);
         if (disc) {
           await this.syncDisciplina(disc.id, disc);
@@ -783,6 +788,10 @@ class SupabaseService {
     if (!this.client) this.initClient();
     if (!this.client) return false;
     try {
+      const fullAtl = (window.tournamentStore && Array.isArray(window.tournamentStore.data?.atletas)) ? window.tournamentStore.data.atletas.find(x => x.id === id) : null;
+      if (fullAtl) {
+        return await this.syncAtleta(id, { ...fullAtl, ...patch, id });
+      }
       const dbPatch = {};
       if (patch.cedula !== undefined) dbPatch.cedula = patch.cedula;
       if (patch.nombres !== undefined) dbPatch.nombres = patch.nombres;
@@ -793,6 +802,7 @@ class SupabaseService {
       if (patch.equipo !== undefined) dbPatch.equipo = patch.equipo;
       if (patch.rol !== undefined) dbPatch.rol = patch.rol;
       if (patch.fotoUrl !== undefined) dbPatch.foto_url = patch.fotoUrl;
+      if (patch.disciplinaId !== undefined) dbPatch.disciplina_id = patch.disciplinaId;
 
       if (Object.keys(dbPatch).length > 0) {
         const { error } = await this.client.from('atletas').update(dbPatch).eq('id', id);

@@ -874,6 +874,12 @@ class TournamentStore {
     return this.data.disciplinas || [];
   }
 
+  getDisciplinaPorId(id) {
+    if (!id) return null;
+    const cleanId = getCleanDisciplineId(id);
+    return (this.data?.disciplinas || []).find((d) => getCleanDisciplineId(d.id) === cleanId) || null;
+  }
+
   getDisciplinaActual() {
     const id = this.data.config.disciplinaActual;
     return this.data.disciplinas.find((d) => getCleanDisciplineId(d.id) === getCleanDisciplineId(id)) || this.data.disciplinas[0];

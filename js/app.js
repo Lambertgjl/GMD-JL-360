@@ -744,7 +744,20 @@ function applyRbacPermissions(user) {
     document.body.classList.add('role-fanatico');
   }
 
-  // 1. Topbar User Role Badge Pill
+  // 1. Topbar User Role Badge Pill & Info
+  const topbarUserName = document.getElementById('topbarUserName');
+  const topbarRoleLabel = document.getElementById('topbarRoleLabel');
+  const topbarUserDot = document.getElementById('topbarUserDot');
+  if (topbarUserName) {
+    topbarUserName.textContent = user?.nombre || (isSuperAdmin ? 'José Lambert' : isDelegado ? (user?.equipoNombre || 'Delegado') : 'Visitante');
+  }
+  if (topbarRoleLabel) {
+    topbarRoleLabel.textContent = isSuperAdmin ? '👑 Superadministrador' : isDelegado ? `📋 Delegado: ${user?.equipoNombre || 'Equipo'}` : '🎟️ Fanático / Lectura';
+  }
+  if (topbarUserDot) {
+    topbarUserDot.style.background = isSuperAdmin ? 'var(--brand-gold)' : isDelegado ? 'var(--accent-cyan)' : '#38bdf8';
+  }
+
   const roleBadgePill = document.getElementById('userRoleBadgePill');
   if (roleBadgePill) {
     if (isSuperAdmin) {
