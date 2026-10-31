@@ -583,13 +583,13 @@ body {
   background: linear-gradient(180deg, #38BDF8 0%, #00B4D8 45%, #0284C7 100%);
   border: 3.5px solid #FACC15;
   border-radius: 28px;
-  padding: 24px 18px 22px;
+  padding: 22px 18px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
   text-align: center;
-  min-height: 275px;
+  min-height: 310px;
   box-shadow: 
     0 12px 28px rgba(2, 132, 199, 0.38),
     0 2px 6px rgba(0, 0, 0, 0.1);
@@ -609,19 +609,23 @@ body {
 
 /* Icono: Un círculo con fondo violeta que contiene la ilustración del balón */
 .discipline-icon-circle {
-  width: 92px;
-  height: 92px;
+  width: 136px;
+  height: 136px;
+  min-width: 136px;
+  min-height: 136px;
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #8B5CF6 0%, #6D28D9 50%, #4C1D95 100%);
-  border: 3px solid #EDE9FE;
+  border: 3.5px solid #EDE9FE;
   box-shadow: 
-    0 6px 18px rgba(76, 29, 149, 0.45),
+    0 8px 24px rgba(76, 29, 149, 0.45),
+    0 4px 12px rgba(0, 0, 0, 0.25),
     inset 0 2px 4px rgba(255, 255, 255, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 12px;
-  transition: transform 0.2s ease;
+  margin-bottom: 14px;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
   flex-shrink: 0;
   overflow: hidden;
   position: relative;
@@ -630,6 +634,7 @@ body {
 .discipline-card-real-img {
   width: 100%;
   height: 100%;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
   border-radius: 50%;
   display: block;
@@ -641,6 +646,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.discipline-cover-fallback svg {
+  width: 72%;
+  height: 72%;
+  max-width: 100px;
+  max-height: 100px;
+  display: block;
 }
 
 .discipline-card-celeste:hover .discipline-icon-circle {
@@ -1367,6 +1380,7 @@ body.inside-discipline-view .discipline-topbar {
   height: 48px;
   min-width: 48px;
   min-height: 48px;
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
   background: #0f172a;
   border: 2px solid var(--border-gold);
@@ -1377,7 +1391,8 @@ body.inside-discipline-view .discipline-topbar {
   flex-shrink: 0;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
   vertical-align: middle;
-  padding: 2.5px;
+  padding: 0;
+  box-sizing: border-box;
   position: relative;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -1388,7 +1403,8 @@ body.inside-discipline-view .discipline-topbar {
   height: 100%;
   max-width: 100%;
   max-height: 100%;
-  object-fit: contain;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
   object-position: center;
   border-radius: 50%;
   display: block;
@@ -3653,11 +3669,14 @@ body.inside-discipline-view .discipline-topbar {
 }
 
 .team-crest-360 {
-  width: 78px;
-  height: 78px;
-  min-width: 78px;
-  min-height: 78px;
-  border-radius: var(--radius-md);
+  width: 96px;
+  height: 96px;
+  min-width: 96px;
+  min-height: 96px;
+  max-width: 96px;
+  max-height: 96px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3666,30 +3685,37 @@ body.inside-discipline-view .discipline-topbar {
   font-size: 1.5rem;
   color: #ffffff;
   background: #1e293b;
-  border: 2.5px solid var(--brand-gold);
+  border: 3px solid var(--brand-gold);
   flex-shrink: 0;
   overflow: hidden;
-  padding: 3px;
-  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.55), 0 0 10px rgba(212, 175, 55, 0.2);
+  padding: 0;
+  box-sizing: border-box;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 12px rgba(212, 175, 55, 0.3);
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
 }
 
 .team-card-360:hover .team-crest-360 {
   transform: scale(1.05);
-  box-shadow: 0 8px 22px rgba(212, 175, 55, 0.45);
+  box-shadow: 0 8px 24px rgba(212, 175, 55, 0.5);
 }
 
 .team-crest-360 img,
 .team-crest-360 .team-real-logo-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center;
-  border-radius: var(--radius-sm);
-  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  border-radius: 50% !important;
+  display: block !important;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
   transform: translateZ(0);
+  flex-shrink: 0 !important;
 }
 
 .team-crest-360 .team-logo-frame {
@@ -3697,10 +3723,28 @@ body.inside-discipline-view .discipline-topbar {
   height: 100% !important;
   min-width: 100% !important;
   min-height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 50% !important;
   border: none !important;
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+}
+
+.team-crest-360 svg {
+  width: 60% !important;
+  height: 60% !important;
+  max-width: 60% !important;
+  max-height: 60% !important;
+  aspect-ratio: 1 / 1 !important;
+  object-fit: contain !important;
+  display: block !important;
 }
 
 .team-name-360 {
@@ -4684,15 +4728,27 @@ body.inside-discipline-view .discipline-topbar {
   }
 
   .discipline-icon-circle {
-    width: 52px !important;
-    height: 52px !important;
-    border-width: 2px !important;
+    width: 80px !important;
+    height: 80px !important;
+    min-width: 80px !important;
+    min-height: 80px !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 50% !important;
+    border-width: 2.5px !important;
+  }
+
+  .discipline-card-real-img {
+    width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: 1 / 1 !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
   }
 
   .discipline-icon-circle svg,
-  .discipline-card-real-img {
-    width: 32px !important;
-    height: 32px !important;
+  .discipline-cover-fallback svg {
+    width: 52px !important;
+    height: 52px !important;
   }
 
   .card-sport-name {
@@ -4818,9 +4874,15 @@ body.inside-discipline-view .discipline-topbar {
   }
 
   .team-crest-360 {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
+    width: 68px !important;
+    height: 68px !important;
+    min-width: 68px !important;
+    min-height: 68px !important;
+    max-width: 68px !important;
+    max-height: 68px !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 50% !important;
+    border-width: 2.5px !important;
   }
 
   .team-name-360 {

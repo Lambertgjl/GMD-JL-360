@@ -3842,7 +3842,7 @@ function renderTeamsAndRosters() {
            </div>`
         : '';
 
-      const crestContent = getTeamLogoOrEmblemHtml(eq, { size: 76, fallbackName: eq.nombre });
+      const crestContent = getTeamLogoOrEmblemHtml(eq, { size: 96, fallbackName: eq.nombre });
 
       const hasBottomRow = canEditTeam || canDeleteTeam;
       const topRowClass = canAddAthlete
@@ -3856,7 +3856,7 @@ function renderTeamsAndRosters() {
       <div class="team-card-360 ${isMyTeam ? 'my-assigned-team' : ''}">
         ${myTeamBadge}
         <div class="team-card-header-360">
-          <div class="team-crest-360" style="background: ${eq.color || '#1e293b'}; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+          <div class="team-crest-360" style="background: ${eq.color || '#1e293b'}; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
             ${crestContent}
           </div>
           <div style="flex: 1; min-width: 0;">
