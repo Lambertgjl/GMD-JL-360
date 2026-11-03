@@ -6660,3 +6660,8 @@ body:not(.role-superadmin) #formatPillsSelector .format-pill:not(.active) {
 #videoHighlightContainer video[src=""] ~ .video-no-media-placeholder {
   display: flex;
 }
+/* ---- Dropdown Menú Configuración Disciplina ---- */
+.config-dropdown-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--brand-gold) !important;
+}

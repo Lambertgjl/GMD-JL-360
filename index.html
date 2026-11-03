@@ -26,7 +26,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./styles.css?v=3.2.3">
+  <link rel="stylesheet" href="./styles.css?v=3.2.4">
 </head>
 <body>
 
@@ -340,6 +340,9 @@
               </div>
             </div>
 
+            <!-- Menú de Configuración de Disciplina (Solo existe en el DOM para super_admin o admin_disciplina) -->
+            <div id="disciplineConfigMenuWrapper" class="discipline-config-menu-wrap" style="position: relative;"></div>
+
             <!-- Action buttons -->
             <button class="btn-topbar-action" id="btnCambiarRolHub" type="button" title="Cambiar de Rol o Identificarse">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
@@ -577,10 +580,14 @@
                   <h2 class="module-title">👥 Franquicias & Plantillas Oficiales</h2>
                   <p class="module-subtitle">Consulta de nóminas registradas, delegados responsables y atletas oficiales</p>
                 </div>
-                <!-- SuperAdmin Only: + Nuevo Equipo -->
-                <button class="btn btn-gold btn-md rbac-admin-only" id="btnAdminNuevoEquipoMaster" type="button" style="display: none;">
-                  + Nuevo Equipo
-                </button>
+                <!-- Acciones Administrativas de Equipos (Crear Equipo & Acceso Rápido Registrar Delegado) -->
+                <div class="equipos-header-actions" id="equiposHeaderActions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                  <!-- SuperAdmin Only: + Nuevo Equipo -->
+                  <button class="btn btn-gold btn-md rbac-admin-only" id="btnAdminNuevoEquipoMaster" type="button" style="display: none;">
+                    + Nuevo Equipo
+                  </button>
+                  <!-- Botón 'Registrar Delegado' inyectado dinámicamente si es super_admin o admin_disciplina -->
+                </div>
               </div>
 
               <!-- Filter Bar -->
@@ -2243,8 +2250,15 @@
                 <div class="config-section-header">
                   <span class="config-section-icon">➕</span>
                   <div>
-                    <h4 class="config-section-title" id="adminFormHeaderTitle">Agregar Nuevo Administrador</h4>
-                    <p class="config-section-sub">Registra usuarios autorizados con acceso global o disciplinario.</p>
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
+                      <div>
+                        <h4 class="config-section-title" id="adminFormHeaderTitle">Agregar Nuevo Administrador</h4>
+                        <p class="config-section-sub">Registra usuarios autorizados con acceso global o disciplinario.</p>
+                      </div>
+                      <button type="button" class="btn btn-outline-gold btn-sm" id="btnConfigOpenRegistrarDelegado" style="font-size: 0.78rem; padding: 5px 12px;">
+                        👤 Registrar Delegado por Equipo
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -2484,6 +2498,83 @@
     </div>
   </div>
 
+
+  <!-- ==============================================================================
+       MODAL: REGISTRAR DELEGADO POR EQUIPO (SUPERADMIN & ADMIN DISCIPLINA)
+       ============================================================================== -->
+  <div class="modal-overlay" id="modalRegistrarDelegado" role="dialog" aria-modal="true" aria-labelledby="modalRegDelTitle">
+    <div class="modal-card" style="max-width: 520px; width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <span style="font-size: 1.4rem;">👤</span>
+          <div>
+            <h3 class="modal-title" id="modalRegDelTitle" style="font-size: 1.15rem; color: #ffffff;">Registrar Delegado de Equipo</h3>
+            <p style="font-size: 0.76rem; color: var(--text-secondary); margin: 0;">Credenciales oficiales y vinculación estricta por disciplina</p>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="btnCloseModalRegistrarDelegado" type="button" title="Cerrar">&times;</button>
+      </div>
+
+      <form id="formRegistrarDelegado" class="modal-body" style="display: flex; flex-direction: column; gap: 0.85rem;">
+        <input type="hidden" id="regDelegadoDisciplinaId">
+
+        <div style="font-weight: 700; color: var(--accent-cyan); font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.3rem;">
+          📋 Datos Personales del Delegado
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regDelegadoNombre">Nombre Completo *</label>
+          <input type="text" class="form-input" id="regDelegadoNombre" placeholder="Ej. Prof. Carlos Mendoza" required autocomplete="name">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="regDelegadoTelefono">Teléfono / WhatsApp *</label>
+            <input type="tel" class="form-input" id="regDelegadoTelefono" placeholder="Ej. +58 414-1234567" required autocomplete="tel">
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="regDelegadoCedula">Cédula / Documento</label>
+            <input type="text" class="form-input" id="regDelegadoCedula" placeholder="Ej. V-14589123">
+          </div>
+        </div>
+
+        <div style="font-weight: 700; color: var(--brand-gold); font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.3rem; margin-top: 0.2rem;">
+          🔐 Credenciales de Acceso
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="regDelegadoEmail">Correo / Usuario *</label>
+            <input type="text" class="form-input" id="regDelegadoEmail" placeholder="delegado@equipo.com" required autocomplete="username">
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="regDelegadoPassword">Contraseña Temporal / PIN *</label>
+            <input type="text" class="form-input" id="regDelegadoPassword" placeholder="Ej. 2024 o claveTemp123" required autocomplete="new-password">
+          </div>
+        </div>
+
+        <div style="font-weight: 700; color: #a78bfa; font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.3rem; margin-top: 0.2rem;">
+          🏆 Franquicia a Representar
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regDelegadoEquipoId">Equipo Asignado *</label>
+          <select class="form-input" id="regDelegadoEquipoId" required>
+            <option value="">-- Seleccionar Equipo --</option>
+          </select>
+          <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0.3rem 0 0;" id="regDelegadoDiscBadge">
+            Disciplina vinculada: Baloncesto
+          </p>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 0.6rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
+          <button class="btn btn-outline btn-sm" id="btnCancelModalRegistrarDelegado" type="button">Cancelar</button>
+          <button class="btn btn-gold btn-sm" id="btnSubmitRegistrarDelegado" type="submit">💾 Guardar Delegado</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ==============================================================================
        MODAL COMPARTIR PLATAFORMA DEPORTIVA
        ============================================================================== -->
@@ -2565,10 +2656,10 @@
   </footer>
 
   <!-- Application Logic Scripts -->
-  <script src="./js/store.js?v=3.2.3"></script>
-  <script src="./js/standings.js?v=3.2.3"></script>
-  <script src="./js/csv-importer.js?v=3.2.3"></script>
-  <script src="./js/supabase.js?v=3.2.3"></script>
-  <script src="./js/app.js?v=3.2.3"></script>
+  <script src="./js/store.js?v=3.2.4"></script>
+  <script src="./js/standings.js?v=3.2.4"></script>
+  <script src="./js/csv-importer.js?v=3.2.4"></script>
+  <script src="./js/supabase.js?v=3.2.4"></script>
+  <script src="./js/app.js?v=3.2.4"></script>
 </body>
 </html>

@@ -726,6 +726,7 @@ function initDisciplineNavigation() {
   initNuevoEquipoModal();
   initGruposModule();
   initMvpHighlightModal();
+  initRegistrarDelegadoModal();
 }
 
 // ==============================================================================
@@ -920,6 +921,9 @@ function applyRbacPermissions(user) {
   // 9. Refresh active teams and matches views with proper permissions
   renderTeamsAndRosters();
   renderMatches();
+
+  // Control de permisos estricto para Registrar Delegado (Solo super_admin o admin_disciplina)
+  updateDelegadoManagementUI(user);
 }
 
 // ==============================================================================
@@ -8037,3 +8041,277 @@ if (document.readyState === 'loading') {
 } else {
   initAppBootstrap();
 }
+
+// ==============================================================================
+// GESTIÓN Y REGISTRO DE DELEGADOS POR EQUIPO (RBAC SUPER_ADMIN & ADMIN_DISCIPLINA)
+// ==============================================================================
+
+/**
+ * Valida si el usuario activo tiene privilegios para administrar delegados.
+ * Roles permitidos: 'superadmin', 'super_admin' o 'admin_disciplina' (de la disciplina actual o global).
+ * @param {Object} user - Usuario activo en sesión
+ * @returns {boolean}
+ */
+function isDelegadoAdmin(user) {
+  if (!user) return false;
+  const rol = (user.rol || '').toLowerCase().trim();
+  const isSuper = rol === 'superadmin' || rol === 'super_admin' || !!user.esSuperAdmin;
+  if (isSuper) return true;
+
+  const isDiscAdmin = rol === 'admin_disciplina';
+  if (isDiscAdmin) {
+    const activeDisc = window.tournamentStore?.getDisciplinaActual?.()?.id;
+    if (!user.disciplinaId || user.disciplinaId === 'todas') return true;
+    if (activeDisc && user.disciplinaId === activeDisc) return true;
+  }
+  return false;
+}
+
+/**
+ * Control estricto de renderizado en el DOM:
+ * Si el usuario NO tiene el rol de super_admin o admin_disciplina validado en la sesión actual,
+ * las opciones y botones de Registrar Delegado NI SIQUIERA DEBEN EXISTIR en el DOM.
+ * @param {Object} user
+ */
+function updateDelegadoManagementUI(user) {
+  const isAuthorized = isDelegadoAdmin(user);
+
+  // 1. ACCESO RÁPIDO EN PESTAÑA 'EQUIPOS' (Al lado de Crear/Editar Equipo)
+  const equiposActions = document.getElementById('equiposHeaderActions');
+  const existingQuickBtn = document.getElementById('btnAdminRegistrarDelegadoQuick');
+
+  if (isAuthorized) {
+    if (!existingQuickBtn && equiposActions) {
+      const quickBtn = document.createElement('button');
+      quickBtn.type = 'button';
+      quickBtn.id = 'btnAdminRegistrarDelegadoQuick';
+      quickBtn.className = 'btn btn-outline-cyan btn-md';
+      quickBtn.style.display = 'inline-flex';
+      quickBtn.style.alignItems = 'center';
+      quickBtn.style.gap = '0.4rem';
+      quickBtn.title = 'Registrar y vincular un delegado oficial a un equipo de esta disciplina';
+      quickBtn.innerHTML = `<span>👤 Registrar Delegado</span>`;
+      quickBtn.addEventListener('click', openRegistrarDelegadoModal);
+      equiposActions.appendChild(quickBtn);
+    }
+  } else {
+    // Si es un usuario normal o un delegado, el botón NO DEBE EXISTIR en el DOM
+    if (existingQuickBtn) {
+      existingQuickBtn.remove();
+    }
+  }
+
+  // 2. MENÚ DE CONFIGURACIÓN DE LA DISCIPLINA (Arriba a la derecha en vistaDisciplina)
+  const menuContainer = document.getElementById('disciplineConfigMenuWrapper');
+  if (menuContainer) {
+    if (isAuthorized) {
+      if (!document.getElementById('btnDisciplineConfigToggle')) {
+        menuContainer.innerHTML = `
+          <div class="config-dropdown-container" style="position: relative;">
+            <button class="btn-topbar-action" id="btnDisciplineConfigToggle" type="button" title="Menú de Configuración" style="border-color: rgba(212, 175, 55, 0.5); color: var(--brand-gold);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              <span>Configuración ▾</span>
+            </button>
+            <div id="disciplineConfigDropdownMenu" style="display: none; position: absolute; right: 0; top: calc(100% + 6px); background: #1e293b; border: 1.5px solid rgba(212, 175, 55, 0.4); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.6); min-width: 215px; z-index: 1000; overflow: hidden; padding: 4px 0;">
+              <button type="button" id="btnMenuRegistrarDelegado" class="config-dropdown-btn" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 14px; background: none; border: none; color: #ffffff; font-size: 0.82rem; font-weight: 600; text-align: left; cursor: pointer; transition: background 0.15s ease;">
+                <span style="font-size: 1rem;">👤</span>
+                <span>Registrar Delegado</span>
+              </button>
+              <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 3px 0;"></div>
+              <button type="button" id="btnMenuOpenConfigSistema" class="config-dropdown-btn" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 14px; background: none; border: none; color: var(--text-secondary); font-size: 0.8rem; text-align: left; cursor: pointer; transition: background 0.15s ease;">
+                <span style="font-size: 1rem;">⚙️</span>
+                <span>Ajustes Generales</span>
+              </button>
+            </div>
+          </div>
+        `;
+        const toggleBtn = document.getElementById('btnDisciplineConfigToggle');
+        const dropMenu = document.getElementById('disciplineConfigDropdownMenu');
+        const btnRegDel = document.getElementById('btnMenuRegistrarDelegado');
+        const btnOpenCfg = document.getElementById('btnMenuOpenConfigSistema');
+
+        toggleBtn?.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          const isShown = dropMenu.style.display === 'block';
+          dropMenu.style.display = isShown ? 'none' : 'block';
+        });
+
+        document.addEventListener('click', (ev) => {
+          if (dropMenu && !menuContainer.contains(ev.target)) {
+            dropMenu.style.display = 'none';
+          }
+        });
+
+        btnRegDel?.addEventListener('click', () => {
+          dropMenu.style.display = 'none';
+          openRegistrarDelegadoModal();
+        });
+
+        btnOpenCfg?.addEventListener('click', () => {
+          dropMenu.style.display = 'none';
+          if (typeof openConfiguracionSistemaModal === 'function') {
+            openConfiguracionSistemaModal();
+          }
+        });
+      }
+    } else {
+      // Si el usuario es fanático o delegado, el menú NO DEBE EXISTIR en el DOM
+      menuContainer.innerHTML = '';
+    }
+  }
+
+  // 3. Botón en el panel interno de Configuración del Sistema
+  const btnConfigModal = document.getElementById('btnConfigOpenRegistrarDelegado');
+  if (btnConfigModal) {
+    btnConfigModal.style.display = isAuthorized ? 'inline-flex' : 'none';
+  }
+}
+
+/**
+ * Abre el formulario modal para registrar un nuevo delegado.
+ */
+function openRegistrarDelegadoModal() {
+  const user = window.tournamentStore.getUsuarioActual();
+  if (!isDelegadoAdmin(user)) {
+    showToast('Acceso denegado: Se requieren permisos de Superadmin o Admin de Disciplina.', 'error');
+    return;
+  }
+
+  const modal = document.getElementById('modalRegistrarDelegado');
+  if (!modal) return;
+
+  const currentDisc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master', nombre: 'Baloncesto', icono: '🏀' };
+  const equipos = window.tournamentStore.getEquipos(currentDisc.id);
+
+  const selectEq = document.getElementById('regDelegadoEquipoId');
+  if (selectEq) {
+    if (equipos.length === 0) {
+      selectEq.innerHTML = '<option value="">⚠️ No hay equipos registrados en esta disciplina</option>';
+    } else {
+      selectEq.innerHTML = '<option value="">-- Seleccionar Equipo --</option>' +
+        equipos.map((eq) => `<option value="${eq.id}">${eq.nombre} (${eq.grupo || 'Grupo A'})</option>`).join('');
+    }
+  }
+
+  const badgeDisc = document.getElementById('regDelegadoDiscBadge');
+  if (badgeDisc) {
+    badgeDisc.textContent = `Disciplina activa: ${currentDisc.icono || '🏆'} ${currentDisc.nombre}`;
+  }
+
+  const hiddenDisc = document.getElementById('regDelegadoDisciplinaId');
+  if (hiddenDisc) hiddenDisc.value = currentDisc.id;
+
+  // Limpiar campos para registro limpio
+  const fNombre = document.getElementById('regDelegadoNombre');
+  const fTelf = document.getElementById('regDelegadoTelefono');
+  const fCed = document.getElementById('regDelegadoCedula');
+  const fEmail = document.getElementById('regDelegadoEmail');
+  const fPass = document.getElementById('regDelegadoPassword');
+  if (fNombre) fNombre.value = '';
+  if (fTelf) fTelf.value = '';
+  if (fCed) fCed.value = '';
+  if (fEmail) fEmail.value = '';
+  if (fPass) fPass.value = '';
+
+  modal.classList.add('open');
+}
+
+/**
+ * Inicializa controladores y listeners del modal de Registro de Delegados.
+ */
+function initRegistrarDelegadoModal() {
+  const modal = document.getElementById('modalRegistrarDelegado');
+  if (!modal) return;
+
+  const btnClose = document.getElementById('btnCloseModalRegistrarDelegado');
+  const btnCancel = document.getElementById('btnCancelModalRegistrarDelegado');
+  const form = document.getElementById('formRegistrarDelegado');
+
+  const closeModal = () => modal.classList.remove('open');
+  btnClose?.addEventListener('click', closeModal);
+  btnCancel?.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  // Listener para el botón dentro del modal de Configuración del Sistema
+  document.getElementById('btnConfigOpenRegistrarDelegado')?.addEventListener('click', () => {
+    if (typeof closeConfiguracionSistemaModal === 'function') {
+      closeConfiguracionSistemaModal();
+    }
+    openRegistrarDelegadoModal();
+  });
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const user = window.tournamentStore.getUsuarioActual();
+    if (!isDelegadoAdmin(user)) {
+      showToast('Acceso denegado: No posee privilegios para registrar delegados.', 'error');
+      closeModal();
+      return;
+    }
+
+    const nombre = (document.getElementById('regDelegadoNombre')?.value || '').trim();
+    const telefono = (document.getElementById('regDelegadoTelefono')?.value || '').trim();
+    const cedula = (document.getElementById('regDelegadoCedula')?.value || '').trim();
+    const email = (document.getElementById('regDelegadoEmail')?.value || '').trim();
+    const password = (document.getElementById('regDelegadoPassword')?.value || '').trim();
+    const equipoId = document.getElementById('regDelegadoEquipoId')?.value;
+    const disciplinaId = document.getElementById('regDelegadoDisciplinaId')?.value || window.tournamentStore.getDisciplinaActual()?.id;
+
+    if (!nombre || !telefono || !email || !password || !equipoId) {
+      showToast('Por favor complete todos los campos obligatorios (*).', 'warning');
+      return;
+    }
+
+    const btnSubmit = document.getElementById('btnSubmitRegistrarDelegado');
+    if (btnSubmit) {
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = '⏳ Registrando en Supabase...';
+    }
+
+    try {
+      const delegadoData = {
+        nombre,
+        telefono,
+        cedula,
+        email,
+        password,
+        equipoId,
+        disciplinaId
+      };
+
+      // 1. Guardar en Supabase Cloud (tabla usuarios_delegados y actualizar equipo)
+      if (window.supabaseService && typeof window.supabaseService.registrarDelegado === 'function') {
+        await window.supabaseService.registrarDelegado(delegadoData);
+      }
+
+      // 2. Actualizar el equipo en el tournamentStore local
+      const eq = window.tournamentStore.getEquipoPorId(equipoId);
+      if (eq) {
+        window.tournamentStore.updateEquipo(equipoId, {
+          delegadoNombre: nombre,
+          delegadoTelefono: telefono,
+          delegadoEmail: email,
+          delegadoCedula: cedula,
+          pin: password
+        });
+      }
+
+      closeModal();
+      renderTeamsAndRosters();
+      showToast(`✅ Delegado "${nombre}" registrado y vinculado a ${eq ? eq.nombre : 'el equipo'} exitosamente`, 'success');
+    } catch (err) {
+      console.error('[Registrar Delegado Exception]:', err);
+      showToast('Error al registrar el delegado. Intente de nuevo.', 'error');
+    } finally {
+      if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = '💾 Guardar Delegado';
+      }
+    }
+  });
+}
+
+window.openRegistrarDelegadoModal = openRegistrarDelegadoModal;
+window.isDelegadoAdmin = isDelegadoAdmin;

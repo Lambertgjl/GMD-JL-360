@@ -352,5 +352,39 @@ CREATE POLICY "Delete publico media_destacados"
   USING (bucket_id = 'media_destacados');
 
 -- ==============================================================================
+-- 11. TABLA USUARIOS DELEGADOS (CREDENCIALES Y ROLES DELEGADOS POR EQUIPO)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.usuarios_delegados (
+    id TEXT PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    telefono TEXT,
+    email TEXT,
+    cedula TEXT,
+    password TEXT,
+    disciplina_id TEXT REFERENCES public.disciplinas(id) ON DELETE CASCADE,
+    equipo_id TEXT REFERENCES public.equipos(id) ON DELETE CASCADE,
+    rol TEXT DEFAULT 'delegado',
+    activo BOOLEAN DEFAULT true,
+    creado_en TIMESTAMPTZ DEFAULT now(),
+    actualizado_en TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.usuarios_delegados ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Lectura publica usuarios_delegados" ON public.usuarios_delegados;
+DROP POLICY IF EXISTS "Acceso total usuarios_delegados" ON public.usuarios_delegados;
+CREATE POLICY "Lectura publica usuarios_delegados" ON public.usuarios_delegados FOR SELECT USING (true);
+CREATE POLICY "Acceso total usuarios_delegados" ON public.usuarios_delegados FOR ALL USING (true) WITH CHECK (true);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'usuarios_delegados'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.usuarios_delegados;
+    END IF;
+END $$;
+
+-- ==============================================================================
 -- ¡LISTO! Tablas creadas, RLS configurado, Realtime activo y datos inicializados.
 -- ==============================================================================

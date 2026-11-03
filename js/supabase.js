@@ -1445,6 +1445,68 @@ END $$;
 
     console.log(`[Supabase] MVP partido ${partidoId} actualizado exitosamente`);
   }
+
+  // ---------------------------------------------------------------------------
+  // Registro oficial de usuarios delegados por equipo y disciplina
+  // ---------------------------------------------------------------------------
+  /**
+   * Registra un delegado en Supabase (tabla usuarios_delegados y actualiza la tabla equipos).
+   * @param {Object} delegadoData - Datos del delegado a registrar
+   * @returns {Promise<{success: boolean, id?: string, error?: string}>}
+   */
+  async registrarDelegado(delegadoData) {
+    if (!this.client) this.initClient();
+    if (!this.client) return { success: false, error: 'Cliente Supabase no inicializado' };
+
+    const delId = delegadoData.id || `DEL-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+    const payload = {
+      id: delId,
+      nombre: delegadoData.nombre,
+      telefono: delegadoData.telefono || '',
+      email: delegadoData.email || '',
+      cedula: delegadoData.cedula || '',
+      password: delegadoData.password || '',
+      disciplina_id: delegadoData.disciplinaId,
+      equipo_id: delegadoData.equipoId,
+      rol: 'delegado',
+      activo: true,
+      actualizado_en: new Date().toISOString()
+    };
+
+    console.log('[Supabase] Registrando delegado:', payload);
+
+    try {
+      const { data, error } = await this.client
+        .from('usuarios_delegados')
+        .upsert(payload, { onConflict: 'id' });
+
+      if (error) {
+        console.warn('[Supabase registrarDelegado - usuarios_delegados warning]:', error.message);
+      } else {
+        console.log('[Supabase] Delegado guardado en tabla usuarios_delegados ✓');
+      }
+    } catch (e) {
+      console.warn('[Supabase registrarDelegado exception]:', e);
+    }
+
+    // Actualizar además los campos correspondientes en la tabla 'equipos'
+    try {
+      if (delegadoData.equipoId) {
+        await this.updateEquipo(delegadoData.equipoId, {
+          delegadoNombre: delegadoData.nombre,
+          delegadoTelefono: delegadoData.telefono || '',
+          delegadoEmail: delegadoData.email || '',
+          delegadoCedula: delegadoData.cedula || '',
+          pin: delegadoData.password || ''
+        });
+        console.log('[Supabase] Equipo actualizado con la información del delegado ✓');
+      }
+    } catch (eqErr) {
+      console.warn('[Supabase updateEquipo delegado info error]:', eqErr);
+    }
+
+    return { success: true, id: delId };
+  }
 }
 
 window.supabaseService = new SupabaseService();
