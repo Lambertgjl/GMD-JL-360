@@ -26,7 +26,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./styles.css?v=3.2.1">
+  <link rel="stylesheet" href="./styles.css?v=3.2.2">
 </head>
 <body>
 
@@ -1041,21 +1041,24 @@
                         <span class="subcard-tag">🎬 JUGADA CLAVE DEL PARTIDO</span>
                         <div style="display: flex; align-items: center; gap: 0.4rem;">
                           <span class="video-live-indicator">🔴 VIDEO / REEL</span>
-                          <a href="https://www.youtube.com/watch?v=ScMzIvxBSi4" target="_blank" rel="noopener noreferrer" class="btn btn-outline-cyan btn-sm" id="btnWatchYoutube" style="padding: 2px 7px; font-size: 0.65rem; text-decoration: none;" title="Ver en YouTube">YouTube ↗</a>
+                          <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-outline-cyan btn-sm" id="btnWatchYoutube" style="padding: 2px 7px; font-size: 0.65rem; text-decoration: none; display:none;" title="Ver video externo">Ver ↗</a>
                         </div>
                       </div>
 
-                      <!-- Placeholder / Iframe Responsivo 16:9 -->
+                      <!-- Reproductor de Video Nativo HTML5 (Supabase Storage) -->
                       <div class="video-container-responsive" id="videoHighlightContainer">
-                        <iframe 
-                          id="mvpVideoIframe"
-                          src="https://www.youtube-nocookie.com/embed/ScMzIvxBSi4?rel=0&modestbranding=1" 
-                          title="Video de la Jugada del Partido" 
-                          frameborder="0" 
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                          allowfullscreen
-                          class="video-iframe">
-                        </iframe>
+                        <video
+                          id="mvpVideoPlayer"
+                          class="video-native-player"
+                          controls
+                          playsinline
+                          preload="metadata"
+                          poster=""
+                          aria-label="Video de la jugada del partido">
+                          <p class="video-no-media-placeholder">
+                            🎬 Sin video disponible. El administrador puede subir un video desde el panel de edición.
+                          </p>
+                        </video>
                       </div>
 
                       <div class="video-caption-bar">
@@ -2414,8 +2417,16 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="inputMvpFotoUrl">Foto del Jugador (URL o archivo local)</label>
-          <input type="text" class="form-input" id="inputMvpFotoUrl" placeholder="Ej. ./assets/IMG-20260228-WA0066.jpg">
+          <label class="form-label" for="inputMvpPhotoFile">📸 Foto del Jugador (archivo local)</label>
+          <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+            <img id="editMvpPhotoPreview" src="" alt="Preview foto MVP"
+              style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--brand-gold);display:none;flex-shrink:0;">
+            <div style="flex:1; min-width:0;">
+              <input type="file" class="form-input" id="inputMvpPhotoFile" accept="image/*" style="padding:0.3rem;">
+              <p style="font-size:0.7rem;color:var(--text-secondary);margin:0.2rem 0 0;">JPG, PNG, WEBP. Máx 10 MB.</p>
+            </div>
+          </div>
+          <input type="hidden" id="inputMvpFotoUrl">
         </div>
 
         <div class="form-row">
@@ -2442,8 +2453,20 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="inputMvpVideoUrl">URL del Video de YouTube / Reel</label>
-          <input type="text" class="form-input" id="inputMvpVideoUrl" placeholder="Ej. https://www.youtube.com/watch?v=ScMzIvxBSi4">
+          <label class="form-label" for="inputMvpVideoFile">🎬 Video de la Jugada (archivo local)</label>
+          <input type="file" class="form-input" id="inputMvpVideoFile" accept="video/*" style="padding:0.3rem;">
+          <p style="font-size:0.7rem;color:var(--text-secondary);margin:0.2rem 0 0;">MP4, WebM, MOV. Máx 3 min · 720p recomendado · 100 MB.</p>
+          <!-- Feedback de validación del video -->
+          <div id="videoValidationFeedback" style="display:none; margin-top:0.4rem; padding:0.4rem 0.6rem; border-radius:6px; font-size:0.75rem; font-weight:600;"></div>
+          <input type="hidden" id="inputMvpVideoUrl">
+        </div>
+
+        <!-- Barra de progreso de subida -->
+        <div id="mvpUploadProgressBar" style="display:none; margin-top:0.3rem;">
+          <div style="font-size:0.72rem;color:var(--accent-cyan);margin-bottom:0.25rem;" id="mvpUploadProgressLabel">⏫ Subiendo archivo...</div>
+          <div style="background:rgba(255,255,255,0.1);border-radius:8px;height:8px;overflow:hidden;">
+            <div id="mvpUploadProgressFill" style="background:linear-gradient(90deg,#38bdf8,#818cf8);height:100%;width:0%;transition:width 0.3s ease;border-radius:8px;"></div>
+          </div>
         </div>
 
         <div class="form-group">
@@ -2540,10 +2563,10 @@
   </footer>
 
   <!-- Application Logic Scripts -->
-  <script src="./js/store.js?v=3.2.1"></script>
-  <script src="./js/standings.js?v=3.2.1"></script>
-  <script src="./js/csv-importer.js?v=3.2.1"></script>
-  <script src="./js/supabase.js?v=3.2.1"></script>
-  <script src="./js/app.js?v=3.2.1"></script>
+  <script src="./js/store.js?v=3.2.2"></script>
+  <script src="./js/standings.js?v=3.2.2"></script>
+  <script src="./js/csv-importer.js?v=3.2.2"></script>
+  <script src="./js/supabase.js?v=3.2.2"></script>
+  <script src="./js/app.js?v=3.2.2"></script>
 </body>
 </html>

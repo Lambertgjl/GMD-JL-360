@@ -1348,6 +1348,103 @@ BEGIN
 END $$;
 `;
   }
+
+  // ---------------------------------------------------------------------------
+  // Subida de medios al bucket 'media_destacados' en Supabase Storage
+  // ---------------------------------------------------------------------------
+  /**
+   * Sube un archivo (imagen o video) al bucket público 'media_destacados'.
+   * @param {File} file - El archivo File a subir.
+   * @param {string} subfolder - 'fotos' | 'videos'
+   * @param {function(number)} [onProgress] - Callback opcional con progreso 0-100.
+   * @returns {Promise<string>} URL pública del archivo subido.
+   */
+  async uploadMediaDestacado(file, subfolder = 'general', onProgress = null) {
+    if (!this.client) throw new Error('[Supabase Storage] Cliente no inicializado');
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const safeFilename = `${timestamp}_${randomSuffix}.${ext}`;
+    const filePath = `${subfolder}/${safeFilename}`;
+
+    console.log(`[Storage] Subiendo ${filePath} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`);
+
+    // Simular progreso (Supabase JS v2 no expone progreso real en upload simple)
+    let progressTimer = null;
+    let fakeProgress = 0;
+    if (onProgress) {
+      onProgress(5);
+      progressTimer = setInterval(() => {
+        fakeProgress = Math.min(fakeProgress + Math.random() * 15, 85);
+        onProgress(Math.round(fakeProgress));
+      }, 400);
+    }
+
+    try {
+      const { data, error } = await this.client.storage
+        .from('media_destacados')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type
+        });
+
+      if (error) throw error;
+
+      const { data: urlData } = this.client.storage
+        .from('media_destacados')
+        .getPublicUrl(filePath);
+
+      const publicUrl = urlData?.publicUrl;
+      if (!publicUrl) throw new Error('No se pudo obtener la URL pública del archivo');
+
+      console.log(`[Storage] Subida exitosa: ${publicUrl}`);
+      if (onProgress) onProgress(100);
+      return publicUrl;
+    } finally {
+      if (progressTimer) clearInterval(progressTimer);
+    }
+  }
+
+  /**
+   * Actualiza los campos MVP y video de un partido en Supabase.
+   * @param {string} partidoId - ID del partido.
+   * @param {Object} mvpData - Datos del jugador MVP y video.
+   * @returns {Promise<void>}
+   */
+  async updatePartidoMvp(partidoId, mvpData) {
+    if (!this.client) throw new Error('[Supabase] Cliente no inicializado');
+
+    const updatePayload = {
+      mvp_nombre: mvpData.nombre || null,
+      mvp_dorsal: mvpData.dorsal || null,
+      mvp_equipo: mvpData.equipo || null,
+      mvp_posicion: mvpData.posicion || null,
+      mvp_foto_url: mvpData.fotoUrl || null,
+      mvp_pts: parseInt(mvpData.puntos) || 0,
+      mvp_reb: parseInt(mvpData.rebotes) || 0,
+      mvp_ast: parseInt(mvpData.asistencias) || 0,
+      mvp_val: mvpData.eficiencia || null,
+      video_url: mvpData.videoUrl || null,
+      video_titulo: mvpData.videoTitulo || null,
+      actualizado_en: new Date().toISOString()
+    };
+
+    console.log(`[Supabase] Actualizando MVP partido ${partidoId}:`, updatePayload);
+
+    const { error } = await this.client
+      .from('partidos')
+      .update(updatePayload)
+      .eq('id', partidoId);
+
+    if (error) {
+      console.error('[Supabase] Error al actualizar MVP:', error);
+      throw error;
+    }
+
+    console.log(`[Supabase] MVP partido ${partidoId} actualizado exitosamente`);
+  }
 }
 
 window.supabaseService = new SupabaseService();

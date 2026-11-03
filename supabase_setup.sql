@@ -300,6 +300,57 @@ ON CONFLICT (id) DO UPDATE SET
     faltas_loc = EXCLUDED.faltas_loc,
     faltas_vis = EXCLUDED.faltas_vis;
 
+
+-- ==============================================================================
+-- 9. COLUMNAS MVP Y VIDEO EN TABLA PARTIDOS (ALTER TABLE)
+-- ==============================================================================
+-- Ejecutar después de crear la tabla partidos. Idempotente con IF NOT EXISTS.
+ALTER TABLE public.partidos ADD COLUMN IF NOT EXISTS mvp_nombre TEXT;
+ALTER TABLE public.partidos ADD COLUMN IF NOT EXISTS mvp_dorsal TEXT;
+ALTER TABLE public.partidos ADD COLUMN IF NOT EXISTS mvp_equipo TEXT;
+ALTER TABLE public.partidos ADD COLUMN IF NOT EXISTS mvp_posicion TEXT;
+ALTER TABLE public.partidos ADD COLUMN IF NOT EXISTS mvp_foto_url TEXT;
+ALTER TABLE public.partidos ADD COLUMN IF NOT EXISTS mvp_pts INTEGER DEFAULT 0;
+ALTER TABLE public.partidos ADD COLUMN IF NOT EXISTS mvp_reb INTEGER DEFAULT 0;
+ALTER TABLE public.partidos ADD COLUMN IF NOT EXISTS mvp_ast INTEGER DEFAULT 0;
+ALTER TABLE public.partidos ADD COLUMN IF NOT EXISTS mvp_val TEXT;
+ALTER TABLE public.partidos ADD COLUMN IF NOT EXISTS video_url TEXT;
+ALTER TABLE public.partidos ADD COLUMN IF NOT EXISTS video_titulo TEXT;
+
+-- ==============================================================================
+-- 10. STORAGE: BUCKET media_destacados (fotos y videos de jugadores MVP)
+-- ==============================================================================
+-- Crea el bucket publico si no existe (requiere ejecutar como service_role o via dashboard)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'media_destacados',
+  'media_destacados',
+  true,
+  104857600, -- 100 MB limit
+  ARRAY['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/quicktime']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = true,
+  file_size_limit = 104857600,
+  allowed_mime_types = ARRAY['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/quicktime'];
+
+-- Politicas RLS para storage.objects en bucket media_destacados
+DROP POLICY IF EXISTS "Lectura publica media_destacados" ON storage.objects;
+DROP POLICY IF EXISTS "Upload publico media_destacados" ON storage.objects;
+DROP POLICY IF EXISTS "Delete publico media_destacados" ON storage.objects;
+
+CREATE POLICY "Lectura publica media_destacados"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'media_destacados');
+
+CREATE POLICY "Upload publico media_destacados"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'media_destacados');
+
+CREATE POLICY "Delete publico media_destacados"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'media_destacados');
+
 -- ==============================================================================
 -- ¡LISTO! Tablas creadas, RLS configurado, Realtime activo y datos inicializados.
 -- ==============================================================================

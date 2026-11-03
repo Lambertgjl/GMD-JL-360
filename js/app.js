@@ -5990,9 +5990,8 @@ function renderMvpAndVideoSection(partido) {
   const astVal = mvp.asistencias !== undefined ? mvp.asistencias : 7;
   const valVal = mvp.eficiencia !== undefined ? mvp.eficiencia : '+32';
 
-  // Video / Reel Highlight
-  const defaultVideo = 'https://www.youtube-nocookie.com/embed/ScMzIvxBSi4?rel=0&modestbranding=1';
-  const videoUrl = mvp.videoUrl ? formatYouTubeEmbedUrl(mvp.videoUrl) : defaultVideo;
+  // Video / Reel Highlight — URL del video en Supabase Storage
+  const videoUrl = mvp.videoUrl || null;
   const videoTitle = mvp.videoTitulo || 'Triple decisivo sobre la bocina y mejor jugada del encuentro';
   const venueStr = partido.sede || 'Gimnasio Pablo Higuerey';
 
@@ -6027,11 +6026,32 @@ function renderMvpAndVideoSection(partido) {
   const elVal = document.getElementById('mvpStatVal');
   if (elVal) elVal.textContent = valVal;
 
-  // Actualizar DOM del Video
-  const elIframe = document.getElementById('mvpVideoIframe');
-  if (elIframe && videoUrl) {
-    if (elIframe.src !== videoUrl) {
-      elIframe.src = videoUrl;
+  // Actualizar DOM del Video (reproductor HTML5 nativo)
+  const elVideoPlayer = document.getElementById('mvpVideoPlayer');
+  if (elVideoPlayer) {
+    // Solo usar videos de Supabase Storage (http/https no-youtube), no embeds de YouTube
+    const isSupabaseVideo = mvp.videoUrl &&
+      !mvp.videoUrl.includes('youtube') &&
+      !mvp.videoUrl.includes('youtu.be') &&
+      !mvp.videoUrl.includes('youtube-nocookie');
+
+    if (isSupabaseVideo) {
+      elVideoPlayer.src = mvp.videoUrl;
+      elVideoPlayer.style.display = 'block';
+      const btnWatch = document.getElementById('btnWatchYoutube');
+      if (btnWatch) {
+        btnWatch.href = mvp.videoUrl;
+        btnWatch.style.display = 'inline-block';
+        btnWatch.textContent = 'Descargar ↗';
+      }
+    } else {
+      // Sin video de Supabase: mostrar placeholder interno
+      if (elVideoPlayer.src !== window.location.href) {
+        elVideoPlayer.removeAttribute('src');
+      }
+      elVideoPlayer.style.display = 'none';
+      const btnWatch = document.getElementById('btnWatchYoutube');
+      if (btnWatch) btnWatch.style.display = 'none';
     }
   }
 
@@ -6041,16 +6061,68 @@ function renderMvpAndVideoSection(partido) {
   const elVideoMeta = document.getElementById('mvpVideoMeta');
   if (elVideoMeta) elVideoMeta.textContent = `📍 ${venueStr} • Transmisión Oficial JL 360`;
 
-  const btnWatch = document.getElementById('btnWatchYoutube');
-  if (btnWatch) {
-    let watchUrl = videoUrl;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = videoUrl.match(regExp);
-    if (match && match[2]) {
-      watchUrl = `https://www.youtube.com/watch?v=${match[2]}`;
+  // btnWatchYoutube se gestiona dentro del bloque de actualización del video player
+}
+
+
+/**
+ * Valida un archivo de video antes de subirlo a Supabase Storage.
+ * Restricciones:
+ *   - Duración máxima: 180 segundos (3 minutos)
+ *   - Resolución máxima recomendada: 720p (lado mayor <= 1280, lado menor <= 720)
+ * @param {File} file - Archivo de video seleccionado por el usuario.
+ * @returns {Promise<{valid: boolean, error?: string, duration?: number, width?: number, height?: number}>}
+ */
+function validateVideoFile(file) {
+  return new Promise((resolve) => {
+    const MAX_DURATION_SECONDS = 180;
+    const MAX_LONG_SIDE = 1280;
+    const MAX_SHORT_SIDE = 720;
+    const MAX_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
+
+    if (file.size > MAX_SIZE_BYTES) {
+      return resolve({
+        valid: false,
+        error: `El video excede el tamaño máximo permitido (${(file.size / 1024 / 1024).toFixed(1)} MB / máx 100 MB).`
+      });
     }
-    btnWatch.href = watchUrl;
-  }
+
+    const url = URL.createObjectURL(file);
+    const videoEl = document.createElement('video');
+    videoEl.preload = 'metadata';
+
+    videoEl.onloadedmetadata = () => {
+      URL.revokeObjectURL(url);
+      const { duration, videoWidth, videoHeight } = videoEl;
+      const longSide = Math.max(videoWidth, videoHeight);
+      const shortSide = Math.min(videoWidth, videoHeight);
+
+      if (duration > MAX_DURATION_SECONDS) {
+        return resolve({
+          valid: false,
+          error: `El video dura ${Math.ceil(duration)}s (máx ${MAX_DURATION_SECONDS}s / 3 minutos). Por favor recorta el clip.`,
+          duration, width: videoWidth, height: videoHeight
+        });
+      }
+
+      if (longSide > MAX_LONG_SIDE || shortSide > MAX_SHORT_SIDE) {
+        return resolve({
+          valid: false,
+          error: `Resolución ${videoWidth}×${videoHeight} supera 720p recomendado. Considera comprimir el video antes de subir.`,
+          duration, width: videoWidth, height: videoHeight
+        });
+      }
+
+      resolve({ valid: true, duration, width: videoWidth, height: videoHeight });
+    };
+
+    videoEl.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve({ valid: false, error: 'No se pudo leer el archivo de video. Asegúrate de que sea un formato válido (MP4, WebM, MOV).' });
+    };
+
+    videoEl.src = url;
+  });
 }
 
 function initMvpHighlightModal() {
@@ -6062,8 +6134,103 @@ function initMvpHighlightModal() {
   const btnCancel = document.getElementById('btnCancelModalEditarMvp');
   const form = document.getElementById('formEditarMvp');
 
-  const closeModal = () => modal.classList.remove('open');
+  // ─── Estado interno del modal ───────────────────────────────────────────────
+  let _pendingPhotoFile = null;
+  let _pendingVideoFile = null;
+  let _videoValidated = false; // true si el video pasó la validación
 
+  const closeModal = () => {
+    modal.classList.remove('open');
+    _pendingPhotoFile = null;
+    _pendingVideoFile = null;
+    _videoValidated = false;
+    // Reset feedback
+    const fb = document.getElementById('videoValidationFeedback');
+    if (fb) { fb.style.display = 'none'; fb.textContent = ''; }
+    const pb = document.getElementById('mvpUploadProgressBar');
+    if (pb) pb.style.display = 'none';
+  };
+
+  // ─── Helper: mostrar feedback de validación de video ────────────────────────
+  function showVideoFeedback(message, type) {
+    const fb = document.getElementById('videoValidationFeedback');
+    if (!fb) return;
+    fb.style.display = 'block';
+    fb.textContent = message;
+    if (type === 'error') {
+      fb.style.background = 'rgba(239,68,68,0.15)';
+      fb.style.color = '#f87171';
+      fb.style.border = '1px solid rgba(239,68,68,0.4)';
+    } else if (type === 'success') {
+      fb.style.background = 'rgba(16,185,129,0.15)';
+      fb.style.color = '#34d399';
+      fb.style.border = '1px solid rgba(16,185,129,0.4)';
+    } else {
+      fb.style.background = 'rgba(56,189,248,0.15)';
+      fb.style.color = '#38bdf8';
+      fb.style.border = '1px solid rgba(56,189,248,0.4)';
+    }
+  }
+
+  // ─── Helper: barra de progreso ───────────────────────────────────────────────
+  function setUploadProgress(pct, label) {
+    const bar = document.getElementById('mvpUploadProgressBar');
+    const fill = document.getElementById('mvpUploadProgressFill');
+    const lbl = document.getElementById('mvpUploadProgressLabel');
+    if (!bar) return;
+    if (pct === null) { bar.style.display = 'none'; return; }
+    bar.style.display = 'block';
+    if (fill) fill.style.width = `${pct}%`;
+    if (lbl) lbl.textContent = label || `⏫ Subiendo... ${pct}%`;
+    if (pct >= 100) {
+      setTimeout(() => { if (bar) bar.style.display = 'none'; }, 1500);
+    }
+  }
+
+  // ─── Wiring: Preview foto ────────────────────────────────────────────────────
+  const photoFileInput = document.getElementById('inputMvpPhotoFile');
+  const photoPreview = document.getElementById('editMvpPhotoPreview');
+  photoFileInput?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    _pendingPhotoFile = file;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (photoPreview) {
+        photoPreview.src = ev.target.result;
+        photoPreview.style.display = 'block';
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // ─── Wiring: Validación de video ─────────────────────────────────────────────
+  const videoFileInput = document.getElementById('inputMvpVideoFile');
+  videoFileInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) { _pendingVideoFile = null; _videoValidated = false; return; }
+
+    _pendingVideoFile = file;
+    _videoValidated = false;
+    showVideoFeedback(`🔍 Analizando video: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)...`, 'info');
+
+    const result = await validateVideoFile(file);
+
+    if (!result.valid) {
+      _pendingVideoFile = null;
+      _videoValidated = false;
+      e.target.value = ''; // Limpiar el input
+      showVideoFeedback(`❌ ${result.error}`, 'error');
+      showToast(`Video rechazado: ${result.error}`, 'error');
+    } else {
+      _videoValidated = true;
+      const dur = result.duration ? ` · ${Math.floor(result.duration / 60)}m ${Math.round(result.duration % 60)}s` : '';
+      const res = (result.width && result.height) ? ` · ${result.width}×${result.height}` : '';
+      showVideoFeedback(`✅ Video válido${dur}${res}. Listo para subir.`, 'success');
+    }
+  });
+
+  // ─── Abrir modal ─────────────────────────────────────────────────────────────
   btnOpen?.addEventListener('click', () => {
     if (!activeScorerMatch) {
       showToast('No hay partido seleccionado para editar destacados', 'warning');
@@ -6090,9 +6257,6 @@ function initMvpHighlightModal() {
     const inputPos = document.getElementById('inputMvpPosicion');
     if (inputPos) inputPos.value = mvp.posicion || document.getElementById('mvpPlayerPosition')?.textContent || 'Base / Escolta • MVP';
 
-    const inputPhoto = document.getElementById('inputMvpFotoUrl');
-    if (inputPhoto) inputPhoto.value = mvp.fotoUrl || './assets/IMG-20260228-WA0066.jpg';
-
     const inputPts = document.getElementById('inputMvpPts');
     if (inputPts) inputPts.value = mvp.puntos !== undefined ? mvp.puntos : (document.getElementById('mvpStatPts')?.textContent || 28);
 
@@ -6105,11 +6269,30 @@ function initMvpHighlightModal() {
     const inputVal = document.getElementById('inputMvpVal');
     if (inputVal) inputVal.value = mvp.eficiencia !== undefined ? mvp.eficiencia : (document.getElementById('mvpStatVal')?.textContent || '+32');
 
-    const inputVid = document.getElementById('inputMvpVideoUrl');
-    if (inputVid) inputVid.value = mvp.videoUrl || 'https://www.youtube.com/watch?v=ScMzIvxBSi4';
+    // Preview foto existente
+    const existingFoto = mvp.fotoUrl || '';
+    if (photoPreview) {
+      photoPreview.src = existingFoto;
+      photoPreview.style.display = existingFoto ? 'block' : 'none';
+    }
+    const hiddenFotoUrl = document.getElementById('inputMvpFotoUrl');
+    if (hiddenFotoUrl) hiddenFotoUrl.value = existingFoto;
+
+    const hiddenVideoUrl = document.getElementById('inputMvpVideoUrl');
+    if (hiddenVideoUrl) hiddenVideoUrl.value = mvp.videoUrl || '';
 
     const inputVidTit = document.getElementById('inputMvpVideoTitulo');
-    if (inputVidTit) inputVidTit.value = mvp.videoTitulo || (document.getElementById('mvpVideoTitle')?.textContent || 'Triple decisivo sobre la bocina');
+    if (inputVidTit) inputVidTit.value = mvp.videoTitulo || (document.getElementById('mvpVideoTitle')?.textContent || 'Jugada del partido');
+
+    // Reset file inputs
+    if (photoFileInput) photoFileInput.value = '';
+    if (videoFileInput) videoFileInput.value = '';
+    _pendingPhotoFile = null;
+    _pendingVideoFile = null;
+    _videoValidated = false;
+
+    const fb = document.getElementById('videoValidationFeedback');
+    if (fb) { fb.style.display = 'none'; }
 
     modal.classList.add('open');
   });
@@ -6120,37 +6303,105 @@ function initMvpHighlightModal() {
     if (e.target === modal) closeModal();
   });
 
-  form?.addEventListener('submit', (e) => {
+  // ─── Submit del formulario con subida a Supabase Storage ─────────────────────
+  form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!activeScorerMatch) return;
 
-    const newMvp = {
-      nombre: (document.getElementById('inputMvpNombre')?.value || '').trim(),
-      dorsal: (document.getElementById('inputMvpDorsal')?.value || '').trim(),
-      equipo: (document.getElementById('inputMvpEquipo')?.value || '').trim(),
-      posicion: (document.getElementById('inputMvpPosicion')?.value || '').trim(),
-      fotoUrl: (document.getElementById('inputMvpFotoUrl')?.value || '').trim(),
-      puntos: parseInt(document.getElementById('inputMvpPts')?.value, 10) || 0,
-      rebotes: parseInt(document.getElementById('inputMvpReb')?.value, 10) || 0,
-      asistencias: parseInt(document.getElementById('inputMvpAst')?.value, 10) || 0,
-      eficiencia: (document.getElementById('inputMvpVal')?.value || '').trim(),
-      videoUrl: (document.getElementById('inputMvpVideoUrl')?.value || '').trim(),
-      videoTitulo: (document.getElementById('inputMvpVideoTitulo')?.value || '').trim()
-    };
+    const btnGuardar = document.getElementById('btnGuardarMvpHighlight');
+    if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.textContent = '⏳ Guardando...'; }
 
-    activeScorerMatch.mvp = newMvp;
+    try {
+      let finalFotoUrl = (document.getElementById('inputMvpFotoUrl')?.value || '').trim();
+      let finalVideoUrl = (document.getElementById('inputMvpVideoUrl')?.value || '').trim();
 
-    if (window.tournamentStore?.updatePartido) {
-      window.tournamentStore.updatePartido(activeScorerMatch.id, { mvp: newMvp });
+      const svc = window.supabaseService;
+      const canUpload = svc && typeof svc.uploadMediaDestacado === 'function';
+
+      // Subir foto si hay archivo pendiente
+      if (_pendingPhotoFile && canUpload) {
+        showToast('📸 Subiendo foto del jugador...', 'info');
+        setUploadProgress(10, '📸 Subiendo foto...');
+        try {
+          finalFotoUrl = await svc.uploadMediaDestacado(_pendingPhotoFile, 'fotos', (pct) => {
+            setUploadProgress(Math.round(pct * 0.5), `📸 Subiendo foto... ${Math.round(pct * 0.5)}%`);
+          });
+          const hiddenFoto = document.getElementById('inputMvpFotoUrl');
+          if (hiddenFoto) hiddenFoto.value = finalFotoUrl;
+          setUploadProgress(50, '📸 Foto subida ✓');
+        } catch (photoErr) {
+          console.error('[MVP] Error subiendo foto:', photoErr);
+          showToast('⚠️ Error al subir la foto. Se usará URL anterior.', 'warning');
+        }
+      }
+
+      // Subir video si hay archivo pendiente y está validado
+      if (_pendingVideoFile && _videoValidated && canUpload) {
+        showToast('🎬 Subiendo video de la jugada...', 'info');
+        setUploadProgress(55, '🎬 Subiendo video...');
+        try {
+          finalVideoUrl = await svc.uploadMediaDestacado(_pendingVideoFile, 'videos', (pct) => {
+            setUploadProgress(50 + Math.round(pct * 0.45), `🎬 Subiendo video... ${Math.round(pct)}%`);
+          });
+          const hiddenVideo = document.getElementById('inputMvpVideoUrl');
+          if (hiddenVideo) hiddenVideo.value = finalVideoUrl;
+        } catch (videoErr) {
+          console.error('[MVP] Error subiendo video:', videoErr);
+          showToast('⚠️ Error al subir el video. Se usará URL anterior.', 'warning');
+        }
+      } else if (_pendingVideoFile && !_videoValidated) {
+        showToast('⚠️ El video no pasó la validación y no fue subido.', 'warning');
+      }
+
+      setUploadProgress(95, '💾 Guardando en base de datos...');
+
+      // Construir objeto MVP final
+      const newMvp = {
+        nombre: (document.getElementById('inputMvpNombre')?.value || '').trim(),
+        dorsal: (document.getElementById('inputMvpDorsal')?.value || '').trim(),
+        equipo: (document.getElementById('inputMvpEquipo')?.value || '').trim(),
+        posicion: (document.getElementById('inputMvpPosicion')?.value || '').trim(),
+        fotoUrl: finalFotoUrl,
+        puntos: parseInt(document.getElementById('inputMvpPts')?.value, 10) || 0,
+        rebotes: parseInt(document.getElementById('inputMvpReb')?.value, 10) || 0,
+        asistencias: parseInt(document.getElementById('inputMvpAst')?.value, 10) || 0,
+        eficiencia: (document.getElementById('inputMvpVal')?.value || '').trim(),
+        videoUrl: finalVideoUrl,
+        videoTitulo: (document.getElementById('inputMvpVideoTitulo')?.value || '').trim()
+      };
+
+      // Guardar en estado local
+      activeScorerMatch.mvp = newMvp;
+
+      // Actualizar en Supabase (tabla partidos)
+      if (svc && typeof svc.updatePartidoMvp === 'function') {
+        try {
+          await svc.updatePartidoMvp(activeScorerMatch.id, newMvp);
+        } catch (dbErr) {
+          console.error('[MVP] Error guardando en Supabase:', dbErr);
+          showToast('⚠️ No se pudo guardar en la nube, pero los cambios son visibles localmente.', 'warning');
+        }
+      }
+
+      // Actualizar store local
+      if (window.tournamentStore?.updatePartido) {
+        window.tournamentStore.updatePartido(activeScorerMatch.id, { mvp: newMvp });
+      }
+
+      setUploadProgress(100, '✅ ¡Guardado!');
+
+      // Renderizar sección actualizada
+      renderMvpAndVideoSection(activeScorerMatch);
+      closeModal();
+      showToast('⭐ Jugador del Partido y Video actualizados con éxito', 'success');
+
+    } catch (err) {
+      console.error('[MVP Modal] Error inesperado al guardar:', err);
+      showToast('❌ Error inesperado al guardar. Intenta de nuevo.', 'error');
+      setUploadProgress(null);
+    } finally {
+      if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = '💾 Guardar Destacados'; }
     }
-
-    if (window.supabaseService?.broadcastScore) {
-      window.supabaseService.broadcastScore(activeScorerMatch.id, { mvp: newMvp });
-    }
-
-    renderMvpAndVideoSection(activeScorerMatch);
-    closeModal();
-    showToast('⭐ Jugador del Partido y Video actualizados con éxito', 'success');
   });
 }
 
