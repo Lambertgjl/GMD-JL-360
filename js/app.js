@@ -725,6 +725,7 @@ function initDisciplineNavigation() {
   initEditarPartidoModal();
   initNuevoEquipoModal();
   initGruposModule();
+  initMvpHighlightModal();
 }
 
 // ==============================================================================
@@ -5916,12 +5917,243 @@ function loadScorerMatch(partidoId, event) {
 
   // Sincronizar datos y puntuación en UI en tiempo real
   syncLiveMatchUiScores(activeScorerMatch.id, totalLoc, totalVis, activeScorerMatch.estado);
+
+  // Sincronizar sección de Jugador Destacado (MVP) y Video de la Jugada
+  renderMvpAndVideoSection(activeScorerMatch);
 }
 
 // Global aliases for scoreboard renderer
 window.loadScorerMatch = loadScorerMatch;
 window.renderMainScoreboard = loadScorerMatch;
 window.renderLiveScoreboardArena = loadScorerMatch;
+
+// ==============================================================================
+// GESTIÓN DE JUGADOR DESTACADO (MVP) Y VIDEO / REEL DE LA JUGADA (LIVE)
+// ==============================================================================
+function formatYouTubeEmbedUrl(url) {
+  if (!url) return '';
+  const str = String(url).trim();
+  if (str.includes('youtube-nocookie.com/embed/') || str.includes('youtube.com/embed/')) {
+    return str.includes('?') ? str : str + '?rel=0&modestbranding=1';
+  }
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
+  const match = str.match(regExp);
+  if (match && match[2].length === 11) {
+    return `https://www.youtube-nocookie.com/embed/${match[2]}?rel=0&modestbranding=1`;
+  }
+  return str;
+}
+
+function renderMvpAndVideoSection(partido) {
+  const section = document.getElementById('liveFeaturedSection');
+  if (!section) return;
+
+  if (!partido) {
+    const elName = document.getElementById('mvpPlayerName');
+    if (elName) elName.textContent = 'En espera de partido';
+    const elTeam = document.getElementById('mvpPlayerTeamName');
+    if (elTeam) elTeam.textContent = 'Disciplina activa';
+    return;
+  }
+
+  // Si el partido ya tiene datos configurados de MVP
+  const mvp = partido.mvp || {};
+
+  const locName = partido.equipoLocal || 'Local';
+  const visName = partido.equipoVisitante || 'Visitante';
+  const scoreLoc = Number(partido.totalLocal ?? partido.puntosLocal ?? 0);
+  const scoreVis = Number(partido.totalVisitante ?? partido.puntosVisitante ?? 0);
+  const isVisWinner = scoreVis > scoreLoc;
+  const targetTeamName = mvp.equipo || (isVisWinner ? visName : locName);
+
+  // Intentar cargar atletas del roster para esta franquicia
+  const discId = partido.disciplinaId || window.tournamentStore?.getDisciplinaActual?.()?.id || 'baloncesto-master';
+  let atletas = [];
+  try {
+    if (window.tournamentStore && typeof window.tournamentStore.getAtletas === 'function') {
+      atletas = window.tournamentStore.getAtletas(targetTeamName, discId) || [];
+    }
+  } catch (e) {
+    console.warn('[renderMvpAndVideoSection] Error al obtener atletas:', e);
+  }
+  const defaultAthlete = atletas.length > 0 ? atletas[0] : null;
+
+  // Valores de visualización
+  const playerName = mvp.nombre || (defaultAthlete ? defaultAthlete.nombres : 'Carlos Mendoza');
+  const playerDorsal = mvp.dorsal || (defaultAthlete && defaultAthlete.camiseta ? '#' + defaultAthlete.camiseta : '#7');
+  const playerPos = mvp.posicion || (defaultAthlete && defaultAthlete.posicion ? `${defaultAthlete.posicion} • Capitán` : 'Base / Escolta • MVP');
+  const playerPhoto = mvp.fotoUrl || (defaultAthlete && defaultAthlete.fotoUrl ? defaultAthlete.fotoUrl : './assets/IMG-20260228-WA0066.jpg');
+
+  const baseScore = isVisWinner ? (scoreVis || 42) : (scoreLoc || 43);
+  const ptsVal = mvp.puntos !== undefined ? mvp.puntos : Math.max(18, Math.min(baseScore, Math.round(baseScore * 0.48) || 28));
+  const rebVal = mvp.rebotes !== undefined ? mvp.rebotes : 9;
+  const astVal = mvp.asistencias !== undefined ? mvp.asistencias : 7;
+  const valVal = mvp.eficiencia !== undefined ? mvp.eficiencia : '+32';
+
+  // Video / Reel Highlight
+  const defaultVideo = 'https://www.youtube-nocookie.com/embed/ScMzIvxBSi4?rel=0&modestbranding=1';
+  const videoUrl = mvp.videoUrl ? formatYouTubeEmbedUrl(mvp.videoUrl) : defaultVideo;
+  const videoTitle = mvp.videoTitulo || 'Triple decisivo sobre la bocina y mejor jugada del encuentro';
+  const venueStr = partido.sede || 'Gimnasio Pablo Higuerey';
+
+  // Actualizar DOM del Jugador MVP
+  const elName = document.getElementById('mvpPlayerName');
+  if (elName) elName.textContent = playerName;
+
+  const elTeam = document.getElementById('mvpPlayerTeamName');
+  if (elTeam) elTeam.textContent = targetTeamName;
+
+  const elDorsal = document.getElementById('mvpPlayerDorsal');
+  if (elDorsal) elDorsal.textContent = playerDorsal;
+
+  const elPos = document.getElementById('mvpPlayerPosition');
+  if (elPos) elPos.textContent = playerPos;
+
+  const elPhoto = document.getElementById('mvpPlayerPhoto');
+  if (elPhoto) {
+    elPhoto.src = playerPhoto;
+    elPhoto.onerror = () => { elPhoto.src = './assets/logo.png'; };
+  }
+
+  const elPts = document.getElementById('mvpStatPts');
+  if (elPts) elPts.textContent = ptsVal;
+
+  const elReb = document.getElementById('mvpStatReb');
+  if (elReb) elReb.textContent = rebVal;
+
+  const elAst = document.getElementById('mvpStatAst');
+  if (elAst) elAst.textContent = astVal;
+
+  const elVal = document.getElementById('mvpStatVal');
+  if (elVal) elVal.textContent = valVal;
+
+  // Actualizar DOM del Video
+  const elIframe = document.getElementById('mvpVideoIframe');
+  if (elIframe && videoUrl) {
+    if (elIframe.src !== videoUrl) {
+      elIframe.src = videoUrl;
+    }
+  }
+
+  const elVideoTitle = document.getElementById('mvpVideoTitle');
+  if (elVideoTitle) elVideoTitle.textContent = videoTitle;
+
+  const elVideoMeta = document.getElementById('mvpVideoMeta');
+  if (elVideoMeta) elVideoMeta.textContent = `📍 ${venueStr} • Transmisión Oficial JL 360`;
+
+  const btnWatch = document.getElementById('btnWatchYoutube');
+  if (btnWatch) {
+    let watchUrl = videoUrl;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = videoUrl.match(regExp);
+    if (match && match[2]) {
+      watchUrl = `https://www.youtube.com/watch?v=${match[2]}`;
+    }
+    btnWatch.href = watchUrl;
+  }
+}
+
+function initMvpHighlightModal() {
+  const modal = document.getElementById('modalEditarMvp');
+  if (!modal) return;
+
+  const btnOpen = document.getElementById('btnEditMvpHighlight');
+  const btnClose = document.getElementById('btnCloseModalEditarMvp');
+  const btnCancel = document.getElementById('btnCancelModalEditarMvp');
+  const form = document.getElementById('formEditarMvp');
+
+  const closeModal = () => modal.classList.remove('open');
+
+  btnOpen?.addEventListener('click', () => {
+    if (!activeScorerMatch) {
+      showToast('No hay partido seleccionado para editar destacados', 'warning');
+      return;
+    }
+    const mvp = activeScorerMatch.mvp || {};
+    const locName = activeScorerMatch.equipoLocal || 'Local';
+    const visName = activeScorerMatch.equipoVisitante || 'Visitante';
+    const isVisWinner = Number(activeScorerMatch.totalVisitante || 0) > Number(activeScorerMatch.totalLocal || 0);
+    const targetTeamName = mvp.equipo || (isVisWinner ? visName : locName);
+
+    const inputPartId = document.getElementById('editMvpPartidoId');
+    if (inputPartId) inputPartId.value = activeScorerMatch.id;
+
+    const inputName = document.getElementById('inputMvpNombre');
+    if (inputName) inputName.value = mvp.nombre || document.getElementById('mvpPlayerName')?.textContent || 'Carlos Mendoza';
+
+    const inputDorsal = document.getElementById('inputMvpDorsal');
+    if (inputDorsal) inputDorsal.value = mvp.dorsal || document.getElementById('mvpPlayerDorsal')?.textContent || '#7';
+
+    const inputTeam = document.getElementById('inputMvpEquipo');
+    if (inputTeam) inputTeam.value = targetTeamName;
+
+    const inputPos = document.getElementById('inputMvpPosicion');
+    if (inputPos) inputPos.value = mvp.posicion || document.getElementById('mvpPlayerPosition')?.textContent || 'Base / Escolta • MVP';
+
+    const inputPhoto = document.getElementById('inputMvpFotoUrl');
+    if (inputPhoto) inputPhoto.value = mvp.fotoUrl || './assets/IMG-20260228-WA0066.jpg';
+
+    const inputPts = document.getElementById('inputMvpPts');
+    if (inputPts) inputPts.value = mvp.puntos !== undefined ? mvp.puntos : (document.getElementById('mvpStatPts')?.textContent || 28);
+
+    const inputReb = document.getElementById('inputMvpReb');
+    if (inputReb) inputReb.value = mvp.rebotes !== undefined ? mvp.rebotes : (document.getElementById('mvpStatReb')?.textContent || 9);
+
+    const inputAst = document.getElementById('inputMvpAst');
+    if (inputAst) inputAst.value = mvp.asistencias !== undefined ? mvp.asistencias : (document.getElementById('mvpStatAst')?.textContent || 7);
+
+    const inputVal = document.getElementById('inputMvpVal');
+    if (inputVal) inputVal.value = mvp.eficiencia !== undefined ? mvp.eficiencia : (document.getElementById('mvpStatVal')?.textContent || '+32');
+
+    const inputVid = document.getElementById('inputMvpVideoUrl');
+    if (inputVid) inputVid.value = mvp.videoUrl || 'https://www.youtube.com/watch?v=ScMzIvxBSi4';
+
+    const inputVidTit = document.getElementById('inputMvpVideoTitulo');
+    if (inputVidTit) inputVidTit.value = mvp.videoTitulo || (document.getElementById('mvpVideoTitle')?.textContent || 'Triple decisivo sobre la bocina');
+
+    modal.classList.add('open');
+  });
+
+  btnClose?.addEventListener('click', closeModal);
+  btnCancel?.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!activeScorerMatch) return;
+
+    const newMvp = {
+      nombre: (document.getElementById('inputMvpNombre')?.value || '').trim(),
+      dorsal: (document.getElementById('inputMvpDorsal')?.value || '').trim(),
+      equipo: (document.getElementById('inputMvpEquipo')?.value || '').trim(),
+      posicion: (document.getElementById('inputMvpPosicion')?.value || '').trim(),
+      fotoUrl: (document.getElementById('inputMvpFotoUrl')?.value || '').trim(),
+      puntos: parseInt(document.getElementById('inputMvpPts')?.value, 10) || 0,
+      rebotes: parseInt(document.getElementById('inputMvpReb')?.value, 10) || 0,
+      asistencias: parseInt(document.getElementById('inputMvpAst')?.value, 10) || 0,
+      eficiencia: (document.getElementById('inputMvpVal')?.value || '').trim(),
+      videoUrl: (document.getElementById('inputMvpVideoUrl')?.value || '').trim(),
+      videoTitulo: (document.getElementById('inputMvpVideoTitulo')?.value || '').trim()
+    };
+
+    activeScorerMatch.mvp = newMvp;
+
+    if (window.tournamentStore?.updatePartido) {
+      window.tournamentStore.updatePartido(activeScorerMatch.id, { mvp: newMvp });
+    }
+
+    if (window.supabaseService?.broadcastScore) {
+      window.supabaseService.broadcastScore(activeScorerMatch.id, { mvp: newMvp });
+    }
+
+    renderMvpAndVideoSection(activeScorerMatch);
+    closeModal();
+    showToast('⭐ Jugador del Partido y Video actualizados con éxito', 'success');
+  });
+}
+
 
 // Recalcula y sincroniza el marcador digital principal y la tabla de desglose
 function recalculateAndSyncFromQuartersTable() {

@@ -26,7 +26,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./styles.css?v=3.2.0">
+  <link rel="stylesheet" href="./styles.css?v=3.2.1">
 </head>
 <body>
 
@@ -968,6 +968,108 @@
                         </tr>
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ============================================================
+                   NUEVA SECCIÓN: JUGADOR DESTACADO (MVP) & VIDEO DE LA JUGADA
+                   Espacio atractivo inferior antes de la barra de navegación móvil
+                   ============================================================ -->
+              <div class="live-featured-section" id="liveFeaturedSection">
+                <div class="featured-card-wrapper">
+                  <div class="featured-card-header">
+                    <div class="featured-header-title-box">
+                      <span class="badge badge-gold featured-badge">⭐ DESTACADOS DE LA JORNADA</span>
+                      <h3 class="featured-title">Jugador del Partido & Video de la Jugada</h3>
+                    </div>
+                    <span class="featured-subtitle">Momentos estelares y rendimiento individual sobresaliente</span>
+                  </div>
+
+                  <div class="featured-grid">
+                    <!-- Tarjeta 1: Jugador del Partido (MVP) -->
+                    <div class="featured-subcard player-highlight-card" id="mvpPlayerCard">
+                      <div class="subcard-header">
+                        <span class="subcard-tag">👑 JUGADOR DEL PARTIDO (MVP)</span>
+                        <span class="badge badge-gold" style="font-size: 0.65rem; padding: 1px 6px;">OFICIAL</span>
+                      </div>
+
+                      <div class="player-highlight-body">
+                        <!-- Círculo de Foto con Borde Neón y Dorsal -->
+                        <div class="player-avatar-wrapper">
+                          <div class="player-avatar-ring">
+                            <img src="./assets/IMG-20260228-WA0066.jpg" alt="Foto Jugador del Partido" class="player-avatar-img" id="mvpPlayerPhoto" onerror="this.onerror=null; this.src='./assets/logo.png';">
+                          </div>
+                          <div class="player-dorsal-badge" id="mvpPlayerDorsal">#7</div>
+                        </div>
+
+                        <!-- Información del Jugador -->
+                        <div class="player-details">
+                          <h4 class="player-name" id="mvpPlayerName">Carlos Mendoza</h4>
+                          <div class="player-team-pill">
+                            <span class="player-team-icon">🏀</span>
+                            <span id="mvpPlayerTeamName">Gladiadores de Anzoátegui</span>
+                          </div>
+                          <div class="player-role-pos" id="mvpPlayerPosition">Base / Armador • Capitán</div>
+                        </div>
+                      </div>
+
+                      <!-- Estadísticas Destacadas -->
+                      <div class="player-stats-grid">
+                        <div class="player-stat-box">
+                          <span class="player-stat-val" id="mvpStatPts">28</span>
+                          <span class="player-stat-lbl">PUNTOS</span>
+                        </div>
+                        <div class="player-stat-box">
+                          <span class="player-stat-val" id="mvpStatReb">9</span>
+                          <span class="player-stat-lbl">REBOTES</span>
+                        </div>
+                        <div class="player-stat-box">
+                          <span class="player-stat-val" id="mvpStatAst">7</span>
+                          <span class="player-stat-lbl">ASIST.</span>
+                        </div>
+                        <div class="player-stat-box highlight-stat">
+                          <span class="player-stat-val" id="mvpStatVal">+32</span>
+                          <span class="player-stat-lbl">EFICIENCIA</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Tarjeta 2: Video / Reel de la Jugada -->
+                    <div class="featured-subcard video-highlight-card" id="videoHighlightCard">
+                      <div class="subcard-header">
+                        <span class="subcard-tag">🎬 JUGADA CLAVE DEL PARTIDO</span>
+                        <div style="display: flex; align-items: center; gap: 0.4rem;">
+                          <span class="video-live-indicator">🔴 VIDEO / REEL</span>
+                          <a href="https://www.youtube.com/watch?v=ScMzIvxBSi4" target="_blank" rel="noopener noreferrer" class="btn btn-outline-cyan btn-sm" id="btnWatchYoutube" style="padding: 2px 7px; font-size: 0.65rem; text-decoration: none;" title="Ver en YouTube">YouTube ↗</a>
+                        </div>
+                      </div>
+
+                      <!-- Placeholder / Iframe Responsivo 16:9 -->
+                      <div class="video-container-responsive" id="videoHighlightContainer">
+                        <iframe 
+                          id="mvpVideoIframe"
+                          src="https://www.youtube-nocookie.com/embed/ScMzIvxBSi4?rel=0&modestbranding=1" 
+                          title="Video de la Jugada del Partido" 
+                          frameborder="0" 
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                          allowfullscreen
+                          class="video-iframe">
+                        </iframe>
+                      </div>
+
+                      <div class="video-caption-bar">
+                        <span class="video-caption-title" id="mvpVideoTitle">Triple decisivo sobre la bocina y mejor jugada del encuentro</span>
+                        <span class="video-caption-meta" id="mvpVideoMeta">📍 Gimnasio Pablo Higuerey • Transmisión Oficial JL 360</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Botón de administración para editar MVP y Video (Solo Superadmin) -->
+                  <div class="rbac-admin-only" id="mvpAdminActionRow" style="margin-top: 0.75rem; display: flex; justify-content: flex-end;">
+                    <button class="btn btn-outline-gold btn-sm" id="btnEditMvpHighlight" type="button" style="font-size: 0.74rem; padding: 4px 10px;">
+                      ✏️ Editar Jugador Destacado & Video del Partido
+                    </button>
                   </div>
                 </div>
               </div>
@@ -2268,6 +2370,95 @@
     </div>
   </div>
 
+  <!-- Modal: Editar Jugador Destacado y Video de la Jugada (Superadmin) -->
+  <div class="modal-overlay" id="modalEditarMvp">
+    <div class="modal-card" style="max-width: 520px; width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <span style="font-size: 1.4rem;">🌟</span>
+          <div>
+            <h3 class="modal-title" style="font-size: 1.15rem; color: #ffffff;">Destacados del Partido</h3>
+            <p style="font-size: 0.76rem; color: var(--text-secondary); margin: 0;">Configurar MVP y Video / Reel de la Jugada</p>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="btnCloseModalEditarMvp" type="button">&times;</button>
+      </div>
+
+      <form id="formEditarMvp" class="modal-body" style="display: flex; flex-direction: column; gap: 0.85rem;">
+        <input type="hidden" id="editMvpPartidoId">
+
+        <div style="font-weight: 700; color: var(--brand-gold); font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.3rem;">
+          👑 Jugador del Partido (MVP)
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex: 2;">
+            <label class="form-label" for="inputMvpNombre">Nombre del Jugador</label>
+            <input type="text" class="form-input" id="inputMvpNombre" placeholder="Ej. Carlos Mendoza" required>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="inputMvpDorsal">Dorsal / Camiseta</label>
+            <input type="text" class="form-input" id="inputMvpDorsal" placeholder="#7">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="inputMvpEquipo">Equipo</label>
+            <input type="text" class="form-input" id="inputMvpEquipo" placeholder="Equipo del Jugador">
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="inputMvpPosicion">Posición / Rol</label>
+            <input type="text" class="form-input" id="inputMvpPosicion" placeholder="Ej. Base / Armador">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="inputMvpFotoUrl">Foto del Jugador (URL o archivo local)</label>
+          <input type="text" class="form-input" id="inputMvpFotoUrl" placeholder="Ej. ./assets/IMG-20260228-WA0066.jpg">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="inputMvpPts">Puntos</label>
+            <input type="number" class="form-input" id="inputMvpPts" min="0" placeholder="28">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputMvpReb">Rebotes</label>
+            <input type="number" class="form-input" id="inputMvpReb" min="0" placeholder="9">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputMvpAst">Asistencias</label>
+            <input type="number" class="form-input" id="inputMvpAst" min="0" placeholder="7">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputMvpVal">Eficiencia</label>
+            <input type="text" class="form-input" id="inputMvpVal" placeholder="+32">
+          </div>
+        </div>
+
+        <div style="font-weight: 700; color: var(--accent-cyan); font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.3rem; margin-top: 0.3rem;">
+          🎬 Video / Reel de la Jugada
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="inputMvpVideoUrl">URL del Video de YouTube / Reel</label>
+          <input type="text" class="form-input" id="inputMvpVideoUrl" placeholder="Ej. https://www.youtube.com/watch?v=ScMzIvxBSi4">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="inputMvpVideoTitulo">Título o Descripción de la Jugada</label>
+          <input type="text" class="form-input" id="inputMvpVideoTitulo" placeholder="Ej. Triple decisivo sobre la bocina para sellar la victoria">
+        </div>
+
+        <div class="modal-actions" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
+          <button class="btn btn-outline btn-sm" id="btnCancelModalEditarMvp" type="button">Cancelar</button>
+          <button class="btn btn-gold btn-sm" id="btnGuardarMvpHighlight" type="submit">💾 Guardar Destacados</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ==============================================================================
        MODAL COMPARTIR PLATAFORMA DEPORTIVA
        ============================================================================== -->
@@ -2349,10 +2540,10 @@
   </footer>
 
   <!-- Application Logic Scripts -->
-  <script src="./js/store.js?v=3.2.0"></script>
-  <script src="./js/standings.js?v=3.2.0"></script>
-  <script src="./js/csv-importer.js?v=3.2.0"></script>
-  <script src="./js/supabase.js?v=3.2.0"></script>
-  <script src="./js/app.js?v=3.2.0"></script>
+  <script src="./js/store.js?v=3.2.1"></script>
+  <script src="./js/standings.js?v=3.2.1"></script>
+  <script src="./js/csv-importer.js?v=3.2.1"></script>
+  <script src="./js/supabase.js?v=3.2.1"></script>
+  <script src="./js/app.js?v=3.2.1"></script>
 </body>
 </html>
