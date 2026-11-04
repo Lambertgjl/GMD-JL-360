@@ -3141,6 +3141,13 @@ function openNuevoEquipoModal() {
 }
 
 function openEditarEquipoModal(equipoId) {
+  const user = window.tournamentStore.getUsuarioActual();
+  const isSuperAdmin = !!(user && (user.rol === 'superadmin' || user.esSuperAdmin));
+  const isDiscAdmin = !!(user && user.rol === 'admin_disciplina');
+  if (!isSuperAdmin && !isDiscAdmin) {
+    showToast('⛔ Acceso denegado: Los delegados no tienen permisos para editar datos del equipo.', 'error');
+    return;
+  }
   const eq = window.tournamentStore.getEquipoPorId(equipoId);
   if (!eq) return;
   const modal = document.getElementById('modalNuevoEquipo');
@@ -3249,6 +3256,14 @@ function initNuevoEquipoModal() {
   // Submit form con compresión obligatoria de logotipo
   document.getElementById('formNuevoEquipoModal')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const user = window.tournamentStore.getUsuarioActual();
+    const isSuperAdmin = !!(user && (user.rol === 'superadmin' || user.esSuperAdmin));
+    const isDiscAdmin = !!(user && user.rol === 'admin_disciplina');
+    if (!isSuperAdmin && !isDiscAdmin) {
+      showToast('⛔ Acceso denegado: Los delegados no tienen permisos para modificar la franquicia.', 'error');
+      document.getElementById('modalNuevoEquipo')?.classList.remove('open');
+      return;
+    }
     const id = document.getElementById('newTeamId')?.value;
     const nombre = document.getElementById('newTeamName')?.value.trim();
     let logoUrl = document.getElementById('newTeamLogoUrl')?.value.trim() || '';
@@ -3834,13 +3849,16 @@ function renderTeamsAndRosters() {
       const atletas = window.tournamentStore.getAtletas(eq.nombre, disc.id);
       const isMyTeam = isDelegado && (eq.id === userTeamId || eq.nombre === userTeamName);
 
-      // RBAC rules:
-      // - Superadmin: button on all teams
-      // - Delegado: button ONLY on their own team
-      // - Fanatico: no edit/add buttons (read-only)
-      const canAddAthlete = isSuperAdmin || isMyTeam;
-      const canEditTeam = isSuperAdmin || isMyTeam;
-      const canDeleteTeam = isSuperAdmin;
+      // RBAC rules estrictas:
+      // - Superadmin / Admin Disciplina: permisos completos
+      // - Delegado: NO puede editar ni eliminar equipos. SOLO ve "Ver Plantilla" y "Agregar Atleta" en su equipo asignado.
+      // - Fanatico: solo lectura ("Ver Plantilla")
+      const isDiscAdmin = !!(user && user.rol === 'admin_disciplina' && (!user.disciplinaId || user.disciplinaId === 'todas' || user.disciplinaId === disc.id));
+      const isAnyAdmin = isSuperAdmin || isDiscAdmin;
+
+      const canAddAthlete = isAnyAdmin || isMyTeam;
+      const canEditTeam = isAnyAdmin;    // Bloqueado para rol 'delegado'
+      const canDeleteTeam = isAnyAdmin;  // Bloqueado para rol 'delegado'
 
       const hasAdminActions = canEditTeam || canAddAthlete || canDeleteTeam;
 
@@ -4039,7 +4057,7 @@ function openTeamRosterModal(teamName) {
           <td style="text-align: left; font-weight: 600;">${a.nombres}</td>
           <td>${a.edad} años</td>
           <td>${a.posicion}</td>
-          <td><span class="badge ${a.rol === 'Capitán' ? 'badge-burgundy' : 'badge-final'}">${a.rol}</span></td>
+          <td><span class="badge ${a.rol === 'Capitán' || a.rol === 'Subcapitán' || a.rol === 'Sub-Capitán' ? 'badge-burgundy' : (a.rol === 'Entrenador' || a.rol === 'Asistente' || a.rol === 'Utilero') ? 'badge-gold' : 'badge-final'}">${a.rol}</span></td>
         </tr>
       `
         )
@@ -4196,7 +4214,7 @@ function renderDelegadoDashboard(equipoId) {
           </td>
           <td>${a.edad} años</td>
           <td>${a.posicion}</td>
-          <td><span class="badge ${a.rol === 'Capitán' ? 'badge-burgundy' : 'badge-final'}">${a.rol}</span></td>
+          <td><span class="badge ${a.rol === 'Capitán' || a.rol === 'Subcapitán' || a.rol === 'Sub-Capitán' ? 'badge-burgundy' : (a.rol === 'Entrenador' || a.rol === 'Asistente' || a.rol === 'Utilero') ? 'badge-gold' : 'badge-final'}">${a.rol}</span></td>
           <td>
             <div style="display: flex; gap: 0.4rem; justify-content: center; align-items: center;">
               <!-- Limited modification (Typographical errors / Photo) -->
@@ -5321,7 +5339,7 @@ function renderAdminMasterRoster() {
       <td style="text-align: left; font-weight: 600;">${a.nombres}</td>
       <td style="text-align: left; color: var(--brand-gold-light);">${a.equipo}</td>
       <td>${a.posicion}</td>
-      <td><span class="badge ${a.rol === 'Capitán' ? 'badge-burgundy' : 'badge-final'}">${a.rol}</span></td>
+      <td><span class="badge ${a.rol === 'Capitán' || a.rol === 'Subcapitán' || a.rol === 'Sub-Capitán' ? 'badge-burgundy' : (a.rol === 'Entrenador' || a.rol === 'Asistente' || a.rol === 'Utilero') ? 'badge-gold' : 'badge-final'}">${a.rol}</span></td>
       <td>
         <div style="display: flex; gap: 0.35rem; justify-content: center;">
           <button class="btn btn-outline btn-sm btn-edit-atleta-master" data-id="${a.id}" title="Editar atleta">

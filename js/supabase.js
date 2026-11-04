@@ -686,6 +686,15 @@ class SupabaseService {
   async updateEquipo(id, patch) {
     if (!this.client) this.initClient();
     if (!this.client) return false;
+
+    // Regla de Seguridad: Bloquear UPDATE en equipos si el usuario logueado es delegado
+    if (typeof window !== 'undefined' && window.tournamentStore) {
+      const activeUser = window.tournamentStore.getUsuarioActual();
+      if (activeUser && activeUser.rol === 'delegado') {
+        console.warn('[Seguridad Supabase] UPDATE en equipos bloqueado para usuarios con rol "delegado".');
+        return false;
+      }
+    }
     try {
       const fullEq = (window.tournamentStore && typeof window.tournamentStore.getEquipoPorId === 'function') ? window.tournamentStore.getEquipoPorId(id) : null;
       if (fullEq) {
@@ -730,6 +739,15 @@ class SupabaseService {
   async deleteEquipo(id) {
     if (!this.client) this.initClient();
     if (!this.client) return false;
+
+    // Regla de Seguridad: Bloquear DELETE en equipos si el usuario logueado es delegado
+    if (typeof window !== 'undefined' && window.tournamentStore) {
+      const activeUser = window.tournamentStore.getUsuarioActual();
+      if (activeUser && activeUser.rol === 'delegado') {
+        console.warn('[Seguridad Supabase] DELETE en equipos bloqueado para usuarios con rol "delegado".');
+        return false;
+      }
+    }
     try {
       const eq = window.tournamentStore ? window.tournamentStore.getEquipoPorId(id) : null;
       const teamName = eq ? eq.nombre : null;
@@ -787,6 +805,17 @@ class SupabaseService {
   async updateAtleta(id, patch) {
     if (!this.client) this.initClient();
     if (!this.client) return false;
+
+    // Regla de Seguridad: Si es delegado, solo puede actualizar atletas de su propio equipo
+    if (typeof window !== 'undefined' && window.tournamentStore) {
+      const activeUser = window.tournamentStore.getUsuarioActual();
+      if (activeUser && activeUser.rol === 'delegado' && activeUser.equipoNombre) {
+        if (patch.equipo && patch.equipo !== activeUser.equipoNombre) {
+          console.warn('[Seguridad Supabase] Acción denegada: Un delegado solo puede actualizar atletas de su equipo asignado.');
+          return false;
+        }
+      }
+    }
     try {
       const fullAtl = (window.tournamentStore && Array.isArray(window.tournamentStore.data?.atletas)) ? window.tournamentStore.data.atletas.find(x => x.id === id) : null;
       if (fullAtl) {
