@@ -26,7 +26,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./styles.css?v=3.2.6">
+  <link rel="stylesheet" href="./styles.css?v=3.2.7">
 </head>
 <body>
 
@@ -980,21 +980,21 @@
               </div>
 
               <!-- ============================================================
-                   NUEVA SECCIÓN: JUGADOR DESTACADO (MVP) & VIDEO DE LA JUGADA
-                   Espacio atractivo inferior antes de la barra de navegación móvil
+                   NUEVA SECCIÓN: JUGADOR DESTACADO (MVP) 100% ANCHO
+                   Espacio estelar con foto gigante, estadísticas y descripción
                    ============================================================ -->
               <div class="live-featured-section" id="liveFeaturedSection">
                 <div class="featured-card-wrapper">
                   <div class="featured-card-header">
                     <div class="featured-header-title-box">
                       <span class="badge badge-gold featured-badge">⭐ DESTACADOS DE LA JORNADA</span>
-                      <h3 class="featured-title">Jugador del Partido & Video de la Jugada</h3>
+                      <h3 class="featured-title">Jugador del Partido (MVP)</h3>
                     </div>
-                    <span class="featured-subtitle">Momentos estelares y rendimiento individual sobresaliente</span>
+                    <span class="featured-subtitle">Rendimiento individual sobresaliente y figura del encuentro</span>
                   </div>
 
                   <div class="featured-grid">
-                    <!-- Tarjeta 1: Jugador del Partido (MVP) -->
+                    <!-- Tarjeta Jugador del Partido (MVP) al 100% de ancho -->
                     <div class="featured-subcard player-highlight-card" id="mvpPlayerCard">
                       <div class="subcard-header">
                         <span class="subcard-tag">👑 JUGADOR DEL PARTIDO (MVP)</span>
@@ -1002,7 +1002,7 @@
                       </div>
 
                       <div class="player-highlight-body">
-                        <!-- Círculo de Foto con Borde Neón y Dorsal -->
+                        <!-- Círculo de Foto Gigante con Borde Dorado y Dorsal -->
                         <div class="player-avatar-wrapper">
                           <div class="player-avatar-ring">
                             <img src="./assets/IMG-20260228-WA0066.jpg" alt="Foto Jugador del Partido" class="player-avatar-img" id="mvpPlayerPhoto" onerror="this.onerror=null; this.src='./assets/logo.png';">
@@ -1021,7 +1021,7 @@
                         </div>
                       </div>
 
-                      <!-- Estadísticas Destacadas -->
+                      <!-- Estadísticas Destacadas Simétricas -->
                       <div class="player-stats-grid">
                         <div class="player-stat-box">
                           <span class="player-stat-val" id="mvpStatPts">28</span>
@@ -1040,46 +1040,22 @@
                           <span class="player-stat-lbl">EFICIENCIA</span>
                         </div>
                       </div>
-                    </div>
 
-                    <!-- Tarjeta 2: Video / Reel de la Jugada -->
-                    <div class="featured-subcard video-highlight-card" id="videoHighlightCard">
-                      <div class="subcard-header">
-                        <span class="subcard-tag">🎬 JUGADA CLAVE DEL PARTIDO</span>
-                        <div style="display: flex; align-items: center; gap: 0.4rem;">
-                          <span class="video-live-indicator">🔴 VIDEO / REEL</span>
-                          <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-outline-cyan btn-sm" id="btnWatchYoutube" style="padding: 2px 7px; font-size: 0.65rem; text-decoration: none; display:none;" title="Ver en fuente original">Ver ↗</a>
+                      <!-- Texto Descriptivo y Ubicación al pie de la gran tarjeta MVP -->
+                      <div class="player-highlight-caption-bar">
+                        <div class="caption-icon">⚡</div>
+                        <div class="caption-text-content">
+                          <span class="video-caption-title" id="mvpVideoTitle">Triple decisivo sobre la bocina y mejor jugada del encuentro</span>
+                          <span class="video-caption-meta" id="mvpVideoMeta">📍 Gimnasio Pablo Higuerey • Transmisión Oficial JL 360</span>
                         </div>
-                      </div>
-
-                      <!-- Reproductor de Video Embed Dinámico (YouTube / Shorts / Instagram Reels) -->
-                      <div class="video-container-responsive" id="videoHighlightContainer">
-                        <iframe
-                          id="mvpVideoIframe"
-                          src=""
-                          title="Video de la Jugada del Partido"
-                          frameborder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowfullscreen
-                          class="video-iframe"
-                          style="display:none;">
-                        </iframe>
-                        <div class="video-no-media-placeholder" id="videoNoMediaPlaceholder">
-                          🎬 Sin video disponible.<br>El delegado puede agregar un enlace de YouTube, Shorts o Instagram desde el panel de edición.
-                        </div>
-                      </div>
-
-                      <div class="video-caption-bar">
-                        <span class="video-caption-title" id="mvpVideoTitle">Triple decisivo sobre la bocina y mejor jugada del encuentro</span>
-                        <span class="video-caption-meta" id="mvpVideoMeta">📍 Gimnasio Pablo Higuerey • Transmisión Oficial JL 360</span>
                       </div>
                     </div>
                   </div>
 
-                  <!-- Botón de administración para editar MVP y Video (Solo Superadmin) -->
+                  <!-- Botón de administración para editar MVP (Solo Superadmin) -->
                   <div class="rbac-admin-only" id="mvpAdminActionRow" style="margin-top: 0.75rem; display: flex; justify-content: flex-end;">
                     <button class="btn btn-outline-gold btn-sm" id="btnEditMvpHighlight" type="button" style="font-size: 0.74rem; padding: 4px 10px;">
-                      ✏️ Editar Jugador Destacado & Video del Partido
+                      ✏️ Editar Jugador Destacado
                     </button>
                   </div>
                 </div>
@@ -2396,10 +2372,10 @@
     <div class="modal-card" style="max-width: 520px; width: 95vw;">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 0.6rem;">
-          <span style="font-size: 1.4rem;">🌟</span>
+          <span style="font-size: 1.4rem;">👑</span>
           <div>
-            <h3 class="modal-title" style="font-size: 1.15rem; color: #ffffff;">Destacados del Partido</h3>
-            <p style="font-size: 0.76rem; color: var(--text-secondary); margin: 0;">Configurar MVP y Video / Reel de la Jugada</p>
+            <h3 class="modal-title" style="font-size: 1.15rem; color: #ffffff;">Jugador Destacado (MVP)</h3>
+            <p style="font-size: 0.76rem; color: var(--text-secondary); margin: 0;">Configurar foto, estadísticas y actuación del MVP</p>
           </div>
         </div>
         <button class="modal-close-btn" id="btnCloseModalEditarMvp" type="button">&times;</button>
@@ -2409,7 +2385,7 @@
         <input type="hidden" id="editMvpPartidoId">
 
         <div style="font-weight: 700; color: var(--brand-gold); font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.3rem;">
-          👑 Jugador del Partido (MVP)
+          👑 Datos del Jugador del Partido (MVP)
         </div>
 
         <div class="form-row">
@@ -2466,21 +2442,7 @@
           </div>
         </div>
 
-        <div style="font-weight: 700; color: var(--accent-cyan); font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.3rem; margin-top: 0.3rem;">
-          🎬 Video / Reel de la Jugada
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="inputMvpVideoUrl">🎬 Enlace del Video de la Jugada</label>
-          <input type="url" class="form-input" id="inputMvpVideoUrl"
-            placeholder="https://youtube.com/watch?v=... o youtu.be/... o instagram.com/reel/...">
-          <p style="font-size:0.7rem;color:var(--text-secondary);margin:0.3rem 0 0; line-height:1.4;">
-            Compatible con: <strong style="color:var(--accent-cyan);">YouTube</strong> · <strong style="color:var(--accent-cyan);">YouTube Shorts</strong> · <strong style="color:var(--accent-cyan);">Instagram Reels</strong>.<br>
-            Pega el enlace tal como aparece en el navegador o en la opción "Compartir".
-          </p>
-        </div>
-
-        <!-- Barra de progreso (solo para foto) -->
+        <!-- Barra de progreso (para foto) -->
         <div id="mvpUploadProgressBar" style="display:none; margin-top:0.3rem;">
           <div style="font-size:0.72rem;color:var(--accent-cyan);margin-bottom:0.25rem;" id="mvpUploadProgressLabel">⏫ Subiendo foto...</div>
           <div style="background:rgba(255,255,255,0.1);border-radius:8px;height:8px;overflow:hidden;">
@@ -2489,13 +2451,13 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="inputMvpVideoTitulo">Título o Descripción de la Jugada</label>
+          <label class="form-label" for="inputMvpVideoTitulo">Descripción de la Jugada o Actuación Destacada</label>
           <input type="text" class="form-input" id="inputMvpVideoTitulo" placeholder="Ej. Triple decisivo sobre la bocina para sellar la victoria">
         </div>
 
         <div class="modal-actions" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
           <button class="btn btn-outline btn-sm" id="btnCancelModalEditarMvp" type="button">Cancelar</button>
-          <button class="btn btn-gold btn-sm" id="btnGuardarMvpHighlight" type="submit">💾 Guardar Destacados</button>
+          <button class="btn btn-gold btn-sm" id="btnGuardarMvpHighlight" type="submit">💾 Guardar Jugador Destacado</button>
         </div>
       </form>
     </div>
@@ -2645,10 +2607,10 @@
   </footer>
 
   <!-- Application Logic Scripts -->
-  <script src="./js/store.js?v=3.2.6"></script>
-  <script src="./js/standings.js?v=3.2.6"></script>
-  <script src="./js/csv-importer.js?v=3.2.6"></script>
-  <script src="./js/supabase.js?v=3.2.6"></script>
-  <script src="./js/app.js?v=3.2.6"></script>
+  <script src="./js/store.js?v=3.2.7"></script>
+  <script src="./js/standings.js?v=3.2.7"></script>
+  <script src="./js/csv-importer.js?v=3.2.7"></script>
+  <script src="./js/supabase.js?v=3.2.7"></script>
+  <script src="./js/app.js?v=3.2.7"></script>
 </body>
 </html>

@@ -6033,7 +6033,7 @@ function renderMvpAndVideoSection(partido) {
   const astVal = mvp.asistencias !== undefined ? mvp.asistencias : 7;
   const valVal = mvp.eficiencia !== undefined ? mvp.eficiencia : '+32';
 
-  // Video / Reel Highlight — URL raw guardada (embed construido en bloque de DOM)
+  // Descripción de la actuación y sede del encuentro
   const videoTitle = mvp.videoTitulo || 'Triple decisivo sobre la bocina y mejor jugada del encuentro';
   const venueStr = partido.sede || 'Gimnasio Pablo Higuerey';
 
@@ -6068,42 +6068,12 @@ function renderMvpAndVideoSection(partido) {
   const elVal = document.getElementById('mvpStatVal');
   if (elVal) elVal.textContent = valVal;
 
-  // Actualizar DOM del Video — iframe embed dinámico (YouTube / Shorts / Instagram)
-  const elIframe = document.getElementById('mvpVideoIframe');
-  const elPlaceholder = document.getElementById('videoNoMediaPlaceholder');
-  const btnWatch = document.getElementById('btnWatchYoutube');
-
-  const embedInfo = buildVideoEmbedUrl(mvp.videoUrl);
-
-  if (elIframe) {
-    if (embedInfo) {
-      // Cambiar src solo si es diferente (evita reload innecesario)
-      if (elIframe.src !== embedInfo.embedUrl) {
-        elIframe.src = embedInfo.embedUrl;
-      }
-      elIframe.style.display = 'block';
-      if (elPlaceholder) elPlaceholder.style.display = 'none';
-      if (btnWatch) {
-        btnWatch.href = embedInfo.watchUrl;
-        btnWatch.style.display = 'inline-block';
-        btnWatch.textContent = embedInfo.platform === 'instagram' ? 'Instagram ↗' : 'YouTube ↗';
-      }
-    } else {
-      // Sin URL válida: ocultar iframe y mostrar placeholder
-      elIframe.src = '';
-      elIframe.style.display = 'none';
-      if (elPlaceholder) elPlaceholder.style.display = 'flex';
-      if (btnWatch) btnWatch.style.display = 'none';
-    }
-  }
-
+  // Actualizar texto descriptivo y ubicación al pie de la gran tarjeta MVP
   const elVideoTitle = document.getElementById('mvpVideoTitle');
   if (elVideoTitle) elVideoTitle.textContent = videoTitle;
 
   const elVideoMeta = document.getElementById('mvpVideoMeta');
   if (elVideoMeta) elVideoMeta.textContent = `📍 ${venueStr} • Transmisión Oficial JL 360`;
-
-  // btnWatchYoutube se gestiona en el bloque iframe embed de arriba
 }
 
 
@@ -6252,12 +6222,9 @@ function initMvpHighlightModal() {
     const hiddenFotoUrl = document.getElementById('inputMvpFotoUrl');
     if (hiddenFotoUrl) hiddenFotoUrl.value = existingFoto;
 
-    // Cargar URL de video existente en el input de texto
-    const inputVideoUrl = document.getElementById('inputMvpVideoUrl');
-    if (inputVideoUrl) inputVideoUrl.value = mvp.videoUrl || '';
-
+    // Cargar descripción o título de actuación existente
     const inputVidTit = document.getElementById('inputMvpVideoTitulo');
-    if (inputVidTit) inputVidTit.value = mvp.videoTitulo || (document.getElementById('mvpVideoTitle')?.textContent || 'Jugada del partido');
+    if (inputVidTit) inputVidTit.value = mvp.videoTitulo || (document.getElementById('mvpVideoTitle')?.textContent || 'Triple decisivo sobre la bocina y mejor jugada del encuentro');
 
     // Reset
     if (photoFileInput) photoFileInput.value = '';
@@ -6272,7 +6239,7 @@ function initMvpHighlightModal() {
     if (e.target === modal) closeModal();
   });
 
-  // ─── Submit: foto a Supabase Storage + URL video guardada directo ────────────
+  // ─── Submit: foto a Supabase Storage + guardar MVP sin video ─────────────
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!activeScorerMatch) return;
@@ -6282,7 +6249,6 @@ function initMvpHighlightModal() {
 
     try {
       let finalFotoUrl = (document.getElementById('inputMvpFotoUrl')?.value || '').trim();
-      const finalVideoUrl = (document.getElementById('inputMvpVideoUrl')?.value || '').trim();
 
       const svc = window.supabaseService;
       const canUpload = svc && typeof svc.uploadMediaDestacado === 'function';
@@ -6305,7 +6271,7 @@ function initMvpHighlightModal() {
 
       setUploadProgress(90, '💾 Guardando en base de datos...');
 
-      // Construir objeto MVP final
+      // Construir objeto MVP final (sin videoUrl)
       const newMvp = {
         nombre: (document.getElementById('inputMvpNombre')?.value || '').trim(),
         dorsal: (document.getElementById('inputMvpDorsal')?.value || '').trim(),
@@ -6316,7 +6282,6 @@ function initMvpHighlightModal() {
         rebotes: parseInt(document.getElementById('inputMvpReb')?.value, 10) || 0,
         asistencias: parseInt(document.getElementById('inputMvpAst')?.value, 10) || 0,
         eficiencia: (document.getElementById('inputMvpVal')?.value || '').trim(),
-        videoUrl: finalVideoUrl,
         videoTitulo: (document.getElementById('inputMvpVideoTitulo')?.value || '').trim()
       };
 
@@ -6340,17 +6305,17 @@ function initMvpHighlightModal() {
 
       setUploadProgress(100, '✅ ¡Guardado!');
 
-      // Renderizar sección actualizada con embed dinámico
+      // Renderizar sección actualizada
       renderMvpAndVideoSection(activeScorerMatch);
       closeModal();
-      showToast('⭐ Jugador del Partido y Video actualizados con éxito', 'success');
+      showToast('⭐ Jugador Destacado actualizado con éxito', 'success');
 
     } catch (err) {
       console.error('[MVP Modal] Error inesperado al guardar:', err);
       showToast('❌ Error inesperado al guardar. Intenta de nuevo.', 'error');
       setUploadProgress(null);
     } finally {
-      if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = '💾 Guardar Destacados'; }
+      if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = '💾 Guardar Jugador Destacado'; }
     }
   });
 }
