@@ -1459,11 +1459,14 @@ END $$;
     if (!this.client) return { success: false, error: 'Cliente Supabase no inicializado' };
 
     const delId = delegadoData.id || `DEL-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+    const cleanCed = (delegadoData.cedula || '').toString().replace(/\D/g, '') || Math.random().toString(36).substring(2, 8);
+    const autoEmail = delegadoData.email || `${cleanCed}@app.com`;
+
     const payload = {
       id: delId,
       nombre: delegadoData.nombre,
       telefono: delegadoData.telefono || '',
-      email: delegadoData.email || '',
+      email: autoEmail,
       cedula: delegadoData.cedula || '',
       password: delegadoData.password || '',
       disciplina_id: delegadoData.disciplinaId,
@@ -1495,7 +1498,7 @@ END $$;
         await this.updateEquipo(delegadoData.equipoId, {
           delegadoNombre: delegadoData.nombre,
           delegadoTelefono: delegadoData.telefono || '',
-          delegadoEmail: delegadoData.email || '',
+          delegadoEmail: autoEmail,
           delegadoCedula: delegadoData.cedula || '',
           pin: delegadoData.password || ''
         });

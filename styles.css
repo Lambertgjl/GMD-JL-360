@@ -6665,3 +6665,53 @@ body:not(.role-superadmin) #formatPillsSelector .format-pill:not(.active) {
   background: rgba(255, 255, 255, 0.08) !important;
   color: var(--brand-gold) !important;
 }
+/* ---- Modal Registrar Delegado: Scroll Interno y Footer Fijo ---- */
+.modal-card-delegado-compact {
+  max-width: 480px !important;
+  width: 94vw !important;
+  max-height: 88vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  border-radius: var(--radius-xl, 14px) !important;
+  background: #0f172a !important;
+}
+
+.modal-header-fixed {
+  flex-shrink: 0 !important;
+  padding: 1rem 1.25rem !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: #1e293b !important;
+}
+
+.modal-form-vertical {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+}
+
+.modal-body-scroll-delegado {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 60vh !important;
+  padding: 1.15rem 1.25rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.95rem !important;
+}
+
+.modal-footer-fixed-delegado {
+  flex-shrink: 0 !important;
+  padding: 0.85rem 1.25rem !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(15, 23, 42, 0.98) !important;
+  display: flex !important;
+  gap: 0.65rem !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+}

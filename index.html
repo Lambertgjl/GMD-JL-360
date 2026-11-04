@@ -26,7 +26,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./styles.css?v=3.2.4">
+  <link rel="stylesheet" href="./styles.css?v=3.2.5">
 </head>
 <body>
 
@@ -1199,13 +1199,13 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="delegadoNombre">Nombre del Delegado Técnico <span style="color: var(--accent-live);">*</span></label>
-            <input type="text" class="form-input" id="delegadoNombre" placeholder="Ej. Juan Pérez" value="" required autocomplete="name">
+            <label class="form-label" for="delegadoCedula">Cédula de Identidad (Usuario) <span style="color: var(--accent-live);">*</span></label>
+            <input type="text" class="form-input" id="delegadoCedula" placeholder="Ingrese número de cédula (Ej. 14589123)" value="" required inputmode="numeric" autocomplete="username">
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="delegadoCedula">Cédula de Identidad <span style="color: var(--accent-live);">*</span></label>
-            <input type="text" class="form-input" id="delegadoCedula" placeholder="Ingrese cédula sin puntos" value="" required inputmode="numeric">
+            <label class="form-label" for="delegadoNombre">Nombre del Delegado Técnico (Opcional si usa Cédula)</label>
+            <input type="text" class="form-input" id="delegadoNombre" placeholder="Ej. Juan Pérez (se autocompleta)" value="" autocomplete="name">
           </div>
 
           <div class="form-group">
@@ -2503,73 +2503,59 @@
        MODAL: REGISTRAR DELEGADO POR EQUIPO (SUPERADMIN & ADMIN DISCIPLINA)
        ============================================================================== -->
   <div class="modal-overlay" id="modalRegistrarDelegado" role="dialog" aria-modal="true" aria-labelledby="modalRegDelTitle">
-    <div class="modal-card" style="max-width: 520px; width: 95vw;">
-      <div class="modal-header">
+    <div class="modal-card modal-card-delegado-compact">
+      <div class="modal-header modal-header-fixed">
         <div style="display: flex; align-items: center; gap: 0.6rem;">
-          <span style="font-size: 1.4rem;">👤</span>
+          <span style="font-size: 1.35rem;">👤</span>
           <div>
-            <h3 class="modal-title" id="modalRegDelTitle" style="font-size: 1.15rem; color: #ffffff;">Registrar Delegado de Equipo</h3>
-            <p style="font-size: 0.76rem; color: var(--text-secondary); margin: 0;">Credenciales oficiales y vinculación estricta por disciplina</p>
+            <h3 class="modal-title" id="modalRegDelTitle" style="font-size: 1.15rem; color: #ffffff; margin: 0;">Registrar Delegado</h3>
+            <p style="font-size: 0.74rem; color: var(--text-secondary); margin: 0;">Credenciales de acceso y asignación por equipo</p>
           </div>
         </div>
         <button class="modal-close-btn" id="btnCloseModalRegistrarDelegado" type="button" title="Cerrar">&times;</button>
       </div>
 
-      <form id="formRegistrarDelegado" class="modal-body" style="display: flex; flex-direction: column; gap: 0.85rem;">
+      <form id="formRegistrarDelegado" class="modal-form-vertical">
         <input type="hidden" id="regDelegadoDisciplinaId">
 
-        <div style="font-weight: 700; color: var(--accent-cyan); font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.3rem;">
-          📋 Datos Personales del Delegado
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="regDelegadoNombre">Nombre Completo *</label>
-          <input type="text" class="form-input" id="regDelegadoNombre" placeholder="Ej. Prof. Carlos Mendoza" required autocomplete="name">
-        </div>
-
-        <div class="form-row">
-          <div class="form-group" style="flex: 1;">
-            <label class="form-label" for="regDelegadoTelefono">Teléfono / WhatsApp *</label>
-            <input type="tel" class="form-input" id="regDelegadoTelefono" placeholder="Ej. +58 414-1234567" required autocomplete="tel">
+        <!-- Contenedor con Scroll Interno Seguro -->
+        <div class="modal-body modal-body-scroll-delegado">
+          <div class="form-group">
+            <label class="form-label" for="regDelegadoNombre">Nombre Completo del Delegado <span style="color: var(--accent-live);">*</span></label>
+            <input type="text" class="form-input" id="regDelegadoNombre" placeholder="Ej. Carlos Mendoza" required autocomplete="name">
           </div>
-          <div class="form-group" style="flex: 1;">
-            <label class="form-label" for="regDelegadoCedula">Cédula / Documento</label>
-            <input type="text" class="form-input" id="regDelegadoCedula" placeholder="Ej. V-14589123">
-          </div>
-        </div>
 
-        <div style="font-weight: 700; color: var(--brand-gold); font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.3rem; margin-top: 0.2rem;">
-          🔐 Credenciales de Acceso
-        </div>
-
-        <div class="form-row">
-          <div class="form-group" style="flex: 1;">
-            <label class="form-label" for="regDelegadoEmail">Correo / Usuario *</label>
-            <input type="text" class="form-input" id="regDelegadoEmail" placeholder="delegado@equipo.com" required autocomplete="username">
+          <div class="form-group">
+            <label class="form-label" for="regDelegadoCedula">Cédula / Documento (Usuario de Login) <span style="color: var(--accent-live);">*</span></label>
+            <input type="text" class="form-input" id="regDelegadoCedula" placeholder="Ej. 14589123 o V-14589123" required autocomplete="username" inputmode="numeric">
+            <p style="font-size: 0.72rem; color: var(--accent-cyan); margin: 0.25rem 0 0;">
+              🔑 El delegado iniciará sesión utilizando este número de documento.
+            </p>
           </div>
-          <div class="form-group" style="flex: 1;">
-            <label class="form-label" for="regDelegadoPassword">Contraseña Temporal / PIN *</label>
+
+          <div class="form-group">
+            <label class="form-label" for="regDelegadoPassword">Contraseña / PIN de Acceso <span style="color: var(--accent-live);">*</span></label>
             <input type="text" class="form-input" id="regDelegadoPassword" placeholder="Ej. 2024 o claveTemp123" required autocomplete="new-password">
+            <p style="font-size: 0.7rem; color: var(--text-secondary); margin: 0.25rem 0 0;">
+              Clave para autenticarse en la mesa técnica y panel de equipo.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="regDelegadoEquipoId">Equipo Asignado <span style="color: var(--accent-live);">*</span></label>
+            <select class="form-input" id="regDelegadoEquipoId" required>
+              <option value="">-- Seleccionar Equipo --</option>
+            </select>
+            <p style="font-size: 0.72rem; color: var(--brand-gold-light); margin: 0.25rem 0 0;" id="regDelegadoDiscBadge">
+              Disciplina vinculada: Baloncesto
+            </p>
           </div>
         </div>
 
-        <div style="font-weight: 700; color: #a78bfa; font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.3rem; margin-top: 0.2rem;">
-          🏆 Franquicia a Representar
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="regDelegadoEquipoId">Equipo Asignado *</label>
-          <select class="form-input" id="regDelegadoEquipoId" required>
-            <option value="">-- Seleccionar Equipo --</option>
-          </select>
-          <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0.3rem 0 0;" id="regDelegadoDiscBadge">
-            Disciplina vinculada: Baloncesto
-          </p>
-        </div>
-
-        <div class="modal-actions" style="margin-top: 0.6rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
-          <button class="btn btn-outline btn-sm" id="btnCancelModalRegistrarDelegado" type="button">Cancelar</button>
-          <button class="btn btn-gold btn-sm" id="btnSubmitRegistrarDelegado" type="submit">💾 Guardar Delegado</button>
+        <!-- Pie / Footer Fijo (Siempre Visible en Pantalla) -->
+        <div class="modal-footer modal-footer-fixed-delegado">
+          <button class="btn btn-outline btn-sm" id="btnCancelModalRegistrarDelegado" type="button" style="min-width: 90px;">Cancelar</button>
+          <button class="btn btn-gold btn-sm" id="btnSubmitRegistrarDelegado" type="submit" style="min-width: 140px; font-weight: 700;">💾 Guardar Delegado</button>
         </div>
       </form>
     </div>
@@ -2656,10 +2642,10 @@
   </footer>
 
   <!-- Application Logic Scripts -->
-  <script src="./js/store.js?v=3.2.4"></script>
-  <script src="./js/standings.js?v=3.2.4"></script>
-  <script src="./js/csv-importer.js?v=3.2.4"></script>
-  <script src="./js/supabase.js?v=3.2.4"></script>
-  <script src="./js/app.js?v=3.2.4"></script>
+  <script src="./js/store.js?v=3.2.5"></script>
+  <script src="./js/standings.js?v=3.2.5"></script>
+  <script src="./js/csv-importer.js?v=3.2.5"></script>
+  <script src="./js/supabase.js?v=3.2.5"></script>
+  <script src="./js/app.js?v=3.2.5"></script>
 </body>
 </html>

@@ -470,46 +470,50 @@ function initDisciplineAuthModalEvents() {
     showToast(`Bienvenido ${user.nombre} • Rol: Fanático (Solo Lectura)`, 'info');
   });
 
-  // Pestaña 2: DELEGADO (Gestión Nómina de su Franquicia)
+  // Pestaña 2: DELEGADO (Gestión Nómina con Cédula como Usuario + Contraseña/PIN)
   formDelegado?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const nombre = document.getElementById('delegadoNombre')?.value.trim();
-    const cedula = document.getElementById('delegadoCedula')?.value.trim();
+    const rawNombre = document.getElementById('delegadoNombre')?.value.trim();
+    const rawCedula = document.getElementById('delegadoCedula')?.value.trim();
     const equipoId = document.getElementById('delegadoEquipoSelect')?.value;
     const pin = document.getElementById('delegadoPin')?.value.trim();
 
-    if (!nombre) {
-      showToast('Por favor ingrese el Nombre del Delegado Técnico.', 'error');
-      return;
-    }
-    if (!cedula) {
-      showToast('Por favor ingrese la Cédula de Identidad del Delegado.', 'error');
-      return;
-    }
-    if (!equipoId) {
-      showToast('Seleccione un equipo válido de la lista.', 'error');
+    if (!rawCedula) {
+      showToast('Por favor ingrese la Cédula o Documento de Identidad del Delegado.', 'error');
       return;
     }
     if (!pin) {
-      showToast('Por favor ingrese el PIN de Delegado.', 'error');
+      showToast('Por favor ingrese su Contraseña o PIN de Delegado.', 'error');
       return;
     }
 
-    const eq = window.tournamentStore.getEquipoPorId(equipoId);
+    const cleanCed = cleanAuthCedula(rawCedula);
+    const allEquipos = window.tournamentStore.data.equipos || [];
+
+    // 1. Intentar vincular por coincidencia directa de Cédula registrada en el equipo
+    let eq = allEquipos.find((t) => cleanAuthCedula(t.delegadoCedula) === cleanCed);
+
+    // 2. Si no se encontró por cédula, intentar con el select del equipo
+    if (!eq && equipoId) {
+      eq = window.tournamentStore.getEquipoPorId(equipoId);
+    }
+
     if (!eq) {
-      showToast('Seleccione un equipo válido de la lista.', 'error');
+      showToast('No se encontró ningún equipo asociado a esta cédula. Seleccione su equipo de la lista.', 'error');
       return;
     }
 
     if (pin !== eq.pin && pin !== '2024') {
-      showToast('PIN de Delegado incorrecto. Verifique sus credenciales.', 'error');
+      showToast('Contraseña o PIN de Delegado incorrecto. Verifique sus credenciales.', 'error');
       return;
     }
 
+    const delegateName = rawNombre || eq.delegadoNombre || 'Delegado Oficial';
+
     const user = {
       rol: 'delegado',
-      nombre: nombre,
-      cedula: cleanAuthCedula(cedula) || cedula,
+      nombre: delegateName,
+      cedula: cleanCed || rawCedula,
       equipoId: eq.id,
       equipoNombre: eq.nombre,
       rolLabel: `Delegado: ${eq.nombre}`,
@@ -524,6 +528,23 @@ function initDisciplineAuthModalEvents() {
     applyRbacPermissions(user);
     renderAllViews();
     showToast(`Bienvenido Delegado ${user.nombre} • ${eq.nombre}`, 'success');
+  });
+
+  // Auto-detectar equipo asignado al escribir la cédula del delegado
+  document.getElementById('delegadoCedula')?.addEventListener('input', (e) => {
+    const cleanCed = cleanAuthCedula(e.target.value);
+    if (cleanCed.length >= 5) {
+      const allEquipos = window.tournamentStore.data.equipos || [];
+      const matched = allEquipos.find((t) => cleanAuthCedula(t.delegadoCedula) === cleanCed);
+      if (matched) {
+        const select = document.getElementById('delegadoEquipoSelect');
+        if (select && matched.id) select.value = matched.id;
+        const nomInput = document.getElementById('delegadoNombre');
+        if (nomInput && !nomInput.value && matched.delegadoNombre) {
+          nomInput.value = matched.delegadoNombre;
+        }
+      }
+    }
   });
 
   // Pestaña 3: ADMIN (Superadministrador Master)
@@ -8201,16 +8222,12 @@ function openRegistrarDelegadoModal() {
   const hiddenDisc = document.getElementById('regDelegadoDisciplinaId');
   if (hiddenDisc) hiddenDisc.value = currentDisc.id;
 
-  // Limpiar campos para registro limpio
+  // Limpiar campos para registro limpio (formulario simplificado)
   const fNombre = document.getElementById('regDelegadoNombre');
-  const fTelf = document.getElementById('regDelegadoTelefono');
   const fCed = document.getElementById('regDelegadoCedula');
-  const fEmail = document.getElementById('regDelegadoEmail');
   const fPass = document.getElementById('regDelegadoPassword');
   if (fNombre) fNombre.value = '';
-  if (fTelf) fTelf.value = '';
   if (fCed) fCed.value = '';
-  if (fEmail) fEmail.value = '';
   if (fPass) fPass.value = '';
 
   modal.classList.add('open');
@@ -8252,30 +8269,30 @@ function initRegistrarDelegadoModal() {
     }
 
     const nombre = (document.getElementById('regDelegadoNombre')?.value || '').trim();
-    const telefono = (document.getElementById('regDelegadoTelefono')?.value || '').trim();
     const cedula = (document.getElementById('regDelegadoCedula')?.value || '').trim();
-    const email = (document.getElementById('regDelegadoEmail')?.value || '').trim();
     const password = (document.getElementById('regDelegadoPassword')?.value || '').trim();
     const equipoId = document.getElementById('regDelegadoEquipoId')?.value;
     const disciplinaId = document.getElementById('regDelegadoDisciplinaId')?.value || window.tournamentStore.getDisciplinaActual()?.id;
 
-    if (!nombre || !telefono || !email || !password || !equipoId) {
+    if (!nombre || !cedula || !password || !equipoId) {
       showToast('Por favor complete todos los campos obligatorios (*).', 'warning');
       return;
     }
 
+    const cleanCed = cleanAuthCedula(cedula) || cedula.replace(/\s+/g, '');
+    const autoEmail = `${cleanCed}@app.com`;
+
     const btnSubmit = document.getElementById('btnSubmitRegistrarDelegado');
     if (btnSubmit) {
       btnSubmit.disabled = true;
-      btnSubmit.textContent = '⏳ Registrando en Supabase...';
+      btnSubmit.textContent = '⏳ Registrando...';
     }
 
     try {
       const delegadoData = {
         nombre,
-        telefono,
         cedula,
-        email,
+        email: autoEmail,
         password,
         equipoId,
         disciplinaId
@@ -8291,9 +8308,8 @@ function initRegistrarDelegadoModal() {
       if (eq) {
         window.tournamentStore.updateEquipo(equipoId, {
           delegadoNombre: nombre,
-          delegadoTelefono: telefono,
-          delegadoEmail: email,
           delegadoCedula: cedula,
+          delegadoEmail: autoEmail,
           pin: password
         });
       }
