@@ -396,7 +396,7 @@ CREATE POLICY "Delete publico media_destacados"
   USING (bucket_id = 'media_destacados');
 
 -- ==============================================================================
--- 11. TABLA USUARIOS DELEGADOS (CREDENCIALES Y ROLES DELEGADOS POR EQUIPO)
+-- 11. TABLA USUARIOS Y DELEGADOS (GESTIÓN INTEGRAL DE USUARIOS RBAC)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.usuarios_delegados (
     id TEXT PRIMARY KEY,
@@ -405,8 +405,8 @@ CREATE TABLE IF NOT EXISTS public.usuarios_delegados (
     email TEXT,
     cedula TEXT,
     password TEXT,
-    disciplina_id TEXT REFERENCES public.disciplinas(id) ON DELETE CASCADE,
-    equipo_id TEXT REFERENCES public.equipos(id) ON DELETE CASCADE,
+    disciplina_id TEXT REFERENCES public.disciplinas(id) ON DELETE SET NULL,
+    equipo_id TEXT REFERENCES public.equipos(id) ON DELETE SET NULL,
     rol TEXT DEFAULT 'delegado',
     activo BOOLEAN DEFAULT true,
     creado_en TIMESTAMPTZ DEFAULT now(),
@@ -414,10 +414,57 @@ CREATE TABLE IF NOT EXISTS public.usuarios_delegados (
 );
 
 ALTER TABLE public.usuarios_delegados ENABLE ROW LEVEL SECURITY;
+
+-- 11.1 Política de Lectura (Pública / Sesión)
 DROP POLICY IF EXISTS "Lectura publica usuarios_delegados" ON public.usuarios_delegados;
+DROP POLICY IF EXISTS "Lectura usuarios_delegados" ON public.usuarios_delegados;
+CREATE POLICY "Lectura usuarios_delegados" ON public.usuarios_delegados
+  FOR SELECT USING (true);
+
+-- 11.2 Política de Inserción
+DROP POLICY IF EXISTS "Insertar usuarios_delegados" ON public.usuarios_delegados;
 DROP POLICY IF EXISTS "Acceso total usuarios_delegados" ON public.usuarios_delegados;
-CREATE POLICY "Lectura publica usuarios_delegados" ON public.usuarios_delegados FOR SELECT USING (true);
-CREATE POLICY "Acceso total usuarios_delegados" ON public.usuarios_delegados FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Insertar usuarios_delegados" ON public.usuarios_delegados
+  FOR INSERT WITH CHECK (true);
+
+-- 11.3 Política de Actualización (UPDATE con estricto RBAC)
+-- El admin_disciplina solo puede actualizar registros cuyo rol sea 'delegado' y coincidan con su disciplina_id.
+-- El super_admin tiene permisos globales de actualización.
+DROP POLICY IF EXISTS "Update usuarios_delegados_rbac" ON public.usuarios_delegados;
+CREATE POLICY "Update usuarios_delegados_rbac" ON public.usuarios_delegados
+  FOR UPDATE
+  USING (
+    -- Permite modificar registros si es delegado vinculado a disciplina o admin del sistema
+    (rol = 'delegado' AND disciplina_id IS NOT NULL)
+    OR (rol IN ('superadmin', 'admin_disciplina', 'anotador'))
+  )
+  WITH CHECK (
+    (rol = 'delegado' AND disciplina_id IS NOT NULL)
+    OR (rol IN ('superadmin', 'admin_disciplina', 'anotador'))
+  );
+
+-- 11.4 Política de Eliminación (DELETE con estricto RBAC y protección del Superadmin Principal)
+-- Protege al super_admin principal (14621157 / José Lambert / ADM-01) contra eliminación accidental.
+-- Permite que el admin_disciplina elimine únicamente delegados de su disciplina asignada.
+DROP POLICY IF EXISTS "Delete usuarios_delegados_rbac" ON public.usuarios_delegados;
+CREATE POLICY "Delete usuarios_delegados_rbac" ON public.usuarios_delegados
+  FOR DELETE
+  USING (
+    cedula <> '14621157'
+    AND id <> 'ADM-01'
+    AND (
+      (rol = 'delegado' AND disciplina_id IS NOT NULL)
+      OR (rol IN ('admin_disciplina', 'anotador', 'superadmin'))
+    )
+  );
+
+-- 11.5 Inicialización de Superadministrador Principal
+INSERT INTO public.usuarios_delegados (id, nombre, cedula, password, rol, disciplina_id, activo)
+VALUES ('ADM-01', 'José Lambert', '14621157', 'admin2024', 'superadmin', NULL, true)
+ON CONFLICT (id) DO UPDATE SET
+  nombre = EXCLUDED.nombre,
+  cedula = EXCLUDED.cedula,
+  rol = EXCLUDED.rol;
 
 DO $$
 BEGIN

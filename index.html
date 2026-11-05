@@ -26,7 +26,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./styles.css?v=3.2.7">
+  <link rel="stylesheet" href="./styles.css?v=3.2.8">
 </head>
 <body>
 
@@ -2128,8 +2128,8 @@
                 <span>EVENTO & LOGO</span>
               </button>
               <button type="button" class="sa-subtab-btn" data-subtab="subtabAdmins" id="btnSubtabAdmins">
-                <span>🛡️</span>
-                <span>ADMINS</span>
+                <span>👥</span>
+                <span>GESTIÓN DE USUARIOS</span>
               </button>
             </div>
 
@@ -2221,18 +2221,18 @@
               </div>
             </div>
 
-            <!-- SUB-PESTAÑA C: ADMINS -->
+            <!-- SUB-PESTAÑA C: GESTIÓN DE USUARIOS (ADMINISTRADORES Y DELEGADOS) -->
             <div class="sa-subtab-pane" id="subtabAdmins" style="display: none;">
               
-              <!-- Formulario para Agregar Nuevo Administrador -->
+              <!-- Formulario para Agregar o Editar Usuario -->
               <div class="config-section-card">
                 <div class="config-section-header">
                   <span class="config-section-icon">➕</span>
                   <div>
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
                       <div>
-                        <h4 class="config-section-title" id="adminFormHeaderTitle">Agregar Nuevo Administrador</h4>
-                        <p class="config-section-sub">Registra usuarios autorizados con acceso global o disciplinario.</p>
+                        <h4 class="config-section-title" id="adminFormHeaderTitle">Agregar Nuevo Administrador o Delegado</h4>
+                        <p class="config-section-sub" id="adminFormHeaderSubtitle">Registra y actualiza usuarios autorizados con acceso global o disciplinario.</p>
                       </div>
                       <button type="button" class="btn btn-outline-gold btn-sm" id="btnConfigOpenRegistrarDelegado" style="font-size: 0.78rem; padding: 5px 12px;">
                         👤 Registrar Delegado por Equipo
@@ -2243,6 +2243,7 @@
 
                 <form id="formRegistrarNuevoAdmin" class="new-admin-form-grid">
                   <input type="hidden" id="adminEditId" value="">
+                  <input type="hidden" id="adminEditTipo" value="admin">
 
                   <div class="form-group">
                     <label class="form-label">1. Nombre Completo</label>
@@ -2250,8 +2251,8 @@
                   </div>
 
                   <div class="form-group">
-                    <label class="form-label">2. Usuario / ID de Acceso o Cédula</label>
-                    <input type="text" class="form-input" id="adminNewCedula" placeholder="Ej. 18456123" required>
+                    <label class="form-label">2. Usuario / Cédula / Documento</label>
+                    <input type="text" class="form-input" id="adminNewCedula" placeholder="Ej. 18456123 o V-18456123" required>
                   </div>
 
                   <div class="form-group">
@@ -2273,12 +2274,21 @@
                       <option value="admin_disciplina">Administrador de Disciplina</option>
                       <option value="superadmin">Super Administrador</option>
                       <option value="anotador">Anotador (Mesa Técnica)</option>
+                      <option value="delegado">Delegado por Equipo</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group" id="groupAdminNewEquipo" style="display: none;">
+                    <label class="form-label">6. Equipo Asignado (Delegado)</label>
+                    <select class="form-input" id="adminNewEquipo">
+                      <option value="">Seleccione Equipo...</option>
+                      <!-- Dynamically populated -->
                     </select>
                   </div>
 
                   <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                     <button type="submit" class="btn btn-gold btn-md" id="btnSubmitAdminForm" style="width: 100%; justify-content: center; gap: 0.4rem;">
-                      <span>➕ Registrar Administrador</span>
+                      <span>➕ Registrar Usuario</span>
                     </button>
                     <button type="button" class="btn btn-outline btn-md" id="btnCancelEditAdmin" style="display: none;">
                       Cancelar
@@ -2287,13 +2297,47 @@
                 </form>
               </div>
 
-              <!-- Listado de Administradores Activos y Asignaciones -->
-              <div class="config-section-card" style="margin-top: 1rem;">
-                <div class="config-section-header">
-                  <span class="config-section-icon">👥</span>
-                  <div>
-                    <h4 class="config-section-title">Administradores Activos y Asignaciones</h4>
-                    <p class="config-section-sub">Supervisa y administra permisos y accesos de los encargados de torneos.</p>
+              <!-- Módulo de Gestión de Usuarios (Administradores y Delegados) -->
+              <div class="config-section-card" style="margin-top: 1rem;" id="cfgCardGestionUsuarios">
+                <div class="config-section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                  <div style="display: flex; align-items: center; gap: 0.65rem;">
+                    <span class="config-section-icon">👥</span>
+                    <div>
+                      <h4 class="config-section-title" id="cfgUsersSectionTitle">Gestión de Usuarios (Administradores y Delegados)</h4>
+                      <p class="config-section-sub" id="cfgUsersSectionSubtitle">Supervisa, filtra y administra permisos de acceso para Administradores y Delegados oficiales.</p>
+                    </div>
+                  </div>
+                  <div id="cfgUserCounterBadge" class="badge badge-gold" style="font-size: 0.72rem; padding: 4px 10px;">
+                    0 usuarios registrados
+                  </div>
+                </div>
+
+                <!-- Barra de Filtros (Visible para Superadmin) -->
+                <div class="user-filters-bar" id="cfgUserFiltersBar" style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; padding: 0.75rem; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; font-weight: 700; color: var(--brand-gold);">
+                    <span>🔍</span>
+                    <span>Filtrar:</span>
+                  </div>
+
+                  <div style="flex: 1; min-width: 150px;">
+                    <select class="form-input" id="filterCfgUserRol" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; height: auto;">
+                      <option value="todos">Todos los Roles</option>
+                      <option value="superadmin">Super Administrador</option>
+                      <option value="admin_disciplina">Admin de Disciplina</option>
+                      <option value="anotador">Anotador (Mesa Técnica)</option>
+                      <option value="delegado">Delegado por Equipo</option>
+                    </select>
+                  </div>
+
+                  <div style="flex: 1; min-width: 180px;">
+                    <select class="form-input" id="filterCfgUserDisciplina" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; height: auto;">
+                      <option value="todas">Todas las Disciplinas</option>
+                      <!-- Dynamically populated -->
+                    </select>
+                  </div>
+
+                  <div style="min-width: 150px;">
+                    <input type="text" class="form-input" id="filterCfgUserSearch" placeholder="Buscar nombre o cédula..." style="padding: 0.35rem 0.6rem; font-size: 0.8rem; height: auto;">
                   </div>
                 </div>
 
@@ -2301,10 +2345,10 @@
                   <table class="active-admins-table">
                     <thead>
                       <tr>
-                        <th>Administrador</th>
+                        <th>Usuario / Nombre</th>
                         <th>Cédula / ID</th>
                         <th>Rol / Privilegio</th>
-                        <th>Disciplina Asignada</th>
+                        <th>Disciplina / Franquicia</th>
                         <th style="text-align: right;">Acciones</th>
                       </tr>
                     </thead>
@@ -2607,10 +2651,10 @@
   </footer>
 
   <!-- Application Logic Scripts -->
-  <script src="./js/store.js?v=3.2.7"></script>
-  <script src="./js/standings.js?v=3.2.7"></script>
-  <script src="./js/csv-importer.js?v=3.2.7"></script>
-  <script src="./js/supabase.js?v=3.2.7"></script>
-  <script src="./js/app.js?v=3.2.7"></script>
+  <script src="./js/store.js?v=3.2.8"></script>
+  <script src="./js/standings.js?v=3.2.8"></script>
+  <script src="./js/csv-importer.js?v=3.2.8"></script>
+  <script src="./js/supabase.js?v=3.2.8"></script>
+  <script src="./js/app.js?v=3.2.8"></script>
 </body>
 </html>

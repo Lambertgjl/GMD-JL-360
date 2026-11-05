@@ -6388,6 +6388,26 @@ body.inside-discipline-view .discipline-topbar {
   background: #1e293b;
 }
 
+/* User Filters Bar in Config Modal */
+.user-filters-bar {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .user-filters-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 /* Footer & Global Save Button */
 .config-modal-footer {
   padding: 1rem 1.4rem;

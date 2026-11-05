@@ -1539,6 +1539,230 @@ END $$;
 
     return { success: true, id: delId };
   }
+
+  // ---------------------------------------------------------------------------
+  // GESTIÓN INTEGRAL DE USUARIOS (ADMINISTRADORES Y DELEGADOS - RBAC)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Obtiene todos los usuarios registrados (administradores y delegados) desde Supabase.
+   * @returns {Promise<Array>}
+   */
+  async getUsuarios() {
+    if (!this.client) this.initClient();
+    if (!this.client) return [];
+
+    try {
+      const { data, error } = await this.client
+        .from('usuarios_delegados')
+        .select('*')
+        .order('creado_en', { ascending: false });
+
+      if (error) {
+        console.warn('[Supabase getUsuarios error]:', error.message);
+        return [];
+      }
+      return data || [];
+    } catch (e) {
+      console.warn('[Supabase getUsuarios exception]:', e);
+      return [];
+    }
+  }
+
+  /**
+   * Guarda o actualiza cualquier usuario (admin o delegado) en la tabla usuarios_delegados.
+   * @param {Object} usuarioData
+   * @returns {Promise<{success: boolean, id?: string, error?: string}>}
+   */
+  async upsertUsuario(usuarioData) {
+    if (!this.client) this.initClient();
+    if (!this.client) return { success: false, error: 'Cliente Supabase no inicializado' };
+
+    const uId = usuarioData.id || `USR-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+    const cleanCed = (usuarioData.cedula || '').toString().replace(/\D/g, '') || Math.random().toString(36).substring(2, 8);
+    const autoEmail = usuarioData.email || `${cleanCed}@app.com`;
+    const discId = (usuarioData.disciplinaId === 'todas' || usuarioData.disciplina_id === 'todas')
+      ? null
+      : (usuarioData.disciplinaId || usuarioData.disciplina_id || null);
+
+    const payload = {
+      id: uId,
+      nombre: usuarioData.nombre,
+      telefono: usuarioData.telefono || '',
+      email: autoEmail,
+      cedula: usuarioData.cedula || '',
+      password: usuarioData.password || usuarioData.clave || usuarioData.pin || '',
+      disciplina_id: discId,
+      equipo_id: usuarioData.equipoId || usuarioData.equipo_id || null,
+      rol: usuarioData.rol || 'delegado',
+      activo: true,
+      actualizado_en: new Date().toISOString()
+    };
+
+    try {
+      const { error } = await this.client
+        .from('usuarios_delegados')
+        .upsert(payload, { onConflict: 'id' });
+
+      if (error) {
+        console.warn('[Supabase upsertUsuario error]:', error.message);
+        return { success: false, error: error.message };
+      }
+      return { success: true, id: uId };
+    } catch (e) {
+      console.warn('[Supabase upsertUsuario exception]:', e);
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Actualiza un usuario con validación estricta de roles (RBAC).
+   * Un admin_disciplina solo puede modificar delegados pertenecientes a su disciplina.
+   * @param {string} id - ID del usuario
+   * @param {Object} patch - Datos a actualizar
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async updateUsuario(id, patch) {
+    if (!this.client) this.initClient();
+    if (!this.client) return { success: false, error: 'Cliente Supabase no inicializado' };
+
+    const activeUser = window.tournamentStore?.getUsuarioActual?.();
+    const isSuper = activeUser?.rol === 'superadmin' || activeUser?.rol === 'super_admin' || !!activeUser?.esSuperAdmin;
+    const isDiscAdmin = activeUser?.rol === 'admin_disciplina';
+
+    if (!isSuper && !isDiscAdmin) {
+      console.warn('[Seguridad Supabase] UPDATE en usuarios bloqueado: permisos insuficientes.');
+      return { success: false, error: 'Permisos insuficientes: se requiere rol de administrador.' };
+    }
+
+    if (isDiscAdmin) {
+      const targetRol = patch.rol || 'delegado';
+      if (targetRol !== 'delegado') {
+        return { success: false, error: 'Restricción de seguridad: un Administrador de Disciplina solo puede gestionar delegados.' };
+      }
+      if (patch.disciplina_id && patch.disciplina_id !== activeUser.disciplinaId && activeUser.disciplinaId !== 'todas') {
+        return { success: false, error: 'Restricción de seguridad: solo puedes gestionar delegados de tu propia disciplina.' };
+      }
+    }
+
+    try {
+      const cleanCed = (patch.cedula || '').toString().replace(/\D/g, '');
+      const dbPayload = {
+        nombre: patch.nombre,
+        cedula: patch.cedula,
+        password: patch.password || patch.clave || patch.pin,
+        rol: patch.rol || 'delegado',
+        actualizado_en: new Date().toISOString()
+      };
+      if (patch.email) dbPayload.email = patch.email;
+      if (patch.telefono !== undefined) dbPayload.telefono = patch.telefono;
+      if (patch.disciplina_id !== undefined) {
+        dbPayload.disciplina_id = patch.disciplina_id === 'todas' ? null : patch.disciplina_id;
+      }
+      if (patch.equipo_id !== undefined) dbPayload.equipo_id = patch.equipo_id || null;
+
+      const { error } = await this.client
+        .from('usuarios_delegados')
+        .update(dbPayload)
+        .eq('id', id);
+
+      if (error) {
+        console.warn('[Supabase updateUsuario error]:', error.message);
+        return { success: false, error: error.message };
+      }
+
+      // Sincronizar tabla equipos si es delegado vinculado a un equipo
+      const equipoId = patch.equipo_id || patch.equipoId;
+      if (equipoId) {
+        try {
+          await this.updateEquipo(equipoId, {
+            delegadoNombre: patch.nombre,
+            delegadoCedula: patch.cedula,
+            pin: patch.password || patch.clave || patch.pin
+          });
+        } catch (eqErr) {
+          console.warn('[Supabase updateUsuario - sync equipo warning]:', eqErr);
+        }
+      }
+
+      console.log(`[Supabase] Usuario ${id} (${patch.nombre}) actualizado con éxito ✓`);
+      return { success: true };
+    } catch (e) {
+      console.error('[Supabase updateUsuario exception]:', e);
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Elimina permanentemente a un usuario en Supabase con estricto RBAC.
+   * Protege al Superadministrador principal contra eliminación accidental.
+   * @param {string} id - ID del usuario
+   * @param {Object} targetUser - Datos del usuario a eliminar
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async deleteUsuario(id, targetUser = null) {
+    if (!this.client) this.initClient();
+    if (!this.client) return { success: false, error: 'Cliente Supabase no inicializado' };
+
+    const activeUser = window.tournamentStore?.getUsuarioActual?.();
+    const isSuper = activeUser?.rol === 'superadmin' || activeUser?.rol === 'super_admin' || !!activeUser?.esSuperAdmin;
+    const isDiscAdmin = activeUser?.rol === 'admin_disciplina';
+
+    if (!isSuper && !isDiscAdmin) {
+      console.warn('[Seguridad Supabase] DELETE en usuarios bloqueado: permisos insuficientes.');
+      return { success: false, error: 'Permisos insuficientes: se requiere rol de administrador.' };
+    }
+
+    // Regla de protección del Superadministrador Principal
+    const isMaster = (targetUser && (targetUser.cedula === '14621157' || targetUser.nombre?.toLowerCase().includes('lambert') || targetUser.id === 'ADM-01')) ||
+                     id === 'ADM-01';
+    if (isMaster) {
+      console.warn('[Seguridad Supabase] Intento de eliminar al Superadministrador Principal bloqueado.');
+      return { success: false, error: 'Operación prohibida: el Superadministrador Principal está protegido.' };
+    }
+
+    // Validación RBAC para admin_disciplina
+    if (isDiscAdmin) {
+      if (targetUser && targetUser.rol !== 'delegado') {
+        return { success: false, error: 'Restricción de seguridad: un Administrador de Disciplina solo puede eliminar delegados.' };
+      }
+      if (targetUser && targetUser.disciplina_id && targetUser.disciplina_id !== activeUser.disciplinaId && activeUser.disciplinaId !== 'todas') {
+        return { success: false, error: 'Restricción de seguridad: solo puedes eliminar delegados de tu propia disciplina.' };
+      }
+    }
+
+    try {
+      const { error } = await this.client
+        .from('usuarios_delegados')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.warn('[Supabase deleteUsuario error]:', error.message);
+        return { success: false, error: error.message };
+      }
+
+      // Si el usuario era delegado de un equipo, limpiar campos en tabla equipos
+      const eqId = targetUser?.equipo_id || targetUser?.equipoId;
+      if (eqId) {
+        try {
+          await this.updateEquipo(eqId, {
+            delegadoNombre: '',
+            delegadoCedula: '',
+            pin: ''
+          });
+        } catch (eqErr) {
+          console.warn('[Supabase deleteUsuario - clear equipo warning]:', eqErr);
+        }
+      }
+
+      console.log(`[Supabase] Usuario ${id} eliminado permanentemente ✓`);
+      return { success: true };
+    } catch (e) {
+      console.error('[Supabase deleteUsuario exception]:', e);
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 window.supabaseService = new SupabaseService();

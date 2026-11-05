@@ -600,12 +600,16 @@ function initDisciplineAuthModalEvents() {
       return;
     }
 
+    const isMaster = isMasterName && (cleanCed === '14621157' || clave === 'admin2024' || clave === 'admin');
+    const isAdminDisc = matchedAdmin && matchedAdmin.rol === 'admin_disciplina' && !isMaster;
+
     const user = {
-      rol: 'superadmin',
-      nombre: matchedAdmin?.nombre || (isMasterName ? 'José Lambert' : nombre),
+      rol: isAdminDisc ? 'admin_disciplina' : 'superadmin',
+      nombre: matchedAdmin?.nombre || (isMaster ? 'José Lambert' : nombre),
       cedula: cleanCed || matchedAdmin?.cedula || '14621157',
-      rolLabel: 'Superadministrador Master',
-      esSuperAdmin: true,
+      disciplinaId: matchedAdmin?.disciplinaId || 'todas',
+      rolLabel: isAdminDisc ? 'Administrador de Disciplina' : 'Superadministrador Master',
+      esSuperAdmin: !isAdminDisc,
       loginTimestamp: Date.now()
     };
 
@@ -615,7 +619,7 @@ function initDisciplineAuthModalEvents() {
     switchDisciplineModule('moduleDashboard');
     applyRbacPermissions(user);
     renderAllViews();
-    showToast(`👑 ¡Bienvenido Administrador ${user.nombre}! Control Master Activado`, 'success');
+    showToast(isAdminDisc ? `🏆 ¡Bienvenido Administrador ${user.nombre}!` : `👑 ¡Bienvenido Administrador ${user.nombre}! Control Master Activado`, 'success');
   });
 
   document.getElementById('btnCloseModalIdentificacion')?.addEventListener('click', closeDisciplineAuthModal);
@@ -7214,9 +7218,15 @@ function openConfiguracionSistemaModal() {
   const sysVer = document.getElementById('cfgSysVersionText');
   if (sysVer) sysVer.textContent = config.versionApp || 'v2.6.4 (2026-2027 Pro)';
 
-  // 2. REGLA ESTRICTA DE SEGURIDAD: Iniciar SIEMPRE en estado BLOQUEADO,
-  // sin importar si existe una sesión previa guardada en localStorage
-  isSuperAdminUnlocked = false;
+  // 2. Control de Acceso: si ya existe sesión de superadmin o admin_disciplina, habilitar panel
+  const activeUser = window.tournamentStore?.getUsuarioActual?.();
+  if (activeUser && (activeUser.rol === 'superadmin' || activeUser.rol === 'super_admin' || !!activeUser.esSuperAdmin)) {
+    isSuperAdminUnlocked = true;
+  } else if (activeUser && activeUser.rol === 'admin_disciplina') {
+    isSuperAdminUnlocked = true;
+  } else {
+    isSuperAdminUnlocked = false;
+  }
   updateSuperAdminPanelState();
 
   // 3. Cargar textos e identidad de evento
@@ -7236,9 +7246,9 @@ function openConfiguracionSistemaModal() {
   if (previewHeaderLogo) previewHeaderLogo.src = logoActual;
   updateLiveHeaderPreview();
 
-  // 4. Renderizar listas dinámicas de Disciplinas y Admins
+  // 4. Renderizar listas dinámicas de Disciplinas y Gestión de Usuarios (Admins & Delegados)
   renderConfigDisciplines();
-  renderConfigAdmins();
+  renderConfigUsuarios();
   populateAdminDisciplineDropdown();
 
   // Mostrar por defecto Pestaña 1: Ajustes Generales
@@ -7293,17 +7303,58 @@ function updateSuperAdminPanelState() {
   const lockScreen = document.getElementById('superAdminAuthLockScreen');
   const unlockedPanel = document.getElementById('superAdminUnlockedPanel');
   const lockStatusBadge = document.getElementById('superAdminLockStatus');
+  const activeUser = window.tournamentStore?.getUsuarioActual?.();
+  const isDiscAdmin = activeUser?.rol === 'admin_disciplina';
 
   if (isSuperAdminUnlocked) {
     if (lockScreen) lockScreen.style.display = 'none';
     if (unlockedPanel) unlockedPanel.style.display = 'block';
-    if (lockStatusBadge) lockStatusBadge.textContent = '🔓 Acceso Habilitado';
 
-    const user = window.tournamentStore.getUsuarioActual();
+    const tabTitleEl = document.querySelector('#btnTabSuperAdmin .config-tab-title');
     const nameEl = document.getElementById('saActiveUserName');
     const docEl = document.getElementById('saActiveUserDoc');
-    if (nameEl) nameEl.textContent = user?.nombre || 'Superadministrador Autorizado';
-    if (docEl) docEl.textContent = user?.cedula ? `C.I. ${user.cedula} • Control Maestro Global` : 'Control Maestro Global';
+
+    if (isDiscAdmin) {
+      if (lockStatusBadge) lockStatusBadge.textContent = '🔓 Acceso Disciplinario';
+      if (tabTitleEl) tabTitleEl.textContent = 'GESTIÓN DE DELEGADOS';
+      if (nameEl) nameEl.textContent = activeUser.nombre || 'Administrador de Disciplina';
+      const d = window.tournamentStore.getDisciplinas().find(x => x.id === activeUser.disciplinaId);
+      if (docEl) docEl.textContent = d ? `Disciplina: ${d.icono || '🏆'} ${d.nombre}` : 'Administrador de Disciplina';
+
+      // Ocultar subpestañas no permitidas para admin_disciplina
+      const btnDisc = document.getElementById('btnSubtabDisciplinas');
+      const btnLogo = document.getElementById('btnSubtabEventoLogo');
+      if (btnDisc) btnDisc.style.display = 'none';
+      if (btnLogo) btnLogo.style.display = 'none';
+      switchSuperAdminSubtab('subtabAdmins');
+
+      // Ocultar opción superadmin en el formulario para evitar escalamiento de privilegios
+      const optSuper = document.querySelector('#adminNewRol option[value="superadmin"]');
+      if (optSuper) optSuper.style.display = 'none';
+
+      // Fijar disciplina asignada
+      const discSelect = document.getElementById('adminNewDisciplina');
+      if (discSelect && activeUser.disciplinaId && activeUser.disciplinaId !== 'todas') {
+        discSelect.value = activeUser.disciplinaId;
+        discSelect.disabled = true;
+      }
+    } else {
+      if (lockStatusBadge) lockStatusBadge.textContent = '🔓 Acceso Habilitado';
+      if (tabTitleEl) tabTitleEl.textContent = 'SUPERADMINISTRADOR';
+      if (nameEl) nameEl.textContent = activeUser?.nombre || 'Superadministrador Autorizado';
+      if (docEl) docEl.textContent = activeUser?.cedula ? `C.I. ${activeUser.cedula} • Control Maestro Global` : 'Control Maestro Global';
+
+      const btnDisc = document.getElementById('btnSubtabDisciplinas');
+      const btnLogo = document.getElementById('btnSubtabEventoLogo');
+      if (btnDisc) btnDisc.style.display = 'inline-flex';
+      if (btnLogo) btnLogo.style.display = 'inline-flex';
+
+      const optSuper = document.querySelector('#adminNewRol option[value="superadmin"]');
+      if (optSuper) optSuper.style.display = 'block';
+
+      const discSelect = document.getElementById('adminNewDisciplina');
+      if (discSelect) discSelect.disabled = false;
+    }
   } else {
     if (lockScreen) lockScreen.style.display = 'block';
     if (unlockedPanel) unlockedPanel.style.display = 'none';
@@ -7433,106 +7484,363 @@ function populateAdminDisciplineDropdown() {
   if (currentVal) select.value = currentVal;
 }
 
-function renderConfigAdmins() {
+// Toggle dynamic team selection when 'delegado' is chosen in user form
+function toggleAdminFormEquipoField(rol, disciplinaId, selectedEquipoId = null) {
+  const groupEquipo = document.getElementById('groupAdminNewEquipo');
+  const selectEquipo = document.getElementById('adminNewEquipo');
+  if (!groupEquipo || !selectEquipo) return;
+
+  if (rol === 'delegado') {
+    groupEquipo.style.display = 'block';
+    const disc = (disciplinaId && disciplinaId !== 'todas')
+      ? disciplinaId
+      : (window.tournamentStore?.getDisciplinaActual?.()?.id || 'baloncesto-master');
+
+    const equipos = window.tournamentStore.loadTeams(disc) || [];
+    selectEquipo.innerHTML = `
+      <option value="">Seleccione Equipo...</option>
+      ${equipos.map(eq => `<option value="${eq.id}">${eq.nombre}</option>`).join('')}
+    `;
+    if (selectedEquipoId) selectEquipo.value = selectedEquipoId;
+  } else {
+    groupEquipo.style.display = 'none';
+    selectEquipo.value = '';
+  }
+}
+
+/**
+ * Renderiza el módulo de Gestión de Usuarios (Administradores y Delegados).
+ * - super_admin: ve todos los usuarios con filtros por Rol y por Disciplina.
+ * - admin_disciplina: SOLO ve delegados de su disciplina asignada.
+ */
+async function renderConfigUsuarios() {
   const tbody = document.getElementById('cfgActiveAdminsTableBody');
   if (!tbody) return;
 
-  const admins = window.tournamentStore.getAdmins();
-  const disciplines = window.tournamentStore.getDisciplinas();
+  const activeUser = window.tournamentStore?.getUsuarioActual?.();
+  const isSuper = activeUser?.rol === 'superadmin' || activeUser?.rol === 'super_admin' || !!activeUser?.esSuperAdmin || isSuperAdminUnlocked;
+  const isDiscAdmin = !isSuper && activeUser?.rol === 'admin_disciplina';
+  const userDiscId = activeUser?.disciplinaId;
 
-  if (admins.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1rem;">No hay administradores registrados.</td></tr>`;
+  // Actualizar títulos e indicadores según el rol
+  const filterBar = document.getElementById('cfgUserFiltersBar');
+  const sectionTitle = document.getElementById('cfgUsersSectionTitle');
+  const sectionSubtitle = document.getElementById('cfgUsersSectionSubtitle');
+  const counterBadge = document.getElementById('cfgUserCounterBadge');
+
+  if (isDiscAdmin) {
+    if (filterBar) filterBar.style.display = 'none';
+    if (sectionTitle) sectionTitle.textContent = 'Gestión de Delegados por Equipo';
+    if (sectionSubtitle) sectionSubtitle.textContent = 'Supervisa y administra permisos y credenciales de los delegados de tus equipos asignados.';
+  } else {
+    if (filterBar) filterBar.style.display = 'flex';
+    if (sectionTitle) sectionTitle.textContent = 'Gestión de Usuarios (Administradores y Delegados)';
+    if (sectionSubtitle) sectionSubtitle.textContent = 'Supervisa, filtra y administra permisos de acceso para Administradores y Delegados oficiales.';
+  }
+
+  // Poblar dropdown de disciplinas en el filtro si no está poblado
+  const filterDiscSelect = document.getElementById('filterCfgUserDisciplina');
+  if (filterDiscSelect && (!filterDiscSelect.dataset.populated || filterDiscSelect.dataset.populated !== 'true')) {
+    const discs = window.tournamentStore.getDisciplinas();
+    filterDiscSelect.innerHTML = `
+      <option value="todas">Todas las Disciplinas</option>
+      ${discs.map(d => `<option value="${d.id}">${d.icono || '🏆'} ${d.nombre}</option>`).join('')}
+    `;
+    filterDiscSelect.dataset.populated = 'true';
+  }
+
+  // 1. Obtener administradores locales
+  const localAdmins = window.tournamentStore.getAdmins() || [];
+
+  // 2. Obtener delegados de equipos locales
+  const allEquipos = window.tournamentStore.data.equipos || [];
+  const localDelegados = [];
+  allEquipos.forEach(eq => {
+    if (eq.delegadoNombre || eq.delegadoCedula) {
+      localDelegados.push({
+        id: eq.delegadoId || `DEL-${eq.id}`,
+        nombre: eq.delegadoNombre || 'Delegado Oficial',
+        cedula: eq.delegadoCedula || '',
+        password: eq.pin || '',
+        clave: eq.pin || '',
+        pin: eq.pin || '',
+        email: eq.delegadoEmail || '',
+        telefono: eq.delegadoTelefono || '',
+        disciplinaId: eq.disciplinaId,
+        disciplina_id: eq.disciplinaId,
+        equipoId: eq.id,
+        equipo_id: eq.id,
+        equipoNombre: eq.nombre,
+        rol: 'delegado',
+        tipo: 'delegado'
+      });
+    }
+  });
+
+  // 3. Obtener usuarios desde Supabase Cloud si está disponible
+  let cloudUsers = [];
+  if (window.supabaseService && typeof window.supabaseService.getUsuarios === 'function') {
+    try {
+      cloudUsers = await window.supabaseService.getUsuarios();
+    } catch (e) {
+      console.warn('[renderConfigUsuarios] Supabase getUsuarios warn:', e);
+    }
+  }
+
+  // 4. Consolidar usuarios deduplicando por ID y Cédula
+  const usersMap = new Map();
+
+  localAdmins.forEach(adm => {
+    const key = adm.id || `ced-${adm.cedula}`;
+    usersMap.set(key, {
+      id: adm.id,
+      nombre: adm.nombre,
+      cedula: adm.cedula,
+      clave: adm.clave || '',
+      password: adm.clave || '',
+      pin: adm.clave || '',
+      disciplinaId: adm.disciplinaId || 'todas',
+      disciplina_id: adm.disciplinaId || null,
+      rol: adm.rol || 'admin_disciplina',
+      equipo_id: null,
+      equipoNombre: null,
+      tipo: 'admin'
+    });
+  });
+
+  localDelegados.forEach(del => {
+    const key = del.id || `ced-${del.cedula}`;
+    usersMap.set(key, del);
+  });
+
+  if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
+    cloudUsers.forEach(cu => {
+      let existingKey = null;
+      for (const [k, v] of usersMap.entries()) {
+        if (v.id === cu.id || (cu.cedula && v.cedula === cu.cedula)) {
+          existingKey = k;
+          break;
+        }
+      }
+      const eq = cu.equipo_id ? window.tournamentStore.getEquipoPorId(cu.equipo_id) : null;
+      const userObj = {
+        id: cu.id,
+        nombre: cu.nombre,
+        cedula: cu.cedula || '',
+        password: cu.password || '',
+        clave: cu.password || '',
+        pin: cu.password || '',
+        email: cu.email || '',
+        telefono: cu.telefono || '',
+        disciplinaId: cu.disciplina_id || 'todas',
+        disciplina_id: cu.disciplina_id,
+        equipoId: cu.equipo_id,
+        equipo_id: cu.equipo_id,
+        equipoNombre: eq ? eq.nombre : (cu.equipo_id || null),
+        rol: cu.rol || 'delegado',
+        tipo: cu.rol === 'delegado' ? 'delegado' : 'admin'
+      };
+      if (existingKey) {
+        usersMap.set(existingKey, { ...usersMap.get(existingKey), ...userObj });
+      } else {
+        usersMap.set(cu.id, userObj);
+      }
+    });
+  }
+
+  let allUsers = Array.from(usersMap.values());
+
+  // 5. Aplicar lógica de visibilidad estricta por roles (RBAC)
+  if (isDiscAdmin) {
+    // El admin_disciplina SOLO ve delegados de su propia disciplina
+    allUsers = allUsers.filter(u => {
+      const isDel = u.rol === 'delegado';
+      const matchesDisc = (!userDiscId || userDiscId === 'todas') ||
+        (u.disciplinaId === userDiscId || u.disciplina_id === userDiscId);
+      return isDel && matchesDisc;
+    });
+  } else if (isSuper) {
+    // El super_admin puede filtrar la lista por Rol y por Disciplina
+    const rolFilter = document.getElementById('filterCfgUserRol')?.value || 'todos';
+    const discFilter = document.getElementById('filterCfgUserDisciplina')?.value || 'todas';
+    const searchFilter = (document.getElementById('filterCfgUserSearch')?.value || '').toLowerCase().trim();
+
+    if (rolFilter !== 'todos') {
+      allUsers = allUsers.filter(u => u.rol === rolFilter);
+    }
+    if (discFilter !== 'todas') {
+      allUsers = allUsers.filter(u => u.disciplinaId === discFilter || u.disciplina_id === discFilter);
+    }
+    if (searchFilter) {
+      allUsers = allUsers.filter(u =>
+        (u.nombre && u.nombre.toLowerCase().includes(searchFilter)) ||
+        (u.cedula && u.cedula.includes(searchFilter)) ||
+        (u.equipoNombre && u.equipoNombre.toLowerCase().includes(searchFilter))
+      );
+    }
+  } else {
+    allUsers = [];
+  }
+
+  if (counterBadge) {
+    counterBadge.textContent = `${allUsers.length} usuario${allUsers.length === 1 ? '' : 's'} registrado${allUsers.length === 1 ? '' : 's'}`;
+  }
+
+  if (allUsers.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No se encontraron usuarios registrados con los criterios seleccionados.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = admins.map((adm) => {
-    const isMaster = adm.cedula === '14621157' || (adm.nombre && adm.nombre.toLowerCase().includes('lambert'));
-    let roleBadge = '<span class="badge badge-gold">Super Admin</span>';
-    if (adm.rol === 'admin_disciplina') {
+  const disciplines = window.tournamentStore.getDisciplinas();
+
+  tbody.innerHTML = allUsers.map(u => {
+    const isMaster = u.cedula === '14621157' || (u.nombre && u.nombre.toLowerCase().includes('lambert')) || u.id === 'ADM-01';
+
+    let roleBadge = '<span class="badge badge-gold">👑 Super Admin</span>';
+    if (u.rol === 'admin_disciplina') {
       roleBadge = '<span class="badge badge-cyan">Admin Disciplina</span>';
-    } else if (adm.rol === 'anotador') {
+    } else if (u.rol === 'anotador') {
       roleBadge = '<span class="badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4);">Anotador</span>';
+    } else if (u.rol === 'delegado') {
+      roleBadge = '<span class="badge" style="background: rgba(34, 197, 94, 0.18); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);">👤 Delegado</span>';
     }
 
-    let discLabel = 'Acceso Global';
-    if (adm.disciplinaId && adm.disciplinaId !== 'todas') {
-      const d = disciplines.find((x) => x.id === adm.disciplinaId);
-      discLabel = d ? `${d.icono || '🏆'} ${d.nombre}` : adm.disciplinaId;
+    let discLabel = 'Acceso Global (Todas)';
+    const discId = u.disciplinaId || u.disciplina_id;
+    if (discId && discId !== 'todas') {
+      const d = disciplines.find(x => x.id === discId);
+      discLabel = d ? `${d.icono || '🏆'} ${d.nombre}` : discId;
     }
+    if (u.rol === 'delegado' && u.equipoNombre) {
+      discLabel += ` • <strong style="color: #ffffff;">${u.equipoNombre}</strong>`;
+    }
+
+    const avatarColor = u.rol === 'superadmin' ? 'var(--brand-gold)' : u.rol === 'delegado' ? '#4ade80' : 'var(--accent-cyan)';
 
     return `
       <tr>
         <td>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <div style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--brand-gold);">
-              ${(adm.nombre || 'AD').substring(0, 2).toUpperCase()}
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <div style="width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1.5px solid ${avatarColor}; display: flex; align-items: center; justify-content: center; font-size: 0.74rem; font-weight: 700; color: ${avatarColor}; flex-shrink: 0;">
+              ${(u.nombre || 'US').substring(0, 2).toUpperCase()}
             </div>
             <div>
-              <strong style="color: #ffffff;">${adm.nombre}</strong>
-              ${isMaster ? ' <span title="Superusuario Principal">👑</span>' : ''}
+              <strong style="color: #ffffff; font-size: 0.86rem;">${u.nombre}</strong>
+              ${isMaster ? ' <span title="Superusuario Principal Protegido">👑</span>' : ''}
             </div>
           </div>
         </td>
-        <td style="color: var(--text-secondary);">${adm.cedula || 'N/A'}</td>
+        <td style="color: var(--text-secondary); font-family: monospace; font-size: 0.82rem;">${u.cedula || 'N/A'}</td>
         <td>${roleBadge}</td>
-        <td><span style="font-size: 0.75rem; color: var(--brand-gold-light);">${discLabel}</span></td>
+        <td><span style="font-size: 0.78rem; color: #cbd5e1;">${discLabel}</span></td>
         <td style="text-align: right;">
-          <div style="display: inline-flex; gap: 0.35rem;">
-            <button type="button" class="btn btn-outline btn-sm btn-edit-admin" data-id="${adm.id}" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" title="Editar administrador">
+          <div style="display: inline-flex; gap: 0.4rem;">
+            <button type="button" class="btn btn-outline btn-sm btn-edit-user" data-id="${u.id}" style="padding: 0.25rem 0.6rem; font-size: 0.76rem;" title="Editar información del usuario">
               ✏️
             </button>
             ${!isMaster ? `
-              <button type="button" class="btn btn-outline-danger btn-sm btn-del-admin" data-id="${adm.id}" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" title="Revocar permisos">
+              <button type="button" class="btn btn-outline-danger btn-sm btn-del-user" data-id="${u.id}" style="padding: 0.25rem 0.6rem; font-size: 0.76rem;" title="Eliminar usuario permanentemente">
                 🗑️
               </button>
-            ` : '<span style="font-size: 0.65rem; color: var(--text-muted); padding: 0 0.4rem;">Principal</span>'}
+            ` : '<span style="font-size: 0.68rem; color: var(--text-muted); padding: 0.25rem 0.4rem; font-weight: 600;">👑 Principal</span>'}
           </div>
         </td>
       </tr>
     `;
   }).join('');
 
-  // Listeners Editar admin
-  tbody.querySelectorAll('.btn-edit-admin').forEach((b) => {
+  // 6. Listeners para Editar Usuario
+  tbody.querySelectorAll('.btn-edit-user').forEach(b => {
     b.addEventListener('click', () => {
       const id = b.getAttribute('data-id');
-      const adm = window.tournamentStore.getAdmins().find((a) => a.id === id);
-      if (!adm) return;
+      const u = allUsers.find(x => x.id === id);
+      if (!u) return;
 
-      document.getElementById('adminEditId').value = adm.id;
-      document.getElementById('adminNewNombre').value = adm.nombre;
-      document.getElementById('adminNewCedula').value = adm.cedula;
-      document.getElementById('adminNewClave').value = adm.clave || '';
-      document.getElementById('adminNewDisciplina').value = adm.disciplinaId || 'todas';
-      document.getElementById('adminNewRol').value = adm.rol || 'admin_disciplina';
+      document.getElementById('adminEditId').value = u.id;
+      document.getElementById('adminEditTipo').value = u.rol === 'delegado' ? 'delegado' : 'admin';
+      document.getElementById('adminNewNombre').value = u.nombre || '';
+      document.getElementById('adminNewCedula').value = u.cedula || '';
+      document.getElementById('adminNewClave').value = u.password || u.clave || u.pin || '';
+
+      const discSelect = document.getElementById('adminNewDisciplina');
+      if (discSelect) discSelect.value = u.disciplinaId || u.disciplina_id || 'todas';
+
+      const rolSelect = document.getElementById('adminNewRol');
+      if (rolSelect) rolSelect.value = u.rol || 'admin_disciplina';
+
+      toggleAdminFormEquipoField(u.rol, u.disciplinaId || u.disciplina_id, u.equipo_id || u.equipoId);
 
       const btnSubmit = document.getElementById('btnSubmitAdminForm');
-      if (btnSubmit) btnSubmit.innerHTML = '<span>💾 Actualizar Administrador</span>';
+      if (btnSubmit) btnSubmit.innerHTML = '<span>💾 Actualizar Usuario</span>';
       const btnCancel = document.getElementById('btnCancelEditAdmin');
       if (btnCancel) btnCancel.style.display = 'inline-block';
       const headerTitle = document.getElementById('adminFormHeaderTitle');
-      if (headerTitle) headerTitle.textContent = `Editar Administrador: ${adm.nombre}`;
+      if (headerTitle) headerTitle.textContent = `Editar ${u.rol === 'delegado' ? 'Delegado' : 'Administrador'}: ${u.nombre}`;
+
+      document.getElementById('formRegistrarNuevoAdmin')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   });
 
-  // Listeners Revocar permisos
-  tbody.querySelectorAll('.btn-del-admin').forEach((b) => {
-    b.addEventListener('click', () => {
+  // 7. Listeners para Eliminar Usuario con confirmación y protección
+  tbody.querySelectorAll('.btn-del-user').forEach(b => {
+    b.addEventListener('click', async () => {
       const id = b.getAttribute('data-id');
-      const adm = window.tournamentStore.getAdmins().find((a) => a.id === id);
-      const name = adm ? adm.nombre : id;
-      if (confirm(`¿Deseas revocar los permisos de administrador a "${name}"?`)) {
-        const ok = window.tournamentStore.deleteAdmin(id);
-        if (ok) {
-          showToast(`Permisos revocados para ${name}`, 'info');
-          renderConfigAdmins();
-        } else {
-          showToast('No se puede revocar al Super Administrador Principal', 'error');
+      const u = allUsers.find(x => x.id === id);
+      if (!u) return;
+
+      const isMaster = u.cedula === '14621157' || (u.nombre && u.nombre.toLowerCase().includes('lambert')) || u.id === 'ADM-01';
+      if (isMaster) {
+        showToast('⚠️ No se puede eliminar al Super Administrador Principal.', 'error');
+        return;
+      }
+
+      const rolLabel = u.rol === 'delegado' ? 'delegado' : 'administrador';
+      if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente al ${rolLabel} "${u.nombre}" (Cédula: ${u.cedula})?\n\nEsta acción borrará al usuario de la base de datos de forma definitiva.`)) {
+        return;
+      }
+
+      b.disabled = true;
+      b.textContent = '⏳';
+
+      try {
+        let ok = true;
+        if (window.supabaseService && typeof window.supabaseService.deleteUsuario === 'function') {
+          const res = await window.supabaseService.deleteUsuario(id, u);
+          if (!res.success) {
+            showToast(`⚠️ ${res.error || 'Error al eliminar en Supabase'}`, 'error');
+            ok = false;
+          }
         }
+
+        if (ok) {
+          if (u.rol === 'delegado') {
+            const eqId = u.equipo_id || u.equipoId;
+            if (eqId) {
+              window.tournamentStore.updateEquipo(eqId, {
+                delegadoNombre: '',
+                delegadoCedula: '',
+                pin: ''
+              });
+            }
+          } else {
+            window.tournamentStore.deleteAdmin(id);
+          }
+          showToast(`🗑️ Usuario "${u.nombre}" eliminado exitosamente.`, 'info');
+          await renderConfigUsuarios();
+        }
+      } catch (err) {
+        console.error('[deleteUser error]:', err);
+        showToast('Error al eliminar usuario. Intente nuevamente.', 'error');
+      } finally {
+        b.disabled = false;
+        b.textContent = '🗑️';
       }
     });
   });
 }
+
+// Mantener alias para compatibilidad
+const renderConfigAdmins = renderConfigUsuarios;
 
 function applyGlobalSystemConfig(config) {
   if (!config) return;
@@ -7633,26 +7941,30 @@ function initSystemConfigModalEvents() {
       (cedulaPin === 'admin');
 
     if (!isAuthorized) {
-      showToast('Credenciales incorrectas. Verifique el usuario y la clave / PIN del Superadministrador.', 'error');
+      showToast('Credenciales incorrectas. Verifique el usuario y la clave / PIN del Administrador.', 'error');
       return;
     }
 
     isSuperAdminUnlocked = true;
 
-    // Persistir como usuario activo en store
+    const isAdminDisc = matchedAdmin && matchedAdmin.rol === 'admin_disciplina' && !isMasterLambert;
+
+    // Persistir como usuario activo en store con su rol verificado
     const user = {
-      rol: 'superadmin',
+      rol: isAdminDisc ? 'admin_disciplina' : 'superadmin',
       nombre: isMasterLambert ? 'José Lambert' : (matchedAdmin?.nombre || nombre),
       cedula: cleanCedPin || matchedAdmin?.cedula || '14621157',
-      rolLabel: 'Superadministrador Master',
-      esSuperAdmin: true,
+      disciplinaId: matchedAdmin?.disciplinaId || 'todas',
+      rolLabel: isAdminDisc ? 'Administrador de Disciplina' : 'Superadministrador Master',
+      esSuperAdmin: !isAdminDisc,
       loginTimestamp: Date.now()
     };
     window.tournamentStore.setUsuarioActual(user);
 
     updateSuperAdminPanelState();
     if (typeof updateHeaderUserBadge === 'function') updateHeaderUserBadge();
-    showToast('👑 ¡Panel de Superadministrador desbloqueado! Acceso Concedido', 'success');
+    renderConfigUsuarios();
+    showToast(isAdminDisc ? `🏆 ¡Panel de Administración (${user.nombre}) desbloqueado!` : '👑 ¡Panel de Superadministrador desbloqueado! Acceso Concedido', 'success');
   });
 
   // 6. Botón Cerrar Sesión Superadmin / Bloquear Panel (Limpia manualmente credenciales guardadas)
@@ -7715,51 +8027,144 @@ function initSystemConfigModalEvents() {
     showToast('Logotipo restaurado al original.', 'info');
   });
 
-  // 12. Formulario Agregar / Editar Administrador
-  document.getElementById('formRegistrarNuevoAdmin')?.addEventListener('submit', (e) => {
+  // 12. Formulario Agregar / Editar Usuario (Administrador o Delegado)
+  document.getElementById('formRegistrarNuevoAdmin')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const editId = document.getElementById('adminEditId')?.value;
+    const editTipo = document.getElementById('adminEditTipo')?.value || 'admin';
     const nombre = document.getElementById('adminNewNombre')?.value.trim();
     const cedula = cleanAuthCedula(document.getElementById('adminNewCedula')?.value.trim()) || document.getElementById('adminNewCedula')?.value.trim();
     const clave = document.getElementById('adminNewClave')?.value.trim();
     const disciplinaId = document.getElementById('adminNewDisciplina')?.value;
     const rol = document.getElementById('adminNewRol')?.value;
+    const equipoId = document.getElementById('adminNewEquipo')?.value;
 
     if (!nombre || !cedula) {
       showToast('Por favor ingrese el nombre completo y la cédula.', 'error');
       return;
     }
 
-    if (editId) {
-      window.tournamentStore.updateAdmin(editId, { nombre, cedula, clave, disciplinaId, rol });
-      showToast(`Administrador "${nombre}" actualizado con éxito`, 'success');
-    } else {
-      window.tournamentStore.addAdmin({ nombre, cedula, clave, disciplinaId, rol });
-      showToast(`Nuevo Administrador "${nombre}" registrado con éxito`, 'success');
+    if (rol === 'delegado' && !equipoId) {
+      showToast('Por favor seleccione el equipo al que representará el delegado.', 'warning');
+      return;
     }
 
-    // Reset Form
-    document.getElementById('formRegistrarNuevoAdmin').reset();
-    document.getElementById('adminEditId').value = '';
     const btnSubmit = document.getElementById('btnSubmitAdminForm');
-    if (btnSubmit) btnSubmit.innerHTML = '<span>➕ Registrar Administrador</span>';
-    const btnCancel = document.getElementById('btnCancelEditAdmin');
-    if (btnCancel) btnCancel.style.display = 'none';
-    const headerTitle = document.getElementById('adminFormHeaderTitle');
-    if (headerTitle) headerTitle.textContent = 'Agregar Nuevo Administrador';
+    if (btnSubmit) {
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = '<span>⏳ Guardando...</span>';
+    }
 
-    renderConfigAdmins();
+    try {
+      const userData = {
+        id: editId || undefined,
+        nombre,
+        cedula,
+        password: clave,
+        clave,
+        pin: clave,
+        disciplinaId: disciplinaId === 'todas' ? null : disciplinaId,
+        disciplina_id: disciplinaId === 'todas' ? null : disciplinaId,
+        equipoId: rol === 'delegado' ? equipoId : null,
+        equipo_id: rol === 'delegado' ? equipoId : null,
+        rol
+      };
+
+      if (editId) {
+        // UPDATE en Supabase Cloud y Local Store
+        let ok = true;
+        if (window.supabaseService && typeof window.supabaseService.updateUsuario === 'function') {
+          const res = await window.supabaseService.updateUsuario(editId, userData);
+          if (!res.success) {
+            showToast(`⚠️ ${res.error || 'Error al actualizar en Supabase'}`, 'error');
+            ok = false;
+          }
+        }
+        if (ok) {
+          if (rol === 'delegado') {
+            if (equipoId) {
+              window.tournamentStore.updateEquipo(equipoId, {
+                delegadoNombre: nombre,
+                delegadoCedula: cedula,
+                pin: clave
+              });
+            }
+          } else {
+            window.tournamentStore.updateAdmin(editId, { nombre, cedula, clave, disciplinaId, rol });
+          }
+          showToast(`✅ Usuario "${nombre}" actualizado con éxito`, 'success');
+        }
+      } else {
+        // CREATE / INSERT
+        if (rol === 'delegado') {
+          if (window.supabaseService && typeof window.supabaseService.registrarDelegado === 'function') {
+            await window.supabaseService.registrarDelegado(userData);
+          }
+          if (equipoId) {
+            window.tournamentStore.updateEquipo(equipoId, {
+              delegadoNombre: nombre,
+              delegadoCedula: cedula,
+              pin: clave
+            });
+          }
+          showToast(`✅ Delegado "${nombre}" registrado con éxito`, 'success');
+        } else {
+          if (window.supabaseService && typeof window.supabaseService.upsertUsuario === 'function') {
+            await window.supabaseService.upsertUsuario(userData);
+          }
+          window.tournamentStore.addAdmin({ nombre, cedula, clave, disciplinaId, rol });
+          showToast(`✅ Administrador "${nombre}" registrado con éxito`, 'success');
+        }
+      }
+
+      // Reset Form
+      document.getElementById('formRegistrarNuevoAdmin').reset();
+      document.getElementById('adminEditId').value = '';
+      document.getElementById('adminEditTipo').value = 'admin';
+      toggleAdminFormEquipoField('admin_disciplina', 'todas');
+      if (btnSubmit) btnSubmit.innerHTML = '<span>➕ Registrar Usuario</span>';
+      const btnCancel = document.getElementById('btnCancelEditAdmin');
+      if (btnCancel) btnCancel.style.display = 'none';
+      const headerTitle = document.getElementById('adminFormHeaderTitle');
+      if (headerTitle) headerTitle.textContent = 'Agregar Nuevo Administrador o Delegado';
+
+      await renderConfigUsuarios();
+    } catch (err) {
+      console.error('[Save User error]:', err);
+      showToast('Error al procesar la operación. Intente nuevamente.', 'error');
+    } finally {
+      if (btnSubmit) btnSubmit.disabled = false;
+    }
   });
 
   document.getElementById('btnCancelEditAdmin')?.addEventListener('click', () => {
     document.getElementById('formRegistrarNuevoAdmin').reset();
     document.getElementById('adminEditId').value = '';
+    document.getElementById('adminEditTipo').value = 'admin';
+    toggleAdminFormEquipoField('admin_disciplina', 'todas');
     const btnSubmit = document.getElementById('btnSubmitAdminForm');
-    if (btnSubmit) btnSubmit.innerHTML = '<span>➕ Registrar Administrador</span>';
+    if (btnSubmit) btnSubmit.innerHTML = '<span>➕ Registrar Usuario</span>';
     document.getElementById('btnCancelEditAdmin').style.display = 'none';
     const headerTitle = document.getElementById('adminFormHeaderTitle');
-    if (headerTitle) headerTitle.textContent = 'Agregar Nuevo Administrador';
+    if (headerTitle) headerTitle.textContent = 'Agregar Nuevo Administrador o Delegado';
   });
+
+  // Dynamic Listeners para el rol en el formulario
+  document.getElementById('adminNewRol')?.addEventListener('change', (e) => {
+    const disc = document.getElementById('adminNewDisciplina')?.value;
+    toggleAdminFormEquipoField(e.target.value, disc);
+  });
+  document.getElementById('adminNewDisciplina')?.addEventListener('change', (e) => {
+    const rol = document.getElementById('adminNewRol')?.value;
+    if (rol === 'delegado') {
+      toggleAdminFormEquipoField(rol, e.target.value);
+    }
+  });
+
+  // Dynamic Listeners para filtros de la tabla de usuarios
+  document.getElementById('filterCfgUserRol')?.addEventListener('change', () => renderConfigUsuarios());
+  document.getElementById('filterCfgUserDisciplina')?.addEventListener('change', () => renderConfigUsuarios());
+  document.getElementById('filterCfgUserSearch')?.addEventListener('input', () => renderConfigUsuarios());
 
   // 13. BOTÓN DE ACCIÓN GLOBAL: "Guardar y Aplicar Cambios Globales"
   document.getElementById('btnGuardarCambiosGlobales')?.addEventListener('click', handleGuardarCambiosGlobales);
@@ -8121,6 +8526,10 @@ function updateDelegadoManagementUI(user) {
                 <span style="font-size: 1rem;">👤</span>
                 <span>Registrar Delegado</span>
               </button>
+              <button type="button" id="btnMenuGestionUsuarios" class="config-dropdown-btn" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 14px; background: none; border: none; color: #ffffff; font-size: 0.82rem; font-weight: 600; text-align: left; cursor: pointer; transition: background 0.15s ease;">
+                <span style="font-size: 1rem;">👥</span>
+                <span>Gestión de Usuarios</span>
+              </button>
               <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 3px 0;"></div>
               <button type="button" id="btnMenuOpenConfigSistema" class="config-dropdown-btn" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 14px; background: none; border: none; color: var(--text-secondary); font-size: 0.8rem; text-align: left; cursor: pointer; transition: background 0.15s ease;">
                 <span style="font-size: 1rem;">⚙️</span>
@@ -8149,6 +8558,16 @@ function updateDelegadoManagementUI(user) {
         btnRegDel?.addEventListener('click', () => {
           dropMenu.style.display = 'none';
           openRegistrarDelegadoModal();
+        });
+
+        const btnGestUsers = document.getElementById('btnMenuGestionUsuarios');
+        btnGestUsers?.addEventListener('click', () => {
+          dropMenu.style.display = 'none';
+          if (typeof openConfiguracionSistemaModal === 'function') {
+            openConfiguracionSistemaModal();
+            switchConfigMainTab('btnTabSuperAdmin', 'paneSuperAdmin');
+            switchSuperAdminSubtab('subtabAdmins');
+          }
         });
 
         btnOpenCfg?.addEventListener('click', () => {
