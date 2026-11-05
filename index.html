@@ -26,7 +26,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./styles.css?v=3.2.9">
+  <link rel="stylesheet" href="./styles.css?v=3.3.0">
 </head>
 <body>
 
@@ -2306,13 +2306,13 @@
                 </div>
 
                 <!-- Barra de Filtros (Visible para Superadmin) -->
-                <div class="user-filters-bar" id="cfgUserFiltersBar" style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; padding: 0.75rem; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; align-items: center;">
-                  <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; font-weight: 700; color: var(--brand-gold);">
+                <div class="user-filters-bar" id="cfgUserFiltersBar">
+                  <div class="cfg-filter-label" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; font-weight: 700; color: var(--brand-gold);">
                     <span>🔍</span>
                     <span>Filtrar:</span>
                   </div>
 
-                  <div style="flex: 1; min-width: 150px;">
+                  <div class="cfg-filter-field" style="flex: 1; min-width: 140px;">
                     <select class="form-input" id="filterCfgUserRol" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; height: auto;">
                       <option value="todos">Todos los Roles</option>
                       <option value="superadmin">Super Administrador</option>
@@ -2322,19 +2322,19 @@
                     </select>
                   </div>
 
-                  <div style="flex: 1; min-width: 180px;">
+                  <div class="cfg-filter-field" style="flex: 1; min-width: 140px;">
                     <select class="form-input" id="filterCfgUserDisciplina" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; height: auto;">
                       <option value="todas">Todas las Disciplinas</option>
                       <!-- Dynamically populated -->
                     </select>
                   </div>
 
-                  <div style="min-width: 150px;">
+                  <div class="cfg-filter-field" style="flex: 1; min-width: 140px;">
                     <input type="text" class="form-input" id="filterCfgUserSearch" placeholder="Buscar nombre o cédula..." style="padding: 0.35rem 0.6rem; font-size: 0.8rem; height: auto;">
                   </div>
                 </div>
 
-                <div class="active-admins-table-wrap">
+                <div class="active-admins-table-wrap" style="width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
                   <table class="active-admins-table">
                     <thead>
                       <tr>
@@ -2644,10 +2644,10 @@
   </footer>
 
   <!-- Application Logic Scripts -->
-  <script src="./js/store.js?v=3.2.9"></script>
-  <script src="./js/standings.js?v=3.2.9"></script>
-  <script src="./js/csv-importer.js?v=3.2.9"></script>
-  <script src="./js/supabase.js?v=3.2.9"></script>
-  <script src="./js/app.js?v=3.2.9"></script>
+  <script src="./js/store.js?v=3.3.0"></script>
+  <script src="./js/standings.js?v=3.3.0"></script>
+  <script src="./js/csv-importer.js?v=3.3.0"></script>
+  <script src="./js/supabase.js?v=3.3.0"></script>
+  <script src="./js/app.js?v=3.3.0"></script>
 </body>
 </html>
