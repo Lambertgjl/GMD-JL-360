@@ -1511,6 +1511,7 @@ class TournamentStore {
       camiseta: String(atleta.camiseta || '0'),
       posicion: atleta.posicion || 'Alero',
       equipo: atleta.equipo || '',
+      equipoId: atleta.equipoId || '',
       rol: atleta.rol || 'Atleta',
       fotoUrl: atleta.fotoUrl || ''
     };

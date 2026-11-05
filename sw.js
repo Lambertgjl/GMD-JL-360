@@ -1,15 +1,15 @@
 // Service Worker - Grupo Multiservicios Deportivo JL PWA
-const CACHE_NAME = 'gmd-jl-cache-v3.2.8';
+const CACHE_NAME = 'gmd-jl-cache-v3.2.9';
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './styles.css?v=3.2.8',
+  './styles.css?v=3.2.9',
   './manifest.webmanifest',
-  './js/app.js?v=3.2.8',
-  './js/store.js?v=3.2.8',
-  './js/standings.js?v=3.2.8',
-  './js/csv-importer.js?v=3.2.8',
-  './js/supabase.js?v=3.2.8',
+  './js/app.js?v=3.2.9',
+  './js/store.js?v=3.2.9',
+  './js/standings.js?v=3.2.9',
+  './js/csv-importer.js?v=3.2.9',
+  './js/supabase.js?v=3.2.9',
   './assets/logo.png',
   './assets/icon-192.png',
   './assets/icon-512.png',

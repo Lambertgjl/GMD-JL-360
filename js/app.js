@@ -3964,7 +3964,8 @@ function renderTeamsAndRosters() {
   container.querySelectorAll('.btn-agregar-atleta').forEach((btn) => {
     btn.addEventListener('click', () => {
       const teamName = btn.getAttribute('data-team');
-      openAddAtletaForTeamModal(teamName);
+      const teamId = btn.getAttribute('data-id');
+      openAddAtletaForTeamModal(teamName, teamId);
     });
   });
 
@@ -3989,33 +3990,33 @@ function renderTeamsAndRosters() {
   });
 }
 
-function openAddAtletaForTeamModal(teamName) {
+function openAddAtletaForTeamModal(teamName, teamId = null) {
   const modal = document.getElementById('modalEditAtleta');
   const title = document.getElementById('modalAtletaTitle');
-  const eqGroup = document.getElementById('atletaEquipoGroup');
-  const eqSelect = document.getElementById('atletaEquipoSelect');
+  const subtitle = document.getElementById('atletaModalSubtitle');
   const atletaIdInput = document.getElementById('atletaId');
+  const inputEqId = document.getElementById('atletaEquipoId');
+  const inputEqNom = document.getElementById('atletaEquipoNombre');
   const submitBtn = document.getElementById('btnGuardarAtletaSubmit');
 
-  if (title) title.textContent = `Inscribir Atleta en: ${teamName}`;
-  if (atletaIdInput) atletaIdInput.value = '';
-  if (submitBtn) submitBtn.textContent = 'Guardar Cambios / Añadir';
-
   const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
+  const eq = teamId ? window.tournamentStore.getEquipoPorId(teamId) : window.tournamentStore.getEquipoPorNombre(teamName, disc.id);
+  const resolvedTeamId = eq?.id || teamId || '';
+  const resolvedTeamName = eq?.nombre || teamName || '';
 
-  if (eqSelect) {
-    const equipos = window.tournamentStore.getEquipos(disc.id);
-    eqSelect.innerHTML = equipos
-      .map((eq) => `<option value="${eq.nombre}" ${eq.nombre === teamName ? 'selected' : ''}>${eq.nombre}</option>`)
-      .join('');
-    eqSelect.value = teamName;
-  }
-  if (eqGroup) eqGroup.style.display = 'block';
+  if (title) title.textContent = 'Inscribir Atleta';
+  if (subtitle) subtitle.textContent = `Equipo destino: ${resolvedTeamName}`;
+  if (atletaIdInput) atletaIdInput.value = '';
+  if (inputEqId) inputEqId.value = resolvedTeamId;
+  if (inputEqNom) inputEqNom.value = resolvedTeamName;
+  if (submitBtn) submitBtn.textContent = 'Guardar Atleta';
 
-  ['atletaCedula', 'atletaCamiseta', 'atletaNombres', 'atletaFechaNac', 'atletaEdad', 'atletaFotoUrl'].forEach((id) => {
+  ['atletaCedula', 'atletaCamiseta', 'atletaNombres', 'atletaFechaNac', 'atletaEdad'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  const rolSelect = document.getElementById('atletaRol');
+  if (rolSelect) rolSelect.value = 'Atleta';
 
   modal?.classList.add('open');
 }
@@ -4471,49 +4472,60 @@ function openEditAtletaModal(atletaId = null, isSuperAdmin = false) {
   const modal = document.getElementById('modalEditAtleta');
   const form = document.getElementById('formAtleta');
   const title = document.getElementById('modalAtletaTitle');
-  const eqGroup = document.getElementById('atletaEquipoGroup');
-  const eqSelect = document.getElementById('atletaEquipoSelect');
+  const subtitle = document.getElementById('atletaModalSubtitle');
+  const inputEqId = document.getElementById('atletaEquipoId');
+  const inputEqNom = document.getElementById('atletaEquipoNombre');
   const hint = document.getElementById('atletaPermissionHint');
   form.reset();
 
   const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
+  const user = window.tournamentStore.getUsuarioActual();
 
-  // Populate team selector for Superadmin
-  if (isSuperAdmin || (window.tournamentStore.getUsuarioActual()?.rol === 'superadmin')) {
-    if (eqGroup) eqGroup.style.display = 'block';
-    if (eqSelect) {
-      const equipos = window.tournamentStore.getEquipos(disc.id);
-      eqSelect.innerHTML = equipos.map(eq => `<option value="${eq.nombre}">${eq.nombre} (${eq.grupo})</option>`).join('');
-    }
-    if (hint) hint.innerHTML = '👑 <strong>Modo Superadministrador:</strong> Control total para inscribir o reasignar atletas a cualquier club.';
-  } else {
-    if (eqGroup) eqGroup.style.display = 'none';
-    if (hint) hint.innerHTML = 'ℹ️ Los delegados pueden corregir errores tipográficos o fotos mientras el periodo de inscripción esté abierto.';
+  if (hint) {
+    hint.innerHTML = isSuperAdmin
+      ? '👑 <strong>Modo Superadministrador:</strong> Control de plantilla y registro de atletas.'
+      : 'ℹ️ Los delegados pueden corregir errores tipográficos de sus atletas mientras el periodo de inscripción esté abierto.';
   }
 
   if (atletaId) {
     const atleta = window.tournamentStore.data.atletas.find((a) => a.id === atletaId);
     if (atleta) {
-      title.textContent = isSuperAdmin ? 'Editar Atleta (Control Master)' : 'Corregir Datos del Atleta (Modificación Limitada)';
+      const eq = window.tournamentStore.getEquipoPorNombre(atleta.equipo, atleta.disciplinaId || disc.id);
+      const eqId = atleta.equipoId || eq?.id || '';
+      const eqName = atleta.equipo || eq?.nombre || '';
+
+      if (title) title.textContent = isSuperAdmin ? 'Editar Atleta' : 'Corregir Datos del Atleta';
+      if (subtitle) subtitle.textContent = `Equipo: ${eqName}`;
+
       document.getElementById('atletaId').value = atleta.id;
-      document.getElementById('atletaCedula').value = atleta.cedula;
-      document.getElementById('atletaNombres').value = atleta.nombres;
-      document.getElementById('atletaFechaNac').value = atleta.fechaNacimiento;
-      document.getElementById('atletaEdad').value = atleta.edad;
-      document.getElementById('atletaCamiseta').value = atleta.camiseta;
+      if (inputEqId) inputEqId.value = eqId;
+      if (inputEqNom) inputEqNom.value = eqName;
+
+      document.getElementById('atletaCedula').value = atleta.cedula || '';
+      document.getElementById('atletaNombres').value = atleta.nombres || '';
+      document.getElementById('atletaFechaNac').value = atleta.fechaNacimiento || '';
+      document.getElementById('atletaEdad').value = atleta.edad || '';
+      document.getElementById('atletaCamiseta').value = atleta.camiseta || '';
       if (document.getElementById('atletaPosicion')) document.getElementById('atletaPosicion').value = atleta.posicion || '';
-      document.getElementById('atletaRol').value = atleta.rol;
-      document.getElementById('atletaFotoUrl').value = atleta.fotoUrl || '';
-      if (eqSelect) eqSelect.value = atleta.equipo;
+      document.getElementById('atletaRol').value = atleta.rol || 'Atleta';
+
       const submitBtn = document.getElementById('btnGuardarAtletaSubmit');
       if (submitBtn) submitBtn.textContent = 'Guardar Cambios';
     }
   } else {
-    title.textContent = isSuperAdmin ? 'Inscribir Nuevo Atleta (SuperAdmin)' : 'Inscribir Nuevo Atleta en Mi Equipo';
+    // Inscribir nuevo atleta
+    const targetTeamId = user?.equipoId || '';
+    const targetTeamName = user?.equipoNombre || document.getElementById('delDashTeamName')?.textContent || '';
+
+    if (title) title.textContent = 'Inscribir Nuevo Atleta';
+    if (subtitle) subtitle.textContent = targetTeamName ? `Equipo destino: ${targetTeamName}` : 'Formulario oficial de inscripción';
+
     document.getElementById('atletaId').value = '';
-    document.getElementById('atletaFotoUrl').value = '';
+    if (inputEqId) inputEqId.value = targetTeamId;
+    if (inputEqNom) inputEqNom.value = targetTeamName;
+
     const submitBtn = document.getElementById('btnGuardarAtletaSubmit');
-    if (submitBtn) submitBtn.textContent = 'Guardar Cambios / Añadir';
+    if (submitBtn) submitBtn.textContent = 'Guardar Atleta';
   }
 
   modal?.classList.add('open');
@@ -4536,21 +4548,14 @@ document.getElementById('formAtleta')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = document.getElementById('atletaId').value;
   const user = window.tournamentStore.getUsuarioActual();
-  const isSuperAdmin = user && user.rol === 'superadmin';
-
-  let equipoNombre = '';
-  if (isSuperAdmin) {
-    equipoNombre = document.getElementById('atletaEquipoSelect')?.value || 'Broncos de Higuerey';
-  } else {
-    equipoNombre = user?.equipoNombre || document.getElementById('delDashTeamName')?.textContent || 'Broncos de Higuerey';
-  }
+  const isSuperAdmin = user && (user.rol === 'superadmin' || user.rol === 'super_admin' || !!user.esSuperAdmin);
 
   // Check freeze restriction if delegate
   if (!isSuperAdmin) {
     const config = window.tournamentStore.getConfig();
     if (config.rostersCongelados) {
       showToast('⛔ Acción denegada: Nóminas congeladas por la organización.', 'error');
-      document.getElementById('modalEditAtleta').classList.remove('open');
+      document.getElementById('modalEditAtleta')?.classList.remove('open');
       return;
     }
   }
@@ -4558,41 +4563,84 @@ document.getElementById('formAtleta')?.addEventListener('submit', async (e) => {
   const existingAtleta = id ? window.tournamentStore.data.atletas.find((a) => a.id === id) : null;
   const activeDisc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
 
+  // Contexto de equipo heredado automáticamente del contexto de clic / sesión
+  const inputEqId = document.getElementById('atletaEquipoId')?.value?.trim();
+  const inputEqNom = document.getElementById('atletaEquipoNombre')?.value?.trim();
+
+  let targetEquipo = null;
+  if (inputEqId) {
+    targetEquipo = window.tournamentStore.getEquipoPorId(inputEqId);
+  }
+  if (!targetEquipo && inputEqNom) {
+    targetEquipo = window.tournamentStore.getEquipoPorNombre(inputEqNom, activeDisc.id);
+  }
+  if (!targetEquipo && existingAtleta?.equipo) {
+    targetEquipo = window.tournamentStore.getEquipoPorNombre(existingAtleta.equipo, existingAtleta.disciplinaId || activeDisc.id);
+  }
+  if (!targetEquipo && user?.equipoId) {
+    targetEquipo = window.tournamentStore.getEquipoPorId(user.equipoId);
+  }
+
+  const equipoId = targetEquipo?.id || inputEqId || user?.equipoId || '';
+  const equipoNombre = targetEquipo?.nombre || inputEqNom || user?.equipoNombre || existingAtleta?.equipo || '';
+
+  if (!equipoNombre) {
+    showToast('Error: No se pudo identificar el equipo de destino para el atleta.', 'error');
+    return;
+  }
+
+  const btnSubmit = document.getElementById('btnGuardarAtletaSubmit');
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = '⏳ Guardando...';
+  }
+
   const data = {
     cedula: document.getElementById('atletaCedula').value.trim(),
     nombres: document.getElementById('atletaNombres').value.trim(),
-    fechaNacimiento: document.getElementById('atletaFechaNac').value,
-    edad: Number(document.getElementById('atletaEdad').value),
+    fechaNacimiento: document.getElementById('atletaFechaNac').value || '',
+    edad: Number(document.getElementById('atletaEdad').value) || 0,
     camiseta: document.getElementById('atletaCamiseta').value.trim(),
     posicion: document.getElementById('atletaPosicion')?.value || existingAtleta?.posicion || 'Atleta',
-    rol: document.getElementById('atletaRol').value,
-    fotoUrl: (document.getElementById('atletaFotoUrl')?.value || '').trim(),
+    rol: document.getElementById('atletaRol').value || 'Atleta',
+    fotoUrl: existingAtleta?.fotoUrl || '',
     equipo: equipoNombre,
+    equipoId: equipoId,
     disciplinaId: existingAtleta?.disciplinaId || activeDisc.id
   };
 
-  if (id) {
-    window.tournamentStore.updateAtleta(id, data);
-    if (window.supabaseService) {
-      await window.supabaseService.updateAtleta(id, data);
+  try {
+    if (id) {
+      window.tournamentStore.updateAtleta(id, data);
+      if (window.supabaseService) {
+        await window.supabaseService.updateAtleta(id, data);
+      }
+      showToast(`Atleta "${data.nombres}" actualizado con éxito en la nube`, 'success');
+    } else {
+      const nuevo = window.tournamentStore.addAtleta(data);
+      if (window.supabaseService) {
+        await window.supabaseService.syncAtleta(nuevo.id, nuevo);
+      }
+      showToast(`Atleta "${data.nombres}" inscrito correctamente en ${equipoNombre}`, 'success');
     }
-    showToast(`Atleta "${data.nombres}" actualizado con éxito en la nube`, 'success');
-  } else {
-    const nuevo = window.tournamentStore.addAtleta(data);
-    if (window.supabaseService) {
-      await window.supabaseService.syncAtleta(nuevo.id, nuevo);
-    }
-    showToast(`Atleta "${data.nombres}" inscrito correctamente en la nube`, 'success');
-  }
 
-  document.getElementById('modalEditAtleta').classList.remove('open');
-  if (user && user.equipoId) {
-    renderDelegadoDashboard(user.equipoId);
+    document.getElementById('modalEditAtleta')?.classList.remove('open');
+    if (user && user.equipoId) {
+      renderDelegadoDashboard(user.equipoId);
+    }
+    if (isSuperAdmin) {
+      renderAdminMasterRoster();
+    }
+    renderTeamsAndRosters();
+  } catch (err) {
+    console.error('[Guardar Atleta Exception]:', err);
+    showToast('Error al guardar el atleta. Intente de nuevo.', 'error');
+  } finally {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = id ? 'Guardar Cambios' : 'Guardar Atleta';
+    }
   }
-  if (isSuperAdmin) {
-    renderAdminMasterRoster();
-  }
-  renderTeamsAndRosters();
 });
 
 // Export delegate roster to CSV

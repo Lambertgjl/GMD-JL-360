@@ -61,10 +61,14 @@ CREATE TABLE IF NOT EXISTS public.atletas (
     camiseta TEXT,
     posicion TEXT,
     equipo TEXT NOT NULL,
+    equipo_id TEXT REFERENCES public.equipos(id) ON DELETE SET NULL,
     rol TEXT DEFAULT 'Atleta',
     foto_url TEXT,
     creado_en TIMESTAMPTZ DEFAULT now()
 );
+
+-- Asegurar columna equipo_id si la tabla ya existía
+ALTER TABLE public.atletas ADD COLUMN IF NOT EXISTS equipo_id TEXT REFERENCES public.equipos(id) ON DELETE SET NULL;
 
 -- ------------------------------------------------------------------------------
 -- 4. TABLA PARTIDOS Y RESULTADOS (MESA DE ANOTACIÓN / CALENDARIO)

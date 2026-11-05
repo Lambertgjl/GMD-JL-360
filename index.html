@@ -26,7 +26,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./styles.css?v=3.2.8">
+  <link rel="stylesheet" href="./styles.css?v=3.2.9">
 </head>
 <body>
 
@@ -1503,49 +1503,48 @@
   <div class="modal-overlay" id="modalEditAtleta">
     <div class="modal-card modal-compact" style="max-width: 480px;">
       <div class="modal-header">
-        <h3 class="modal-title" id="modalAtletaTitle">Inscribir Nuevo Atleta</h3>
+        <div>
+          <h3 class="modal-title" id="modalAtletaTitle" style="margin: 0; line-height: 1.2;">Inscribir Atleta</h3>
+          <span id="atletaModalSubtitle" style="font-size: 0.74rem; color: var(--brand-gold-light); display: block; margin-top: 2px;">Formulario oficial de inscripción</span>
+        </div>
         <button class="modal-close-btn" onclick="document.getElementById('modalEditAtleta').classList.remove('open')">&times;</button>
       </div>
       <form id="formAtleta">
-        <div class="modal-body">
-          <input type="hidden" id="atletaId">
-
-          <!-- Team selector (visible for Superadmin, auto-filled for Delegate) -->
-          <div class="form-group" id="atletaEquipoGroup" style="display: none;">
-            <label class="form-label">Club / Equipo Perteneciente</label>
-            <select class="form-select" id="atletaEquipoSelect"></select>
-          </div>
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 0.85rem;">
+          <input type="hidden" id="atletaId" value="">
+          <input type="hidden" id="atletaEquipoId" value="">
+          <input type="hidden" id="atletaEquipoNombre" value="">
 
           <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Cédula de Identidad</label>
-              <input type="text" class="form-input" id="atletaCedula" placeholder="V-00000000" required>
+            <div class="form-group" style="flex: 1;">
+              <label class="form-label" for="atletaCedula">Cédula de Identidad <span style="color: var(--accent-live);">*</span></label>
+              <input type="text" class="form-input" id="atletaCedula" placeholder="Ej. V-18456123 o 18456123" required>
             </div>
-            <div class="form-group">
-              <label class="form-label">Número de Camiseta / Dorsal</label>
+            <div class="form-group" style="flex: 1;">
+              <label class="form-label" for="atletaCamiseta">Dorsal / Camiseta <span style="color: var(--accent-live);">*</span></label>
               <input type="text" class="form-input" id="atletaCamiseta" placeholder="Ej. 23" required>
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Nombres y Apellidos Completos</label>
-            <input type="text" class="form-input" id="atletaNombres" placeholder="Nombre Apellido" required>
+            <label class="form-label" for="atletaNombres">Nombres y Apellidos Completos <span style="color: var(--accent-live);">*</span></label>
+            <input type="text" class="form-input" id="atletaNombres" placeholder="Ej. Carlos Mendoza" required>
           </div>
 
           <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Fecha de Nacimiento</label>
+            <div class="form-group" style="flex: 1;">
+              <label class="form-label" for="atletaFechaNac">Fecha de Nacimiento</label>
               <input type="date" class="form-input" id="atletaFechaNac">
             </div>
-            <div class="form-group">
-              <label class="form-label">Edad (Cálculo Automático)</label>
-              <input type="number" class="form-input" id="atletaEdad" placeholder="25" min="5" max="80" required>
+            <div class="form-group" style="flex: 1;">
+              <label class="form-label" for="atletaEdad">Edad (Años) <span style="color: var(--accent-live);">*</span></label>
+              <input type="number" class="form-input" id="atletaEdad" placeholder="Ej. 25" min="5" max="80" required>
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="atletaRol">Rol en el Equipo / Cuerpo Técnico</label>
-            <select class="form-select" id="atletaRol">
+            <label class="form-label" for="atletaRol">Rol en el Equipo / Cuerpo Técnico <span style="color: var(--accent-live);">*</span></label>
+            <select class="form-select" id="atletaRol" required>
               <option value="Atleta">Atleta</option>
               <option value="Capitán">Capitán</option>
               <option value="Subcapitán">Subcapitán</option>
@@ -1555,19 +1554,13 @@
             </select>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Foto de Perfil del Atleta (URL o imagen)</label>
-            <input type="text" class="form-input" id="atletaFotoUrl" placeholder="https://ejemplo.com/foto.jpg o dejar en blanco">
-            <span style="font-size: 0.72rem; color: var(--text-muted);">Puede pegar una URL directa de imagen o avatar representativo.</span>
-          </div>
-
-          <div id="atletaPermissionHint" style="padding: 0.6rem; background: rgba(0,0,0,0.3); border-radius: var(--radius-sm); font-size: 0.75rem; color: var(--brand-gold-light);">
-            ℹ️ Los delegados pueden corregir errores tipográficos o fotos mientras el periodo de inscripción esté abierto.
+          <div id="atletaPermissionHint" style="padding: 0.6rem 0.8rem; background: rgba(0,0,0,0.3); border-radius: var(--radius-sm); font-size: 0.74rem; color: var(--brand-gold-light); line-height: 1.4;">
+            ℹ️ Los datos del atleta se vincularán automáticamente al equipo seleccionado.
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('modalEditAtleta').classList.remove('open')">Cerrar / Cancelar</button>
-          <button type="submit" class="btn btn-gold btn-sm" id="btnGuardarAtletaSubmit">Guardar Cambios / Añadir</button>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('modalEditAtleta').classList.remove('open')">Cancelar</button>
+          <button type="submit" class="btn btn-gold btn-sm" id="btnGuardarAtletaSubmit">Guardar Atleta</button>
         </div>
       </form>
     </div>
@@ -2651,10 +2644,10 @@
   </footer>
 
   <!-- Application Logic Scripts -->
-  <script src="./js/store.js?v=3.2.8"></script>
-  <script src="./js/standings.js?v=3.2.8"></script>
-  <script src="./js/csv-importer.js?v=3.2.8"></script>
-  <script src="./js/supabase.js?v=3.2.8"></script>
-  <script src="./js/app.js?v=3.2.8"></script>
+  <script src="./js/store.js?v=3.2.9"></script>
+  <script src="./js/standings.js?v=3.2.9"></script>
+  <script src="./js/csv-importer.js?v=3.2.9"></script>
+  <script src="./js/supabase.js?v=3.2.9"></script>
+  <script src="./js/app.js?v=3.2.9"></script>
 </body>
 </html>

@@ -515,7 +515,7 @@ class SupabaseService {
 
   mapLocalAtletaToSupabase(atl) {
     if (!atl) return null;
-    return {
+    const payload = {
       id: atl.id,
       disciplina_id: atl.disciplinaId || 'baloncesto-master',
       cedula: atl.cedula,
@@ -528,6 +528,10 @@ class SupabaseService {
       rol: atl.rol || 'Atleta',
       foto_url: atl.fotoUrl || null
     };
+    if (atl.equipoId) {
+      payload.equipo_id = atl.equipoId;
+    }
+    return payload;
   }
 
   // --- SINCRONIZACIÓN ATÓMICA DE MUTACIONES DESDE EL STORE ---
