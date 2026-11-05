@@ -603,11 +603,13 @@ function initDisciplineAuthModalEvents() {
     const isMaster = isMasterName && (cleanCed === '14621157' || clave === 'admin2024' || clave === 'admin');
     const isAdminDisc = matchedAdmin && matchedAdmin.rol === 'admin_disciplina' && !isMaster;
 
+    const userDisc = matchedAdmin?.disciplinaId || matchedAdmin?.disciplina_id || 'todas';
     const user = {
       rol: isAdminDisc ? 'admin_disciplina' : 'superadmin',
       nombre: matchedAdmin?.nombre || (isMaster ? 'José Lambert' : nombre),
       cedula: cleanCed || matchedAdmin?.cedula || '14621157',
-      disciplinaId: matchedAdmin?.disciplinaId || 'todas',
+      disciplinaId: userDisc,
+      disciplina_id: userDisc,
       rolLabel: isAdminDisc ? 'Administrador de Disciplina' : 'Superadministrador Master',
       esSuperAdmin: !isAdminDisc,
       loginTimestamp: Date.now()
@@ -757,14 +759,66 @@ function initDisciplineNavigation() {
 // ==============================================================================
 // RBAC (ROLE-BASED ACCESS CONTROL) PERMISSIONS ENGINE
 // ==============================================================================
+
+/**
+ * Verifica si el usuario activo tiene facultades totales (CRUD)
+ * sobre una disciplina específica (por defecto la disciplina activa en vista).
+ * 
+ * Regla RBAC:
+ * - super_admin (o superadmin): TIENE facultades totales (CRUD) sobre TODAS las disciplinas.
+ * - admin_disciplina: TIENE facultades totales (CRUD) SI Y SOLO SI el ID de la
+ *   disciplina que está viendo/gestionando coincide exactamente con el disciplina_id
+ *   guardado en la sesión de ese administrador (o si su disciplinaId es 'todas').
+ * - Otros roles (delegado, fanático, visitante): NO tienen permisos de edición.
+ * 
+ * @param {string} [disciplinaId] - ID de la disciplina a verificar (opcional)
+ * @returns {boolean}
+ */
+function canUserManageDiscipline(disciplinaId = null) {
+  const user = window.tournamentStore?.getUsuarioActual?.();
+  if (!user) return false;
+
+  const rol = (user.rol || '').toLowerCase().trim();
+  const isSuper = rol === 'superadmin' || rol === 'super_admin' || !!user.esSuperAdmin;
+  if (isSuper) return true;
+
+  if (rol === 'admin_disciplina') {
+    const targetDiscId = disciplinaId || window.tournamentStore?.getDisciplinaActual?.()?.id;
+    if (!targetDiscId) return false;
+    const userDiscId = user.disciplinaId || user.disciplina_id;
+    return userDiscId === 'todas' || userDiscId === targetDiscId;
+  }
+
+  return false;
+}
+
 function applyRbacPermissions(user) {
-  const isSuperAdmin = !!(user && (user.rol === 'superadmin' || user.esSuperAdmin));
-  const isDelegado = !!(user && user.rol === 'delegado');
+  const rol = (user?.rol || '').toLowerCase().trim();
+  const isSuperAdmin = !!(user && (rol === 'superadmin' || rol === 'super_admin' || !!user.esSuperAdmin));
+  const isDelegado = !!(user && rol === 'delegado');
+  const isDiscAdmin = !!(user && rol === 'admin_disciplina');
+
+  const currentDisc =
+    window.tournamentStore?.getDisciplinaActual?.() || {
+      id: 'baloncesto-master',
+      nombre: 'Baloncesto Master',
+      categoria: 'Torneo STOB 2026',
+      icono: '🏀'
+    };
+
+  // Permiso administrativo activo sobre la disciplina en visualización
+  const canManageCurrentDiscipline = canUserManageDiscipline(currentDisc.id);
 
   // 0. Update body classes for CSS scoping
-  document.body.classList.remove('role-superadmin', 'role-delegado', 'role-fanatico');
+  document.body.classList.remove('role-superadmin', 'role-admin-disciplina', 'role-delegado', 'role-fanatico');
   if (isSuperAdmin) {
     document.body.classList.add('role-superadmin');
+  } else if (isDiscAdmin) {
+    if (canManageCurrentDiscipline) {
+      document.body.classList.add('role-admin-disciplina');
+    } else {
+      document.body.classList.add('role-fanatico');
+    }
   } else if (isDelegado) {
     document.body.classList.add('role-delegado');
   } else {
@@ -779,10 +833,20 @@ function applyRbacPermissions(user) {
     topbarUserName.textContent = user?.nombre || (isSuperAdmin ? 'José Lambert' : isDelegado ? (user?.equipoNombre || 'Delegado') : 'Visitante');
   }
   if (topbarRoleLabel) {
-    topbarRoleLabel.textContent = isSuperAdmin ? '👑 Superadministrador' : isDelegado ? `📋 Delegado: ${user?.equipoNombre || 'Equipo'}` : '🎟️ Fanático / Lectura';
+    if (isSuperAdmin) {
+      topbarRoleLabel.textContent = '👑 Superadministrador';
+    } else if (isDiscAdmin) {
+      topbarRoleLabel.textContent = canManageCurrentDiscipline
+        ? `🛡️ Admin: ${currentDisc.nombre}`
+        : `🛡️ Admin Disciplina (Lectura en ${currentDisc.nombre})`;
+    } else if (isDelegado) {
+      topbarRoleLabel.textContent = `📋 Delegado: ${user?.equipoNombre || 'Equipo'}`;
+    } else {
+      topbarRoleLabel.textContent = '🎟️ Fanático / Lectura';
+    }
   }
   if (topbarUserDot) {
-    topbarUserDot.style.background = isSuperAdmin ? 'var(--brand-gold)' : isDelegado ? 'var(--accent-cyan)' : '#38bdf8';
+    topbarUserDot.style.background = isSuperAdmin ? 'var(--brand-gold)' : isDiscAdmin ? 'var(--accent-cyan)' : isDelegado ? '#4ade80' : '#38bdf8';
   }
 
   const roleBadgePill = document.getElementById('userRoleBadgePill');
@@ -791,10 +855,16 @@ function applyRbacPermissions(user) {
       roleBadgePill.textContent = '👑 Superadmin Autorizado';
       roleBadgePill.style.color = 'var(--brand-gold)';
       roleBadgePill.style.borderColor = 'var(--border-gold)';
-    } else if (isDelegado) {
-      roleBadgePill.textContent = `📋 Delegado: ${user.equipoNombre || 'Equipo'}`;
+    } else if (isDiscAdmin) {
+      roleBadgePill.textContent = canManageCurrentDiscipline
+        ? `🛡️ Admin: ${currentDisc.nombre}`
+        : `🛡️ Admin Disciplina (Lectura)`;
       roleBadgePill.style.color = 'var(--accent-cyan)';
       roleBadgePill.style.borderColor = 'var(--border-cyan)';
+    } else if (isDelegado) {
+      roleBadgePill.textContent = `📋 Delegado: ${user.equipoNombre || 'Equipo'}`;
+      roleBadgePill.style.color = '#4ade80';
+      roleBadgePill.style.borderColor = 'rgba(74, 222, 128, 0.4)';
     } else {
       roleBadgePill.textContent = `🎟️ Fanático: ${user?.nombre || 'Visitante'}`;
       roleBadgePill.style.color = '#38bdf8';
@@ -830,9 +900,9 @@ function applyRbacPermissions(user) {
     rbacDot.style.boxShadow = isSuperAdmin ? '0 0 8px var(--brand-gold)' : '0 0 8px var(--accent-cyan)';
   }
 
-  // 3. Superadmin-only elements across all modules (marked with .rbac-admin-only)
+  // 3. Elementos administrativos en módulos (marcados con .rbac-admin-only)
   document.querySelectorAll('.rbac-admin-only').forEach((el) => {
-    if (isSuperAdmin) {
+    if (canManageCurrentDiscipline) {
       el.style.display = el.tagName === 'BUTTON' ? 'inline-flex' : 'flex';
     } else {
       el.style.display = 'none';
@@ -846,98 +916,92 @@ function applyRbacPermissions(user) {
   }
   const scorerBadge = document.getElementById('scorerConsoleBadge');
   if (scorerBadge) {
-    scorerBadge.textContent = isSuperAdmin ? 'Mesa Técnica Oficial' : 'Marcador Digital Oficial';
+    scorerBadge.textContent = canManageCurrentDiscipline ? 'Mesa Técnica Oficial' : 'Marcador Digital Oficial';
   }
   const scorerSubtitle = document.getElementById('scorerConsoleSubtitle');
   if (scorerSubtitle) {
-    scorerSubtitle.textContent = isSuperAdmin ? 'Control de Marcador Oficial' : 'Transmisión Oficial en Tiempo Real';
+    scorerSubtitle.textContent = canManageCurrentDiscipline ? 'Control de Marcador Oficial' : 'Transmisión Oficial en Tiempo Real';
   }
 
-  // Controles de Anotación (+1, +2, +3, -1) en Resultados Live: VISIBLES SOLO PARA SUPERADMIN
+  // Controles de Anotación (+1, +2, +3, -1) en Resultados Live: VISIBLES PARA ADMIN AUTORIZADO
   document.querySelectorAll('.score-quick-actions, .score-adj-btn').forEach((el) => {
-    el.style.display = isSuperAdmin ? '' : 'none';
+    el.style.display = canManageCurrentDiscipline ? '' : 'none';
   });
 
-  // Gestión de Reloj (Iniciar/Pausar, Reset 10:00): VISIBLE SOLO PARA SUPERADMIN
+  // Gestión de Reloj (Iniciar/Pausar, Reset 10:00): VISIBLE PARA ADMIN AUTORIZADO
   document.querySelectorAll('.clock-controls-row, #scorerClockControls').forEach((el) => {
-    el.style.display = isSuperAdmin ? 'flex' : 'none';
+    el.style.display = canManageCurrentDiscipline ? 'flex' : 'none';
   });
 
   // Botones de acción administrativa en consola (Programado, Iniciar LIVE, Finalizar, Transmitir)
   const scorerStatusBtns = document.getElementById('scorerAdminStatusBtns');
   if (scorerStatusBtns) {
-    scorerStatusBtns.style.display = isSuperAdmin ? 'inline-flex' : 'none';
+    scorerStatusBtns.style.display = canManageCurrentDiscipline ? 'inline-flex' : 'none';
   }
   const btnBroadcast = document.getElementById('btnBroadcastInstant');
   if (btnBroadcast) {
-    btnBroadcast.style.display = isSuperAdmin ? 'flex' : 'none';
+    btnBroadcast.style.display = canManageCurrentDiscipline ? 'flex' : 'none';
   }
 
-  // Inputs de cuartos: editables solo para Superadmin, modo lectura para Fanático
+  // Inputs de cuartos: editables solo para Admin Autorizado, modo lectura para Fanático
   document.querySelectorAll('.quarter-input').forEach((inp) => {
-    inp.readOnly = !isSuperAdmin;
-    inp.style.pointerEvents = isSuperAdmin ? 'auto' : 'none';
+    inp.readOnly = !canManageCurrentDiscipline;
+    inp.style.pointerEvents = canManageCurrentDiscipline ? 'auto' : 'none';
   });
 
-  // Períodos: clicables solo para Superadmin
+  // Períodos: clicables solo para Admin Autorizado
   document.querySelectorAll('#scorerPeriodSelector .period-btn').forEach((btn) => {
-    btn.style.pointerEvents = isSuperAdmin ? 'auto' : 'none';
-    btn.style.cursor = isSuperAdmin ? 'pointer' : 'default';
+    btn.style.pointerEvents = canManageCurrentDiscipline ? 'auto' : 'none';
+    btn.style.cursor = canManageCurrentDiscipline ? 'pointer' : 'default';
   });
 
   // 5. MÓDULO CONFIGURACIÓN DE GRUPOS: Ocultar edición, guardado y eliminación para no administradores
   const groupToolbarActions = document.getElementById('assignmentToolbarActions');
   if (groupToolbarActions) {
-    groupToolbarActions.style.display = isSuperAdmin ? 'flex' : 'none';
+    groupToolbarActions.style.display = canManageCurrentDiscipline ? 'flex' : 'none';
   }
   const adminGruposActions = document.getElementById('adminGruposActions');
   if (adminGruposActions) {
-    adminGruposActions.style.display = isSuperAdmin ? 'flex' : 'none';
+    adminGruposActions.style.display = canManageCurrentDiscipline ? 'flex' : 'none';
   }
   const reglamentoAdminActions = document.getElementById('reglamentoAdminActions');
   if (reglamentoAdminActions) {
-    reglamentoAdminActions.style.display = isSuperAdmin ? 'flex' : 'none';
+    reglamentoAdminActions.style.display = canManageCurrentDiscipline ? 'flex' : 'none';
   }
   const btnToggleReglamento = document.getElementById('btnToggleEditReglamento');
   if (btnToggleReglamento) {
-    btnToggleReglamento.style.display = isSuperAdmin ? 'inline-flex' : 'none';
+    btnToggleReglamento.style.display = canManageCurrentDiscipline ? 'inline-flex' : 'none';
   }
   const btnGuardarReglamento = document.getElementById('btnGuardarReglamento');
-  if (btnGuardarReglamento && !isSuperAdmin) {
-    btnGuardarReglamento.style.display = 'none';
+  if (btnGuardarReglamento) {
+    btnGuardarReglamento.style.display = canManageCurrentDiscipline ? '' : 'none';
   }
   const gruposBadge = document.getElementById('gruposRbacStatusBadge');
   if (gruposBadge) {
-    gruposBadge.textContent = isSuperAdmin
-      ? '👑 Modo Administrador (Edición Activa)'
+    gruposBadge.textContent = canManageCurrentDiscipline
+      ? (isSuperAdmin ? '👑 Superadministrador (Control Maestro)' : '🛡️ Administrador de Disciplina (Edición Activa)')
       : '🔒 Vista Solo Lectura (Fanáticos / Lectura)';
-    gruposBadge.style.color = isSuperAdmin ? 'var(--brand-gold)' : '#38bdf8';
-    gruposBadge.style.borderColor = isSuperAdmin ? 'var(--border-gold)' : 'rgba(56, 189, 248, 0.4)';
+    gruposBadge.style.color = canManageCurrentDiscipline ? 'var(--brand-gold)' : '#38bdf8';
+    gruposBadge.style.borderColor = canManageCurrentDiscipline ? 'var(--border-gold)' : 'rgba(56, 189, 248, 0.4)';
   }
   document.querySelectorAll('#formatPillsSelector .format-pill').forEach((pill) => {
-    pill.style.pointerEvents = isSuperAdmin ? 'auto' : 'none';
-    pill.style.cursor = isSuperAdmin ? 'pointer' : 'default';
+    pill.style.pointerEvents = canManageCurrentDiscipline ? 'auto' : 'none';
+    pill.style.cursor = canManageCurrentDiscipline ? 'pointer' : 'default';
   });
 
-  // 6. MÓDULO CALENDARIO: Ocultar "+ Programar Partido", "Limpiar Calendario" y "Generar Calendario" para no administradores
+  // 6. MÓDULO CALENDARIO: "+ Programar Partido", "Limpiar Calendario" y "Generar Calendario"
   const adminCalendarActions = document.getElementById('adminCalendarActions');
   if (adminCalendarActions) {
-    adminCalendarActions.style.display = isSuperAdmin ? 'flex' : 'none';
+    adminCalendarActions.style.display = canManageCurrentDiscipline ? 'flex' : 'none';
   }
 
-  // 7. MÓDULO GESTIÓN DE EQUIPOS: Ocultar "+ Nuevo Equipo" para no administradores
+  // 7. MÓDULO GESTIÓN DE EQUIPOS: "+ Nuevo Equipo"
   const btnNuevoEquipo = document.getElementById('btnAdminNuevoEquipoMaster');
   if (btnNuevoEquipo) {
-    btnNuevoEquipo.style.display = isSuperAdmin ? 'inline-flex' : 'none';
+    btnNuevoEquipo.style.display = canManageCurrentDiscipline ? 'inline-flex' : 'none';
   }
 
   // 8. Update active discipline name & category in sidebar
-  const currentDisc =
-    window.tournamentStore.getDisciplinaActual() || {
-      nombre: 'Baloncesto Master',
-      categoria: 'Torneo STOB 2026',
-      icono: '🏀'
-    };
   const sbDiscName = document.getElementById('sidebarDisciplineName');
   const sbCategory = document.getElementById('sidebarTournamentCategory');
   if (sbDiscName) sbDiscName.textContent = `${currentDisc.icono || '🏆'} ${currentDisc.nombre}`;
@@ -3146,10 +3210,10 @@ function openNuevoEquipoModal() {
 
 function openEditarEquipoModal(equipoId) {
   const user = window.tournamentStore.getUsuarioActual();
-  const isSuperAdmin = !!(user && (user.rol === 'superadmin' || user.esSuperAdmin));
-  const isDiscAdmin = !!(user && user.rol === 'admin_disciplina');
-  if (!isSuperAdmin && !isDiscAdmin) {
-    showToast('⛔ Acceso denegado: Los delegados no tienen permisos para editar datos del equipo.', 'error');
+  const eqData = window.tournamentStore.getEquipoPorId(equipoId);
+  const targetDiscId = eqData?.disciplinaId || window.tournamentStore.getDisciplinaActual()?.id;
+  if (!canUserManageDiscipline(targetDiscId)) {
+    showToast('⛔ Acceso denegado: No tienes permisos para editar datos de este equipo en esta disciplina.', 'error');
     return;
   }
   const eq = window.tournamentStore.getEquipoPorId(equipoId);
@@ -3531,6 +3595,7 @@ function renderMatches() {
   const partidos = window.tournamentStore.getPartidos(disc.id);
   const user = window.tournamentStore.getUsuarioActual();
   const isSuperAdmin = !!(user && (user.rol === 'superadmin' || user.esSuperAdmin));
+  const canManageMatches = canUserManageDiscipline(disc.id);
   const search = (document.getElementById('matchSearchInput')?.value || '').toLowerCase();
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -3561,7 +3626,7 @@ function renderMatches() {
               ? 'Puedes generar automáticamente los cruces oficiales según el sistema de competencia activo o programar encuentros manualmente.' 
               : 'Aún no se han programado partidos oficiales para esta disciplina. Consulta nuevamente más tarde.'}
           </p>
-          ${isSuperAdmin ? `
+          ${canManageMatches ? `
             <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
               <button class="btn btn-gold btn-sm" id="btnEmptyGenerarCalendario" type="button">
                 ⚡ Generar Calendario Dinámico
@@ -3639,7 +3704,7 @@ function renderMatches() {
           <span>${m.fase || 'Fase Regular'}</span>
         </div>
 
-        ${isSuperAdmin ? `
+        ${canManageMatches ? `
           <div class="match-card-admin-actions">
             <button type="button" class="btn btn-outline-cyan btn-edit-match" data-match-id="${m.id}" title="Editar fecha, hora, contendientes o estado">
               ✏️ Editar Partido
@@ -3854,15 +3919,14 @@ function renderTeamsAndRosters() {
       const isMyTeam = isDelegado && (eq.id === userTeamId || eq.nombre === userTeamName);
 
       // RBAC rules estrictas:
-      // - Superadmin / Admin Disciplina: permisos completos
+      // - Superadmin / Admin Disciplina asignado: permisos completos (CRUD)
       // - Delegado: NO puede editar ni eliminar equipos. SOLO ve "Ver Plantilla" y "Agregar Atleta" en su equipo asignado.
       // - Fanatico: solo lectura ("Ver Plantilla")
-      const isDiscAdmin = !!(user && user.rol === 'admin_disciplina' && (!user.disciplinaId || user.disciplinaId === 'todas' || user.disciplinaId === disc.id));
-      const isAnyAdmin = isSuperAdmin || isDiscAdmin;
+      const canManageTeams = canUserManageDiscipline(disc.id);
 
-      const canAddAthlete = isAnyAdmin || isMyTeam;
-      const canEditTeam = isAnyAdmin;    // Bloqueado para rol 'delegado'
-      const canDeleteTeam = isAnyAdmin;  // Bloqueado para rol 'delegado'
+      const canAddAthlete = canManageTeams || isMyTeam;
+      const canEditTeam = canManageTeams;    // Visible solo si es superadmin o admin_disciplina coincidente
+      const canDeleteTeam = canManageTeams;  // Visible solo si es superadmin o admin_disciplina coincidente
 
       const hasAdminActions = canEditTeam || canAddAthlete || canDeleteTeam;
 
@@ -4752,6 +4816,12 @@ function renderAdminDisciplinas() {
 }
 
 function openEditDisciplinaModal(discId) {
+  const targetDiscId = discId || window.tournamentStore?.getDisciplinaActual?.()?.id;
+  if (!canUserManageDiscipline(targetDiscId)) {
+    showToast('⛔ Acceso denegado: No tienes permisos para configurar esta disciplina.', 'error');
+    return;
+  }
+
   const modal = document.getElementById('modalEditDisciplina');
   if (!modal) return;
 
@@ -7376,16 +7446,33 @@ function updateSuperAdminPanelState() {
       if (btnLogo) btnLogo.style.display = 'none';
       switchSuperAdminSubtab('subtabAdmins');
 
-      // Ocultar opción superadmin en el formulario para evitar escalamiento de privilegios
+      // 1. Ocultar opciones 'Super Administrador' y 'Administrador de Disciplina'
+      // Un admin_disciplina SOLO puede crear usuarios con el rol de 'Delegado por Equipo' o 'Anotador (Mesa Técnica)'
       const optSuper = document.querySelector('#adminNewRol option[value="superadmin"]');
       if (optSuper) optSuper.style.display = 'none';
+      const optAdminDisc = document.querySelector('#adminNewRol option[value="admin_disciplina"]');
+      if (optAdminDisc) optAdminDisc.style.display = 'none';
 
-      // Fijar disciplina asignada
+      // Asegurar visibilidad de las opciones permitidas
+      const optDelegado = document.querySelector('#adminNewRol option[value="delegado"]');
+      if (optDelegado) optDelegado.style.display = 'block';
+      const optAnotador = document.querySelector('#adminNewRol option[value="anotador"]');
+      if (optAnotador) optAnotador.style.display = 'block';
+
+      // Si el select tiene un rol no permitido, seleccionar 'delegado'
+      const rolSelect = document.getElementById('adminNewRol');
+      if (rolSelect && (rolSelect.value === 'superadmin' || rolSelect.value === 'admin_disciplina')) {
+        rolSelect.value = 'delegado';
+      }
+
+      // 2. Fuerza que el select de 'Disciplina Asignada' se bloquee (disabled) en la disciplina del administrador actual
       const discSelect = document.getElementById('adminNewDisciplina');
-      if (discSelect && activeUser.disciplinaId && activeUser.disciplinaId !== 'todas') {
-        discSelect.value = activeUser.disciplinaId;
+      const adminDiscId = activeUser.disciplinaId || activeUser.disciplina_id;
+      if (discSelect && adminDiscId && adminDiscId !== 'todas') {
+        discSelect.value = adminDiscId;
         discSelect.disabled = true;
       }
+      toggleAdminFormEquipoField(rolSelect?.value || 'delegado', adminDiscId);
     } else {
       if (lockStatusBadge) lockStatusBadge.textContent = '🔓 Acceso Habilitado';
       if (tabTitleEl) tabTitleEl.textContent = 'SUPERADMINISTRADOR';
@@ -7397,8 +7484,11 @@ function updateSuperAdminPanelState() {
       if (btnDisc) btnDisc.style.display = 'inline-flex';
       if (btnLogo) btnLogo.style.display = 'inline-flex';
 
-      const optSuper = document.querySelector('#adminNewRol option[value="superadmin"]');
-      if (optSuper) optSuper.style.display = 'block';
+      // Restaurar todas las opciones de rol para superadmin
+      ['superadmin', 'admin_disciplina', 'anotador', 'delegado'].forEach(val => {
+        const opt = document.querySelector(`#adminNewRol option[value="${val}"]`);
+        if (opt) opt.style.display = 'block';
+      });
 
       const discSelect = document.getElementById('adminNewDisciplina');
       if (discSelect) discSelect.disabled = false;
@@ -7998,11 +8088,13 @@ function initSystemConfigModalEvents() {
     const isAdminDisc = matchedAdmin && matchedAdmin.rol === 'admin_disciplina' && !isMasterLambert;
 
     // Persistir como usuario activo en store con su rol verificado
+    const userDiscUnlock = matchedAdmin?.disciplinaId || matchedAdmin?.disciplina_id || 'todas';
     const user = {
       rol: isAdminDisc ? 'admin_disciplina' : 'superadmin',
       nombre: isMasterLambert ? 'José Lambert' : (matchedAdmin?.nombre || nombre),
       cedula: cleanCedPin || matchedAdmin?.cedula || '14621157',
-      disciplinaId: matchedAdmin?.disciplinaId || 'todas',
+      disciplinaId: userDiscUnlock,
+      disciplina_id: userDiscUnlock,
       rolLabel: isAdminDisc ? 'Administrador de Disciplina' : 'Superadministrador Master',
       esSuperAdmin: !isAdminDisc,
       loginTimestamp: Date.now()
@@ -8083,9 +8175,21 @@ function initSystemConfigModalEvents() {
     const nombre = document.getElementById('adminNewNombre')?.value.trim();
     const cedula = cleanAuthCedula(document.getElementById('adminNewCedula')?.value.trim()) || document.getElementById('adminNewCedula')?.value.trim();
     const clave = document.getElementById('adminNewClave')?.value.trim();
-    const disciplinaId = document.getElementById('adminNewDisciplina')?.value;
+    const activeAdminUser = window.tournamentStore.getUsuarioActual();
+    const isDiscAdminActive = activeAdminUser?.rol === 'admin_disciplina';
+    const adminAssignedDiscId = activeAdminUser?.disciplinaId || activeAdminUser?.disciplina_id;
+
+    const disciplinaId = (isDiscAdminActive && adminAssignedDiscId && adminAssignedDiscId !== 'todas')
+      ? adminAssignedDiscId
+      : document.getElementById('adminNewDisciplina')?.value;
     const rol = document.getElementById('adminNewRol')?.value;
     const equipoId = document.getElementById('adminNewEquipo')?.value;
+
+    // Validación estricta para admin_disciplina
+    if (isDiscAdminActive && (rol === 'superadmin' || rol === 'admin_disciplina')) {
+      showToast('⛔ Acción denegada: Un administrador de disciplina solo puede registrar Delegados o Anotadores.', 'error');
+      return;
+    }
 
     if (!nombre || !cedula) {
       showToast('Por favor ingrese el nombre completo y la cédula.', 'error');
@@ -8167,9 +8271,32 @@ function initSystemConfigModalEvents() {
 
       // Reset Form
       document.getElementById('formRegistrarNuevoAdmin').reset();
+      const activeUserReset = window.tournamentStore.getUsuarioActual();
+      const isDiscAdminReset = activeUserReset?.rol === 'admin_disciplina';
+      const adminDiscIdReset = activeUserReset?.disciplinaId || activeUserReset?.disciplina_id;
+
       document.getElementById('adminEditId').value = '';
       document.getElementById('adminEditTipo').value = 'admin';
-      toggleAdminFormEquipoField('admin_disciplina', 'todas');
+
+      const rolSelect = document.getElementById('adminNewRol');
+      const discSelect = document.getElementById('adminNewDisciplina');
+
+      if (isDiscAdminReset) {
+        if (rolSelect) rolSelect.value = 'delegado';
+        if (discSelect && adminDiscIdReset && adminDiscIdReset !== 'todas') {
+          discSelect.value = adminDiscIdReset;
+          discSelect.disabled = true;
+        }
+        toggleAdminFormEquipoField('delegado', adminDiscIdReset);
+      } else {
+        if (rolSelect) rolSelect.value = 'admin_disciplina';
+        if (discSelect) {
+          discSelect.value = 'todas';
+          discSelect.disabled = false;
+        }
+        toggleAdminFormEquipoField('admin_disciplina', 'todas');
+      }
+
       if (btnSubmit) btnSubmit.innerHTML = '<span>➕ Registrar Usuario</span>';
       const btnCancel = document.getElementById('btnCancelEditAdmin');
       if (btnCancel) btnCancel.style.display = 'none';
@@ -8189,7 +8316,30 @@ function initSystemConfigModalEvents() {
     document.getElementById('formRegistrarNuevoAdmin').reset();
     document.getElementById('adminEditId').value = '';
     document.getElementById('adminEditTipo').value = 'admin';
-    toggleAdminFormEquipoField('admin_disciplina', 'todas');
+
+    const activeUserReset = window.tournamentStore.getUsuarioActual();
+    const isDiscAdminReset = activeUserReset?.rol === 'admin_disciplina';
+    const adminDiscIdReset = activeUserReset?.disciplinaId || activeUserReset?.disciplina_id;
+
+    const rolSelect = document.getElementById('adminNewRol');
+    const discSelect = document.getElementById('adminNewDisciplina');
+
+    if (isDiscAdminReset) {
+      if (rolSelect) rolSelect.value = 'delegado';
+      if (discSelect && adminDiscIdReset && adminDiscIdReset !== 'todas') {
+        discSelect.value = adminDiscIdReset;
+        discSelect.disabled = true;
+      }
+      toggleAdminFormEquipoField('delegado', adminDiscIdReset);
+    } else {
+      if (rolSelect) rolSelect.value = 'admin_disciplina';
+      if (discSelect) {
+        discSelect.value = 'todas';
+        discSelect.disabled = false;
+      }
+      toggleAdminFormEquipoField('admin_disciplina', 'todas');
+    }
+
     const btnSubmit = document.getElementById('btnSubmitAdminForm');
     if (btnSubmit) btnSubmit.innerHTML = '<span>➕ Registrar Usuario</span>';
     document.getElementById('btnCancelEditAdmin').style.display = 'none';
@@ -8510,18 +8660,7 @@ if (document.readyState === 'loading') {
  * @returns {boolean}
  */
 function isDelegadoAdmin(user) {
-  if (!user) return false;
-  const rol = (user.rol || '').toLowerCase().trim();
-  const isSuper = rol === 'superadmin' || rol === 'super_admin' || !!user.esSuperAdmin;
-  if (isSuper) return true;
-
-  const isDiscAdmin = rol === 'admin_disciplina';
-  if (isDiscAdmin) {
-    const activeDisc = window.tournamentStore?.getDisciplinaActual?.()?.id;
-    if (!user.disciplinaId || user.disciplinaId === 'todas') return true;
-    if (activeDisc && user.disciplinaId === activeDisc) return true;
-  }
-  return false;
+  return canUserManageDiscipline();
 }
 
 /**
@@ -8574,6 +8713,10 @@ function updateDelegadoManagementUI(user) {
                 <span style="font-size: 1rem;">👤</span>
                 <span>Registrar Delegado</span>
               </button>
+              <button type="button" id="btnMenuConfigurarDisciplina" class="config-dropdown-btn" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 14px; background: none; border: none; color: #ffffff; font-size: 0.82rem; font-weight: 600; text-align: left; cursor: pointer; transition: background 0.15s ease;">
+                <span style="font-size: 1rem;">⚙️</span>
+                <span>Configuración de Disciplina</span>
+              </button>
               <button type="button" id="btnMenuGestionUsuarios" class="config-dropdown-btn" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 14px; background: none; border: none; color: #ffffff; font-size: 0.82rem; font-weight: 600; text-align: left; cursor: pointer; transition: background 0.15s ease;">
                 <span style="font-size: 1rem;">👥</span>
                 <span>Gestión de Usuarios</span>
@@ -8606,6 +8749,13 @@ function updateDelegadoManagementUI(user) {
         btnRegDel?.addEventListener('click', () => {
           dropMenu.style.display = 'none';
           openRegistrarDelegadoModal();
+        });
+
+        const btnCfgDisc = document.getElementById('btnMenuConfigurarDisciplina');
+        btnCfgDisc?.addEventListener('click', () => {
+          dropMenu.style.display = 'none';
+          const currentDisc = window.tournamentStore?.getDisciplinaActual?.();
+          openEditDisciplinaModal(currentDisc?.id);
         });
 
         const btnGestUsers = document.getElementById('btnMenuGestionUsuarios');

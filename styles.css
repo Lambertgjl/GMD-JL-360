@@ -6909,7 +6909,7 @@ body.role-delegado #btnAdminNuevoEquipoMaster {
 
 /* Modo Lectura para inputs de tabla en marcador y selectores */
 body.role-fanatico .quarter-input,
-body:not(.role-superadmin) .quarter-input {
+body:not(.role-superadmin):not(.role-admin-disciplina) .quarter-input {
   background: transparent !important;
   border: none !important;
   color: #ffffff !important;
@@ -6921,13 +6921,13 @@ body:not(.role-superadmin) .quarter-input {
 }
 
 body.role-fanatico #scorerPeriodSelector .period-btn,
-body:not(.role-superadmin) #scorerPeriodSelector .period-btn {
+body:not(.role-superadmin):not(.role-admin-disciplina) #scorerPeriodSelector .period-btn {
   pointer-events: none !important;
   cursor: default !important;
 }
 
 body.role-fanatico #formatPillsSelector .format-pill:not(.active),
-body:not(.role-superadmin) #formatPillsSelector .format-pill:not(.active) {
+body:not(.role-superadmin):not(.role-admin-disciplina) #formatPillsSelector .format-pill:not(.active) {
   opacity: 0.6;
   pointer-events: none !important;
   cursor: default !important;

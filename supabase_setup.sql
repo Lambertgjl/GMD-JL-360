@@ -155,52 +155,188 @@ CREATE POLICY "Lectura pública posiciones" ON public.posiciones FOR SELECT USIN
 
 -- Políticas de escritura (INSERT, UPDATE, DELETE) para sincronización web
 CREATE POLICY "Acceso total disciplinas" ON public.disciplinas FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Acceso total partidos" ON public.partidos FOR ALL USING (true) WITH CHECK (true);
+-- POLÍTICAS RLS SEGURAS PARA PARTIDOS:
+DROP POLICY IF EXISTS "Acceso total partidos" ON public.partidos;
+DROP POLICY IF EXISTS "Lectura pública partidos" ON public.partidos;
+DROP POLICY IF EXISTS "Insercion partidos autorizados" ON public.partidos;
+DROP POLICY IF EXISTS "Modificacion partidos rbac" ON public.partidos;
+DROP POLICY IF EXISTS "Eliminacion partidos rbac" ON public.partidos;
+
+CREATE POLICY "Lectura pública partidos" ON public.partidos FOR SELECT USING (true);
+CREATE POLICY "Insercion partidos autorizados" ON public.partidos FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Modificacion partidos rbac" ON public.partidos FOR UPDATE USING (
+  -- Superadmin global
+  coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') IN ('superadmin', 'super_admin', 'service_role')
+  OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') IN ('superadmin', 'super_admin')
+  -- Admin de disciplina coincidente con disciplina_id
+  OR (
+    (
+      coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') = 'admin_disciplina'
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') = 'admin_disciplina'
+    )
+    AND (
+      disciplina_id = coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', current_setting('request.jwt.claims', true)::jsonb->'user_metadata'->>'disciplina_id', '')
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', '') = 'todas'
+    )
+  )
+  -- Respaldo cliente web autenticado
+  OR (
+    coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') != 'delegado'
+    AND coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') != 'delegado'
+  )
+);
+
+CREATE POLICY "Eliminacion partidos rbac" ON public.partidos FOR DELETE USING (
+  coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') IN ('superadmin', 'super_admin', 'service_role')
+  OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') IN ('superadmin', 'super_admin')
+  OR (
+    (
+      coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') = 'admin_disciplina'
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') = 'admin_disciplina'
+    )
+    AND (
+      disciplina_id = coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', current_setting('request.jwt.claims', true)::jsonb->'user_metadata'->>'disciplina_id', '')
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', '') = 'todas'
+    )
+  )
+  OR (
+    coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') != 'delegado'
+    AND coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') != 'delegado'
+  )
+);
 CREATE POLICY "Acceso total posiciones" ON public.posiciones FOR ALL USING (true) WITH CHECK (true);
 
 -- POLÍTICAS RLS SEGURAS PARA EQUIPOS:
--- Lectura pública para todos
--- UPDATE y DELETE restringidos: bloqueados para delegados (solo Superadmin / Admins autorizados)
+-- Lectura pública para todos.
+-- UPDATE y DELETE con estricto RBAC:
+--   1) Superadmin: acceso global
+--   2) Admin de Disciplina: facultades totales (CRUD) estrictamente sobre los equipos de su disciplina_id asignada
+--   3) Delegados: bloqueados para editar o eliminar equipos
 DROP POLICY IF EXISTS "Acceso total equipos" ON public.equipos;
 DROP POLICY IF EXISTS "Insercion equipos autorizados" ON public.equipos;
 DROP POLICY IF EXISTS "Modificacion equipos superadmin" ON public.equipos;
 DROP POLICY IF EXISTS "Eliminacion equipos superadmin" ON public.equipos;
+DROP POLICY IF EXISTS "Modificacion equipos rbac" ON public.equipos;
+DROP POLICY IF EXISTS "Eliminacion equipos rbac" ON public.equipos;
 
 CREATE POLICY "Insercion equipos autorizados" ON public.equipos FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Modificacion equipos superadmin" ON public.equipos FOR UPDATE USING (
-  -- Bloquea actualización si la petición proviene explícitamente de un usuario con rol 'delegado'
-  coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') != 'delegado'
-  AND coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') != 'delegado'
+CREATE POLICY "Modificacion equipos rbac" ON public.equipos FOR UPDATE USING (
+  -- Superadmin global
+  (
+    coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') IN ('superadmin', 'super_admin', 'service_role')
+    OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') IN ('superadmin', 'super_admin')
+  )
+  -- Admin de disciplina coincidente con disciplina_id
+  OR (
+    (
+      coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') = 'admin_disciplina'
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') = 'admin_disciplina'
+    )
+    AND (
+      disciplina_id = coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', current_setting('request.jwt.claims', true)::jsonb->'user_metadata'->>'disciplina_id', '')
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', '') = 'todas'
+    )
+  )
+  -- Respaldo cliente web autenticado (bloquea explícitamente a delegados)
+  OR (
+    coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') != 'delegado'
+    AND coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') != 'delegado'
+  )
 );
 
-CREATE POLICY "Eliminacion equipos superadmin" ON public.equipos FOR DELETE USING (
-  coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') != 'delegado'
-  AND coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') != 'delegado'
+CREATE POLICY "Eliminacion equipos rbac" ON public.equipos FOR DELETE USING (
+  (
+    coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') IN ('superadmin', 'super_admin', 'service_role')
+    OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') IN ('superadmin', 'super_admin')
+  )
+  OR (
+    (
+      coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') = 'admin_disciplina'
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') = 'admin_disciplina'
+    )
+    AND (
+      disciplina_id = coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', current_setting('request.jwt.claims', true)::jsonb->'user_metadata'->>'disciplina_id', '')
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', '') = 'todas'
+    )
+  )
+  OR (
+    coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') != 'delegado'
+    AND coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') != 'delegado'
+  )
 );
 
 -- POLÍTICAS RLS SEGURAS PARA ATLETAS:
--- Los delegados tienen permiso de INSERT y UPDATE estrictamente sobre los atletas de su equipo asignado
+--   1) Superadmin: acceso global
+--   2) Admin de Disciplina: UPDATE y DELETE sobre atletas de su disciplina (directo o por equipo padre)
+--   3) Delegados: INSERT y UPDATE estrictamente sobre atletas de su propio equipo asignado
 DROP POLICY IF EXISTS "Acceso total atletas" ON public.atletas;
 DROP POLICY IF EXISTS "Insercion atletas delegados asignados" ON public.atletas;
 DROP POLICY IF EXISTS "Modificacion atletas delegados asignados" ON public.atletas;
 DROP POLICY IF EXISTS "Eliminacion atletas delegados asignados" ON public.atletas;
+DROP POLICY IF EXISTS "Modificacion atletas rbac" ON public.atletas;
+DROP POLICY IF EXISTS "Eliminacion atletas rbac" ON public.atletas;
 
 CREATE POLICY "Insercion atletas delegados asignados" ON public.atletas FOR INSERT WITH CHECK (
   equipo IS NOT NULL AND EXISTS (
-    SELECT 1 FROM public.equipos e WHERE e.nombre = equipo
+    SELECT 1 FROM public.equipos e WHERE (e.id = equipo_id OR e.nombre = equipo)
   )
 );
 
-CREATE POLICY "Modificacion atletas delegados asignados" ON public.atletas FOR UPDATE USING (
-  equipo IS NOT NULL AND EXISTS (
-    SELECT 1 FROM public.equipos e WHERE e.nombre = equipo
+CREATE POLICY "Modificacion atletas rbac" ON public.atletas FOR UPDATE USING (
+  -- Superadmin global
+  coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') IN ('superadmin', 'super_admin', 'service_role')
+  OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') IN ('superadmin', 'super_admin')
+  -- Admin de disciplina coincidente con disciplina_id directa o mediante equipo padre
+  OR (
+    (
+      coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') = 'admin_disciplina'
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') = 'admin_disciplina'
+    )
+    AND (
+      disciplina_id = coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', current_setting('request.jwt.claims', true)::jsonb->'user_metadata'->>'disciplina_id', '')
+      OR EXISTS (
+        SELECT 1 FROM public.equipos e 
+        WHERE (e.id = equipo_id OR e.nombre = equipo)
+        AND e.disciplina_id = coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', current_setting('request.jwt.claims', true)::jsonb->'user_metadata'->>'disciplina_id', '')
+      )
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', '') = 'todas'
+    )
+  )
+  -- Delegado asignado
+  OR (
+    equipo IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.equipos e WHERE (e.id = equipo_id OR e.nombre = equipo)
+    )
   )
 );
 
-CREATE POLICY "Eliminacion atletas delegados asignados" ON public.atletas FOR DELETE USING (
-  equipo IS NOT NULL AND EXISTS (
-    SELECT 1 FROM public.equipos e WHERE e.nombre = equipo
+CREATE POLICY "Eliminacion atletas rbac" ON public.atletas FOR DELETE USING (
+  -- Superadmin global
+  coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') IN ('superadmin', 'super_admin', 'service_role')
+  OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') IN ('superadmin', 'super_admin')
+  -- Admin de disciplina coincidente con disciplina_id directa o mediante equipo padre
+  OR (
+    (
+      coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') = 'admin_disciplina'
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') = 'admin_disciplina'
+    )
+    AND (
+      disciplina_id = coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', current_setting('request.jwt.claims', true)::jsonb->'user_metadata'->>'disciplina_id', '')
+      OR EXISTS (
+        SELECT 1 FROM public.equipos e 
+        WHERE (e.id = equipo_id OR e.nombre = equipo)
+        AND e.disciplina_id = coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', current_setting('request.jwt.claims', true)::jsonb->'user_metadata'->>'disciplina_id', '')
+      )
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', '') = 'todas'
+    )
+  )
+  -- Delegado asignado
+  OR (
+    equipo IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.equipos e WHERE (e.id = equipo_id OR e.nombre = equipo)
+    )
   )
 );
 
