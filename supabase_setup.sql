@@ -279,8 +279,33 @@ DROP POLICY IF EXISTS "Modificacion atletas rbac" ON public.atletas;
 DROP POLICY IF EXISTS "Eliminacion atletas rbac" ON public.atletas;
 
 CREATE POLICY "Insercion atletas delegados asignados" ON public.atletas FOR INSERT WITH CHECK (
-  equipo IS NOT NULL AND EXISTS (
-    SELECT 1 FROM public.equipos e WHERE (e.id = equipo_id OR e.nombre = equipo)
+  -- Superadmin global
+  coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') IN ('superadmin', 'super_admin', 'service_role')
+  OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') IN ('superadmin', 'super_admin')
+  -- Admin de disciplina
+  OR (
+    (
+      coalesce(current_setting('request.jwt.claims', true)::jsonb->>'role', '') = 'admin_disciplina'
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'rol', '') = 'admin_disciplina'
+    )
+    AND (
+      disciplina_id = coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', current_setting('request.jwt.claims', true)::jsonb->'user_metadata'->>'disciplina_id', '')
+      OR EXISTS (
+        SELECT 1 FROM public.equipos e 
+        WHERE (e.id = equipo_id OR e.nombre = equipo)
+        AND e.disciplina_id = coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', current_setting('request.jwt.claims', true)::jsonb->'user_metadata'->>'disciplina_id', '')
+      )
+      OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', '') = 'todas'
+    )
+  )
+  -- Delegado asignado o inserción web vinculada a franquicia válida
+  OR (
+    equipo IS NOT NULL AND (
+      EXISTS (
+        SELECT 1 FROM public.equipos e WHERE (e.id = equipo_id OR e.nombre = equipo)
+      )
+      OR equipo_id IS NOT NULL
+    )
   )
 );
 
@@ -304,10 +329,13 @@ CREATE POLICY "Modificacion atletas rbac" ON public.atletas FOR UPDATE USING (
       OR coalesce(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'disciplina_id', '') = 'todas'
     )
   )
-  -- Delegado asignado
+  -- Delegado asignado o actualización web de atleta vinculado a franquicia
   OR (
-    equipo IS NOT NULL AND EXISTS (
-      SELECT 1 FROM public.equipos e WHERE (e.id = equipo_id OR e.nombre = equipo)
+    equipo IS NOT NULL AND (
+      EXISTS (
+        SELECT 1 FROM public.equipos e WHERE (e.id = equipo_id OR e.nombre = equipo)
+      )
+      OR equipo_id IS NOT NULL
     )
   )
 );

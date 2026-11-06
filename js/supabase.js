@@ -503,11 +503,12 @@ class SupabaseService {
       disciplinaId: atl.disciplina_id || 'baloncesto-master',
       cedula: atl.cedula,
       nombres: atl.nombres,
-      fechaNacimiento: atl.fecha_nacimiento,
+      fechaNacimiento: atl.fecha_nacimiento || '',
       edad: atl.edad ? Number(atl.edad) : 0,
       camiseta: atl.camiseta || '',
       posicion: atl.posicion || '',
       equipo: atl.equipo,
+      equipoId: atl.equipo_id || '',
       rol: atl.rol || 'Atleta',
       fotoUrl: atl.foto_url || ''
     };
@@ -520,17 +521,15 @@ class SupabaseService {
       disciplina_id: atl.disciplinaId || 'baloncesto-master',
       cedula: atl.cedula,
       nombres: atl.nombres,
-      fecha_nacimiento: atl.fechaNacimiento || null,
+      fecha_nacimiento: atl.fechaNacimiento ? atl.fechaNacimiento : null,
       edad: atl.edad ? Number(atl.edad) : null,
       camiseta: atl.camiseta || '',
       posicion: atl.posicion || '',
       equipo: atl.equipo,
+      equipo_id: atl.equipoId ? atl.equipoId : null,
       rol: atl.rol || 'Atleta',
       foto_url: atl.fotoUrl || null
     };
-    if (atl.equipoId) {
-      payload.equipo_id = atl.equipoId;
-    }
     return payload;
   }
 
@@ -774,6 +773,79 @@ class SupabaseService {
     }
   }
 
+  /**
+   * INSERT REAL y atómico de Atleta en Supabase
+   * Valida estrictamente el equipo_id y captura errores de foreign key o RLS sin fallar en silencio.
+   */
+  async insertAtleta(a) {
+    if (!this.client) this.initClient();
+    if (!this.client) {
+      const err = new Error('Cliente Supabase no disponible o desconectado');
+      console.error('[Supabase Insert Atleta Error]:', err);
+      if (typeof alert === 'function') {
+        alert('⚠️ Error de conexión: No se pudo conectar con la base de datos Supabase.');
+      }
+      throw err;
+    }
+
+    try {
+      if (a.disciplinaId && window.tournamentStore && typeof window.tournamentStore.getDisciplinaPorId === 'function') {
+        const disc = window.tournamentStore.getDisciplinaPorId(a.disciplinaId);
+        if (disc) {
+          await this.syncDisciplina(disc.id, disc);
+        }
+      }
+
+      const payload = this.mapLocalAtletaToSupabase(a);
+      if (!payload) {
+        throw new Error('Payload del atleta inválido o vacío');
+      }
+
+      // Validar equipo_id mandatorio para persistencia y claves foráneas
+      if (!payload.equipo_id) {
+        const msg = 'Error de contexto: El atleta no tiene un ID de equipo (equipo_id) válido.';
+        console.error('[Supabase Insert Atleta]', msg, payload);
+        if (typeof alert === 'function') alert(`⚠️ ${msg}`);
+        throw new Error(msg);
+      }
+
+      console.log('[Supabase Cloud] Ejecutando INSERT en tabla atletas:', payload);
+
+      const { data, error } = await this.client
+        .from('atletas')
+        .insert(payload)
+        .select();
+
+      if (error) {
+        console.error('[Supabase Insert Atleta Error Detallado]:', error);
+        if (typeof alert === 'function') {
+          alert(`❌ Error al registrar atleta en Supabase:\n\n• Mensaje: ${error.message}\n• Código: ${error.code || 'N/A'}\n• Detalle: ${error.details || error.hint || 'Verifique restricciones de foreign key o políticas de seguridad RLS.'}`);
+        }
+        throw error;
+      }
+
+      console.log('[Supabase Cloud] INSERT exitoso de atleta:', data);
+
+      if (this.status !== 'CONNECTED') {
+        this.status = 'CONNECTED';
+        this.notifyStatus();
+      }
+
+      if (this.channel) {
+        await this.channel.send({
+          type: 'broadcast',
+          event: 'athlete_synced',
+          payload: { id: a.id, atleta: a }
+        });
+      }
+
+      return data && data.length > 0 ? data[0] : payload;
+    } catch (e) {
+      console.error('[Supabase Insert Atleta Exception]:', e);
+      throw e;
+    }
+  }
+
   async syncAtleta(id, a) {
     if (!this.client) this.initClient();
     if (!this.client) return false;
@@ -786,8 +858,16 @@ class SupabaseService {
       }
       const payload = this.mapLocalAtletaToSupabase(a);
       if (!payload) return false;
-      const { error } = await this.client.from('atletas').upsert(payload, { onConflict: 'id' });
-      if (error) console.warn('[Supabase Sync Atleta Error]:', error.message);
+
+      const { data, error } = await this.client.from('atletas').upsert(payload, { onConflict: 'id' }).select();
+      if (error) {
+        console.error('[Supabase Sync Atleta Error]:', error);
+        if (typeof alert === 'function') {
+          alert(`❌ Error al sincronizar atleta en Supabase:\n\n• Mensaje: ${error.message}\n• Código: ${error.code || 'N/A'}`);
+        }
+        throw error;
+      }
+
       if (this.status !== 'CONNECTED') {
         this.status = 'CONNECTED';
         this.notifyStatus();
@@ -799,10 +879,10 @@ class SupabaseService {
           payload: { id, atleta: a }
         });
       }
-      return !error;
+      return true;
     } catch (e) {
-      console.warn('[Supabase Sync Atleta Exception]:', e);
-      return false;
+      console.error('[Supabase Sync Atleta Exception]:', e);
+      throw e;
     }
   }
 
@@ -816,6 +896,7 @@ class SupabaseService {
       if (activeUser && activeUser.rol === 'delegado' && activeUser.equipoNombre) {
         if (patch.equipo && patch.equipo !== activeUser.equipoNombre) {
           console.warn('[Seguridad Supabase] Acción denegada: Un delegado solo puede actualizar atletas de su equipo asignado.');
+          if (typeof alert === 'function') alert('⛔ Seguridad: Solo puede modificar atletas de su franquicia asignada.');
           return false;
         }
       }
@@ -828,18 +909,25 @@ class SupabaseService {
       const dbPatch = {};
       if (patch.cedula !== undefined) dbPatch.cedula = patch.cedula;
       if (patch.nombres !== undefined) dbPatch.nombres = patch.nombres;
-      if (patch.fechaNacimiento !== undefined) dbPatch.fecha_nacimiento = patch.fechaNacimiento;
+      if (patch.fechaNacimiento !== undefined) dbPatch.fecha_nacimiento = patch.fechaNacimiento ? patch.fechaNacimiento : null;
       if (patch.edad !== undefined) dbPatch.edad = Number(patch.edad);
       if (patch.camiseta !== undefined) dbPatch.camiseta = patch.camiseta;
       if (patch.posicion !== undefined) dbPatch.posicion = patch.posicion;
       if (patch.equipo !== undefined) dbPatch.equipo = patch.equipo;
+      if (patch.equipoId !== undefined) dbPatch.equipo_id = patch.equipoId ? patch.equipoId : null;
       if (patch.rol !== undefined) dbPatch.rol = patch.rol;
       if (patch.fotoUrl !== undefined) dbPatch.foto_url = patch.fotoUrl;
       if (patch.disciplinaId !== undefined) dbPatch.disciplina_id = patch.disciplinaId;
 
       if (Object.keys(dbPatch).length > 0) {
         const { error } = await this.client.from('atletas').update(dbPatch).eq('id', id);
-        if (error) console.warn('[Supabase Update Atleta Error]:', error.message);
+        if (error) {
+          console.error('[Supabase Update Atleta Error]:', error);
+          if (typeof alert === 'function') {
+            alert(`❌ Error al actualizar atleta en Supabase:\n\n• Mensaje: ${error.message}\n• Código: ${error.code || 'N/A'}`);
+          }
+          throw error;
+        }
       }
 
       if (this.channel) {
@@ -851,8 +939,8 @@ class SupabaseService {
       }
       return true;
     } catch (e) {
-      console.warn('[Supabase Update Atleta Exception]:', e);
-      return false;
+      console.error('[Supabase Update Atleta Exception]:', e);
+      throw e;
     }
   }
 
@@ -861,7 +949,13 @@ class SupabaseService {
     if (!this.client) return false;
     try {
       const { error } = await this.client.from('atletas').delete().eq('id', id);
-      if (error) console.warn('[Supabase Delete Atleta Error]:', error.message);
+      if (error) {
+        console.error('[Supabase Delete Atleta Error]:', error);
+        if (typeof alert === 'function') {
+          alert(`❌ Error al eliminar atleta en Supabase:\n\n• Mensaje: ${error.message}\n• Código: ${error.code || 'N/A'}`);
+        }
+        throw error;
+      }
       if (this.channel) {
         await this.channel.send({
           type: 'broadcast',

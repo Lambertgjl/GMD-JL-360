@@ -958,7 +958,15 @@ class TournamentStore {
     const pool = target ? this.loadAthletes(target) : (this.data?.atletas || []);
     if (!equipoNombre) return pool;
     const norm = String(equipoNombre).trim().toLowerCase();
-    return pool.filter((a) => a.equipo && a.equipo.trim().toLowerCase() === norm);
+    return pool.filter((a) => {
+      if (a.equipo && a.equipo.trim().toLowerCase() === norm) return true;
+      if (a.equipoId && a.equipoId.trim().toLowerCase() === norm) return true;
+      if (a.equipoId) {
+        const eq = this.getEquipoPorId(a.equipoId, target);
+        if (eq && eq.nombre && eq.nombre.trim().toLowerCase() === norm) return true;
+      }
+      return false;
+    });
   }
 
   getPartidos(disciplinaId = null) {
@@ -1500,7 +1508,23 @@ class TournamentStore {
   addAtleta(atleta, syncCloud = true) {
     const discId = getCleanDisciplineId(atleta.disciplinaId || this.data.config.disciplinaActual || 'baloncesto-master');
     const athletes = this.loadAthletes(discId);
-    const id = atleta.id || `ATL-${discId.substring(0, 3).toUpperCase()}-${String(athletes.length + 1).padStart(3, '0')}`;
+    let id = atleta.id;
+    if (!id) {
+      const allAthletes = this.data?.atletas || [];
+      const prefix = `ATL-${discId.substring(0, 3).toUpperCase()}-`;
+      let maxNum = allAthletes.length;
+      allAthletes.forEach((a) => {
+        if (a && a.id && a.id.startsWith(prefix)) {
+          const num = parseInt(a.id.replace(prefix, ''), 10);
+          if (!isNaN(num) && num > maxNum) maxNum = num;
+        }
+      });
+      id = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
+      if (allAthletes.some((a) => a.id === id)) {
+        id = `${prefix}${Date.now().toString(36).toUpperCase()}`;
+      }
+    }
+
     const nuevo = {
       id,
       disciplinaId: discId,
@@ -1515,12 +1539,19 @@ class TournamentStore {
       rol: atleta.rol || 'Atleta',
       fotoUrl: atleta.fotoUrl || ''
     };
-    athletes.push(nuevo);
+
+    const existingIdx = athletes.findIndex((item) => item.id === id);
+    if (existingIdx !== -1) {
+      athletes[existingIdx] = nuevo;
+    } else {
+      athletes.push(nuevo);
+    }
+
     this.saveAthletes(discId, athletes);
     this.syncGlobalDataArrays();
     this.notify({ action: 'athlete_added', id, disciplinaId: discId });
 
-    if (syncCloud && window.supabaseService ) {
+    if (syncCloud && window.supabaseService) {
       window.supabaseService.syncAtleta(id, nuevo);
     }
     return nuevo;
