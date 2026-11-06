@@ -4731,7 +4731,13 @@ document.getElementById('formAtleta')?.addEventListener('submit', async (e) => {
     btnSubmit.textContent = '⏳ Guardando en base de datos...';
   }
 
+  // Asignar o generar ID único para el atleta (garantiza Primary Key no-nula para constraint 23502)
+  const athleteId = id || (typeof window.generateUniqueAthleteId === 'function'
+    ? window.generateUniqueAthleteId(finalDisciplinaId)
+    : `ATL-${String(finalDisciplinaId || 'bal').substring(0, 3).toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
+
   const payloadData = {
+    id: athleteId,
     cedula: document.getElementById('atletaCedula').value.trim(),
     nombres: document.getElementById('atletaNombres').value.trim(),
     fechaNacimiento: document.getElementById('atletaFechaNac').value || '',
@@ -4761,7 +4767,7 @@ document.getElementById('formAtleta')?.addEventListener('submit', async (e) => {
         savedRemote = await window.supabaseService.insertAtleta(payloadData);
       }
       // 2. INSERT local en Store solo tras persistencia exitosa
-      const nuevoId = savedRemote?.id || payloadData.id;
+      const nuevoId = savedRemote?.id || payloadData.id || athleteId;
       window.tournamentStore.addAtleta({ ...payloadData, id: nuevoId }, false);
       showToast(`Atleta "${payloadData.nombres}" inscrito correctamente en ${finalEquipoNombre}`, 'success');
     }

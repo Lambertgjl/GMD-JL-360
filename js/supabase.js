@@ -522,8 +522,18 @@ class SupabaseService {
 
   mapLocalAtletaToSupabase(atl) {
     if (!atl) return null;
+    let atletaId = atl.id;
+    if (!atletaId) {
+      if (typeof window !== 'undefined' && typeof window.generateUniqueAthleteId === 'function') {
+        atletaId = window.generateUniqueAthleteId(atl.disciplinaId);
+      } else {
+        const prefix = `ATL-${String(atl.disciplinaId || 'bal').substring(0, 3).toUpperCase()}`;
+        const rand = Math.random().toString(36).substring(2, 7).toUpperCase();
+        atletaId = `${prefix}-${Date.now().toString(36).toUpperCase()}-${rand}`;
+      }
+    }
     const payload = {
-      id: atl.id,
+      id: atletaId,
       disciplina_id: atl.disciplinaId || 'baloncesto-master',
       cedula: atl.cedula,
       nombres: atl.nombres,
@@ -804,6 +814,9 @@ class SupabaseService {
       const payload = this.mapLocalAtletaToSupabase(a);
       if (!payload) {
         throw new Error('Payload del atleta inválido o vacío');
+      }
+      if (!a.id && payload.id) {
+        a.id = payload.id;
       }
 
       // Validar equipo mandatorio (columna oficial existente en la BD)

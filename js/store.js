@@ -64,6 +64,22 @@ if (typeof window !== 'undefined') {
 }
 
 /**
+ * Generador robusto y universal de Primary Key (ID) para atletas:
+ * Garantiza que nunca se envíe null o undefined a Supabase (evita constraint 23502).
+ */
+function generateUniqueAthleteId(discId = 'baloncesto-master') {
+  const prefix = `ATL-${String(discId || 'bal').substring(0, 3).toUpperCase()}`;
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}-${crypto.randomUUID().split('-')[0].toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+  }
+  const rand = Math.random().toString(36).substring(2, 7).toUpperCase();
+  return `${prefix}-${Date.now().toString(36).toUpperCase()}-${rand}`;
+}
+if (typeof window !== 'undefined') {
+  window.generateUniqueAthleteId = generateUniqueAthleteId;
+}
+
+/**
  * Función de Compresión Automática de Imágenes mediante Canvas:
  * Redimensiona a un máximo de 120 x 120 píxeles y comprime a JPEG calidad 0.6 (60%).
  * Devuelve una cadena Base64 ultraliviana (de apenas unos cuantos KB) evitando saturar el localStorage.
