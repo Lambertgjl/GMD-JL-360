@@ -498,9 +498,15 @@ class SupabaseService {
 
   mapSupabaseAtletaToLocal(atl) {
     if (!atl) return null;
+    const disc = atl.disciplina_id || 'baloncesto-master';
+    let resolvedEquipoId = atl.equipo_id || '';
+    if (!resolvedEquipoId && atl.equipo && window.tournamentStore && typeof window.tournamentStore.getEquipoPorNombre === 'function') {
+      const eq = window.tournamentStore.getEquipoPorNombre(atl.equipo, disc);
+      if (eq) resolvedEquipoId = eq.id;
+    }
     return {
       id: atl.id,
-      disciplinaId: atl.disciplina_id || 'baloncesto-master',
+      disciplinaId: disc,
       cedula: atl.cedula,
       nombres: atl.nombres,
       fechaNacimiento: atl.fecha_nacimiento || '',
@@ -508,7 +514,7 @@ class SupabaseService {
       camiseta: atl.camiseta || '',
       posicion: atl.posicion || '',
       equipo: atl.equipo,
-      equipoId: atl.equipo_id || '',
+      equipoId: resolvedEquipoId,
       rol: atl.rol || 'Atleta',
       fotoUrl: atl.foto_url || ''
     };
@@ -526,7 +532,6 @@ class SupabaseService {
       camiseta: atl.camiseta || '',
       posicion: atl.posicion || '',
       equipo: atl.equipo,
-      equipo_id: atl.equipoId ? atl.equipoId : null,
       rol: atl.rol || 'Atleta',
       foto_url: atl.fotoUrl || null
     };
@@ -801,9 +806,9 @@ class SupabaseService {
         throw new Error('Payload del atleta inválido o vacío');
       }
 
-      // Validar equipo_id mandatorio para persistencia y claves foráneas
-      if (!payload.equipo_id) {
-        const msg = 'Error de contexto: El atleta no tiene un ID de equipo (equipo_id) válido.';
+      // Validar equipo mandatorio (columna oficial existente en la BD)
+      if (!payload.equipo) {
+        const msg = 'Error de contexto: El atleta debe tener un nombre de equipo ("equipo") válido.';
         console.error('[Supabase Insert Atleta]', msg, payload);
         if (typeof alert === 'function') alert(`⚠️ ${msg}`);
         throw new Error(msg);
@@ -914,7 +919,6 @@ class SupabaseService {
       if (patch.camiseta !== undefined) dbPatch.camiseta = patch.camiseta;
       if (patch.posicion !== undefined) dbPatch.posicion = patch.posicion;
       if (patch.equipo !== undefined) dbPatch.equipo = patch.equipo;
-      if (patch.equipoId !== undefined) dbPatch.equipo_id = patch.equipoId ? patch.equipoId : null;
       if (patch.rol !== undefined) dbPatch.rol = patch.rol;
       if (patch.fotoUrl !== undefined) dbPatch.foto_url = patch.fotoUrl;
       if (patch.disciplinaId !== undefined) dbPatch.disciplina_id = patch.disciplinaId;

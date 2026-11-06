@@ -4715,11 +4715,11 @@ document.getElementById('formAtleta')?.addEventListener('submit', async (e) => {
     targetEquipo = window.tournamentStore.getEquipoPorNombre(rawEquipoNom, activeDisc.id);
   }
 
-  const finalEquipoId = targetEquipo?.id || rawEquipoId;
   const finalEquipoNombre = targetEquipo?.nombre || rawEquipoNom;
+  const finalEquipoId = targetEquipo?.id || rawEquipoId || finalEquipoNombre;
   const finalDisciplinaId = targetEquipo?.disciplinaId || existingAtleta?.disciplinaId || activeDisc.id;
 
-  if (!finalEquipoNombre || !finalEquipoId) {
+  if (!finalEquipoNombre) {
     alert('⚠️ Error de contexto: No se pudo identificar el equipo destino para este atleta.\n\nPor favor, cierre este formulario y presione "+ Agregar Atleta" directamente en la tarjeta de su equipo.');
     showToast('Error: No se pudo identificar el equipo destino del atleta.', 'error');
     return;
