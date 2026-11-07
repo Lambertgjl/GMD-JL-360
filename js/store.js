@@ -80,6 +80,72 @@ if (typeof window !== 'undefined') {
 }
 
 /**
+ * Convierte un partido con propiedades 'fecha' y 'hora' en un timestamp numérico (milisegundos)
+ * para comparación y ordenación cronológica precisa (orden cronológico estricto).
+ * Tolera formatos de fecha YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY y horas en 24h o 12h (AM/PM).
+ */
+function getMatchTimestamp(match) {
+  if (!match) return 0;
+  const rawDate = String(match.fecha || '').trim();
+  const rawTime = String(match.hora || '').trim();
+
+  let timeStr = '00:00:00';
+  if (rawTime) {
+    const isPM = /pm/i.test(rawTime);
+    const isAM = /am/i.test(rawTime);
+    const cleanTime = rawTime.replace(/(am|pm)/gi, '').trim();
+    const parts = cleanTime.split(':');
+    let hh = parseInt(parts[0] || '0', 10);
+    const mm = parseInt(parts[1] || '0', 10);
+    const ss = parseInt(parts[2] || '0', 10);
+
+    if (isPM && hh < 12) hh += 12;
+    if (isAM && hh === 12) hh = 0;
+
+    timeStr = `${String(isNaN(hh) ? 0 : hh).padStart(2, '0')}:${String(isNaN(mm) ? 0 : mm).padStart(2, '0')}:${String(isNaN(ss) ? 0 : ss).padStart(2, '0')}`;
+  }
+
+  let dateStr = rawDate;
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(rawDate)) {
+    const [d, m, y] = rawDate.split('/');
+    dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  } else if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(rawDate)) {
+    const [d, m, y] = rawDate.split('-');
+    dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  } else if (!rawDate) {
+    dateStr = '1970-01-01';
+  }
+
+  const isoStr = `${dateStr}T${timeStr}`;
+  const parsed = new Date(isoStr).getTime();
+  if (!isNaN(parsed)) return parsed;
+
+  const spaceParsed = new Date(`${dateStr} ${timeStr}`).getTime();
+  if (!isNaN(spaceParsed)) return spaceParsed;
+
+  return 0;
+}
+
+/**
+ * Ordena un conjunto de partidos cronológicamente de menor a mayor (fecha + hora).
+ * Devuelve un nuevo array sin mutar el original de forma destructiva.
+ */
+function sortMatchesChronologically(matches) {
+  if (!Array.isArray(matches)) return [];
+  return [...matches].sort((a, b) => {
+    const tA = getMatchTimestamp(a);
+    const tB = getMatchTimestamp(b);
+    if (tA !== tB) return tA - tB;
+    return String(a?.id || '').localeCompare(String(b?.id || ''));
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.getMatchTimestamp = getMatchTimestamp;
+  window.sortMatchesChronologically = sortMatchesChronologically;
+}
+
+/**
  * Función de Compresión Automática de Imágenes mediante Canvas:
  * Redimensiona a un máximo de 120 x 120 píxeles y comprime a JPEG calidad 0.6 (60%).
  * Devuelve una cadena Base64 ultraliviana (de apenas unos cuantos KB) evitando saturar el localStorage.
@@ -809,7 +875,8 @@ class TournamentStore {
   loadMatches(disciplinaId) {
     const cleanId = getCleanDisciplineId(disciplinaId || this.data?.config?.disciplinaActual || 'baloncesto-master');
     if (!cleanId) return [];
-    return (this.data?.partidos || []).filter((m) => getCleanDisciplineId(m.disciplinaId) === cleanId);
+    const matches = (this.data?.partidos || []).filter((m) => getCleanDisciplineId(m.disciplinaId) === cleanId);
+    return sortMatchesChronologically(matches);
   }
 
   saveMatches(disciplinaId, matches) {
@@ -820,11 +887,12 @@ class TournamentStore {
       ...m,
       disciplinaId: cleanId
     }));
+    const sorted = sortMatchesChronologically(safeMatches);
 
     if (this.data) {
       this.data.partidos = (this.data.partidos || [])
         .filter((m) => getCleanDisciplineId(m.disciplinaId) !== cleanId)
-        .concat(safeMatches);
+        .concat(sorted);
     }
   }
 
@@ -988,7 +1056,11 @@ class TournamentStore {
   getPartidos(disciplinaId = null) {
     const target = getCleanDisciplineId(disciplinaId || this.data.config.disciplinaActual);
     if (!target) return [];
-    return this.loadMatches(target);
+    return sortMatchesChronologically(this.loadMatches(target));
+  }
+
+  sortMatches(matches) {
+    return sortMatchesChronologically(matches);
   }
 
   getPartidoPorId(id, disciplinaId = null) {

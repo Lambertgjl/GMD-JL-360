@@ -5,6 +5,14 @@ let matchTimerInterval = null;
 let matchTimerSeconds = 600; // 10:00 default
 let isTimerRunning = false;
 
+// Fallback defensivo para sortMatchesChronologically
+if (typeof window !== 'undefined' && typeof window.sortMatchesChronologically !== 'function') {
+  window.sortMatchesChronologically = function(matches) {
+    if (!Array.isArray(matches)) return [];
+    return [...matches];
+  };
+}
+
 // ==============================================================================
 // TOAST NOTIFICATION SYSTEM
 // ==============================================================================
@@ -1846,7 +1854,8 @@ function initNetworkListeners() {
 // ==============================================================================
 function renderDashboardModule() {
   const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master' };
-  const partidos = window.tournamentStore.getPartidos(disc.id);
+  const rawPartidos = window.tournamentStore.getPartidos(disc.id);
+  const partidos = typeof sortMatchesChronologically === 'function' ? sortMatchesChronologically(rawPartidos) : rawPartidos;
   const equipos = window.tournamentStore.getEquipos(disc.id);
 
   // 1. Calculate KPI counts
@@ -2492,9 +2501,13 @@ function renderLiveMatchesCarousel(partidos, targetId) {
     return;
   }
 
+  // Ordenamiento cronológico estricto (Fecha + Hora) para el carrusel de encuentros
+  const sortedPartidos = typeof sortMatchesChronologically === 'function'
+    ? sortMatchesChronologically(partidos)
+    : [...partidos];
   const targetIdStr = targetId != null ? String(targetId).trim() : '';
 
-  track.innerHTML = partidos.map((p) => {
+  track.innerHTML = sortedPartidos.map((p) => {
     const isActive = String(p.id).trim() === targetIdStr;
     const est = String(p.estado || '').trim().toUpperCase();
     const isLive = est === 'EN CURSO' || est === 'LIVE' || est === 'EN VIVO';
@@ -2622,6 +2635,7 @@ function renderLiveModule(preferredPartidoId = null) {
   const disc = (typeof window.tournamentStore.getDisciplinaActual === 'function' ? window.tournamentStore.getDisciplinaActual() : null) || { id: 'baloncesto-master' };
 
   let partidos = window.tournamentStore.getPartidos(disc.id) || [];
+  partidos = typeof sortMatchesChronologically === 'function' ? sortMatchesChronologically(partidos) : partidos;
   const scorerPanel = document.getElementById('scorerConsolePanel');
 
   if (partidos.length === 0) {
@@ -2688,20 +2702,21 @@ function renderLiveModule(preferredPartidoId = null) {
 
   currentLiveMatchId = targetId;
 
-  // Separate matches by status to display organized groups in the selector
-  const liveMatches = partidos.filter((p) => {
+  // Separate matches by status to display organized groups in the selector (strictly ordered chronologically)
+  const sortFn = typeof sortMatchesChronologically === 'function' ? sortMatchesChronologically : (arr) => arr;
+  const liveMatches = sortFn(partidos.filter((p) => {
     const est = String(p.estado || '').toUpperCase();
     return est === 'EN CURSO' || est === 'LIVE' || est === 'EN VIVO';
-  });
-  const progMatches = partidos.filter((p) => {
+  }));
+  const progMatches = sortFn(partidos.filter((p) => {
     const est = String(p.estado || '').toUpperCase();
     return est === 'PROGRAMADO';
-  });
-  const finMatches = partidos.filter((p) => {
+  }));
+  const finMatches = sortFn(partidos.filter((p) => {
     const est = String(p.estado || '').toUpperCase();
     return est === 'FINALIZADO' || est === 'FINAL' || est === 'TERMINADO';
-  });
-  const otherMatches = partidos.filter((p) => !liveMatches.includes(p) && !progMatches.includes(p) && !finMatches.includes(p));
+  }));
+  const otherMatches = sortFn(partidos.filter((p) => !liveMatches.includes(p) && !progMatches.includes(p) && !finMatches.includes(p)));
 
   const formatOption = (p) => {
     let icon = '⚪';
@@ -3478,7 +3493,8 @@ function renderDisciplinesBar() {
 // ==============================================================================
 function renderHeroScoreboard() {
   const disc = window.tournamentStore.getDisciplinaActual() || { id: 'baloncesto-master', nombre: 'Baloncesto' };
-  const partidos = window.tournamentStore.getPartidos(disc.id);
+  const rawPartidos = window.tournamentStore.getPartidos(disc.id);
+  const partidos = typeof sortMatchesChronologically === 'function' ? sortMatchesChronologically(rawPartidos) : rawPartidos;
 
   const localName = document.getElementById('heroLocalName');
   const visName = document.getElementById('heroVisName');
@@ -3614,6 +3630,9 @@ function renderMatches() {
     if (currentCalendarFilter === 'finalizado') return p.estado === 'FINALIZADO';
     return true;
   });
+
+  // Ordenamiento cronológico estricto (Fecha + Hora) antes de renderizar la pantalla principal
+  filtered = typeof sortMatchesChronologically === 'function' ? sortMatchesChronologically(filtered) : filtered;
 
   if (filtered.length === 0) {
     if (partidos.length === 0) {
@@ -4356,7 +4375,8 @@ function renderDelegadoDashboard(equipoId) {
   // Render delegate's team matches
   const matchesContainer = document.getElementById('delMatchesContainer');
   const allMatches = window.tournamentStore.getPartidos(eq?.disciplinaId);
-  const myMatches = allMatches.filter((m) => m.equipoLocal === eq.nombre || m.equipoVisitante === eq.nombre);
+  const myMatches = (typeof sortMatchesChronologically === 'function' ? sortMatchesChronologically(allMatches) : allMatches)
+    .filter((m) => m.equipoLocal === eq.nombre || m.equipoVisitante === eq.nombre);
 
   if (matchesContainer) {
     if (myMatches.length === 0) {

@@ -1150,11 +1150,15 @@ class SupabaseService {
         const { data: remotePartidos, error: errPar } = await this.client
           .from('partidos')
           .select('*')
-          .order('fecha', { ascending: true });
+          .order('fecha', { ascending: true })
+          .order('hora', { ascending: true });
 
         if (!errPar && Array.isArray(remotePartidos) && window.tournamentStore) {
           const mappedPartidos = remotePartidos.map((p) => this.mapSupabasePartidoToLocal(p)).filter(Boolean);
-          window.tournamentStore.data.partidos = mappedPartidos;
+          const sorted = typeof sortMatchesChronologically === 'function'
+            ? sortMatchesChronologically(mappedPartidos)
+            : mappedPartidos;
+          window.tournamentStore.data.partidos = sorted;
         }
 
         this.status = 'CONNECTED';
