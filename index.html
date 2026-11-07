@@ -26,7 +26,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./styles.css?v=3.3.5">
+  <link rel="stylesheet" href="./styles.css?v=3.3.6">
 </head>
 <body>
 
@@ -1005,38 +1005,38 @@
                         <!-- Círculo de Foto Gigante con Borde Dorado y Dorsal -->
                         <div class="player-avatar-wrapper">
                           <div class="player-avatar-ring">
-                            <img src="./assets/IMG-20260228-WA0066.jpg" alt="Foto Jugador del Partido" class="player-avatar-img" id="mvpPlayerPhoto" onerror="this.onerror=null; this.src='./assets/logo.png';">
+                            <img src="./assets/logo.png" alt="Foto Jugador del Partido" class="player-avatar-img" id="mvpPlayerPhoto" onerror="this.onerror=null; this.src='./assets/logo.png';">
                           </div>
-                          <div class="player-dorsal-badge" id="mvpPlayerDorsal">#7</div>
+                          <div class="player-dorsal-badge" id="mvpPlayerDorsal">#00</div>
                         </div>
 
                         <!-- Información del Jugador -->
                         <div class="player-details">
-                          <h4 class="player-name" id="mvpPlayerName">Carlos Mendoza</h4>
+                          <h4 class="player-name" id="mvpPlayerName">Nombre y Apellido</h4>
                           <div class="player-team-pill">
-                            <span class="player-team-icon">🏀</span>
-                            <span id="mvpPlayerTeamName">Gladiadores de Anzoátegui</span>
+                            <span class="player-team-icon">⭐</span>
+                            <span id="mvpPlayerTeamName">Franquicia o Equipo</span>
                           </div>
-                          <div class="player-role-pos" id="mvpPlayerPosition">Base / Armador • Capitán</div>
+                          <div class="player-role-pos" id="mvpPlayerPosition">Posición / Rol</div>
                         </div>
                       </div>
 
                       <!-- Estadísticas Destacadas Simétricas -->
                       <div class="player-stats-grid">
                         <div class="player-stat-box">
-                          <span class="player-stat-val" id="mvpStatPts">28</span>
+                          <span class="player-stat-val" id="mvpStatPts">0</span>
                           <span class="player-stat-lbl">PUNTOS</span>
                         </div>
                         <div class="player-stat-box">
-                          <span class="player-stat-val" id="mvpStatReb">9</span>
+                          <span class="player-stat-val" id="mvpStatReb">0</span>
                           <span class="player-stat-lbl">REBOTES</span>
                         </div>
                         <div class="player-stat-box">
-                          <span class="player-stat-val" id="mvpStatAst">7</span>
+                          <span class="player-stat-val" id="mvpStatAst">0</span>
                           <span class="player-stat-lbl">ASIST.</span>
                         </div>
                         <div class="player-stat-box highlight-stat">
-                          <span class="player-stat-val" id="mvpStatVal">+32</span>
+                          <span class="player-stat-val" id="mvpStatVal">0</span>
                           <span class="player-stat-lbl">EFICIENCIA</span>
                         </div>
                       </div>
@@ -1045,7 +1045,7 @@
                       <div class="player-highlight-caption-bar">
                         <div class="caption-icon">⚡</div>
                         <div class="caption-text-content">
-                          <span class="video-caption-title" id="mvpVideoTitle">Triple decisivo sobre la bocina y mejor jugada del encuentro</span>
+                          <span class="video-caption-title" id="mvpVideoTitle">Rendimiento sobresaliente pendiente por definir</span>
                           <span class="video-caption-meta" id="mvpVideoMeta">📍 Gimnasio Pablo Higuerey • Transmisión Oficial JL 360</span>
                         </div>
                       </div>
@@ -2428,22 +2428,22 @@
         <div class="form-row">
           <div class="form-group" style="flex: 2;">
             <label class="form-label" for="inputMvpNombre">Nombre del Jugador</label>
-            <input type="text" class="form-input" id="inputMvpNombre" placeholder="Ej. Carlos Mendoza" required>
+            <input type="text" class="form-input" id="inputMvpNombre" placeholder="Ej. Nombre y Apellido" required>
           </div>
           <div class="form-group" style="flex: 1;">
             <label class="form-label" for="inputMvpDorsal">Dorsal / Camiseta</label>
-            <input type="text" class="form-input" id="inputMvpDorsal" placeholder="#7">
+            <input type="text" class="form-input" id="inputMvpDorsal" placeholder="#00">
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group" style="flex: 1;">
             <label class="form-label" for="inputMvpEquipo">Equipo</label>
-            <input type="text" class="form-input" id="inputMvpEquipo" placeholder="Equipo del Jugador">
+            <input type="text" class="form-input" id="inputMvpEquipo" placeholder="Franquicia o Equipo">
           </div>
           <div class="form-group" style="flex: 1;">
             <label class="form-label" for="inputMvpPosicion">Posición / Rol</label>
-            <input type="text" class="form-input" id="inputMvpPosicion" placeholder="Ej. Base / Armador">
+            <input type="text" class="form-input" id="inputMvpPosicion" placeholder="Ej. Posición / Rol">
           </div>
         </div>
 
@@ -2463,19 +2463,19 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label" for="inputMvpPts">Puntos</label>
-            <input type="number" class="form-input" id="inputMvpPts" min="0" placeholder="28">
+            <input type="number" class="form-input" id="inputMvpPts" min="0" placeholder="0">
           </div>
           <div class="form-group">
             <label class="form-label" for="inputMvpReb">Rebotes</label>
-            <input type="number" class="form-input" id="inputMvpReb" min="0" placeholder="9">
+            <input type="number" class="form-input" id="inputMvpReb" min="0" placeholder="0">
           </div>
           <div class="form-group">
             <label class="form-label" for="inputMvpAst">Asistencias</label>
-            <input type="number" class="form-input" id="inputMvpAst" min="0" placeholder="7">
+            <input type="number" class="form-input" id="inputMvpAst" min="0" placeholder="0">
           </div>
           <div class="form-group">
             <label class="form-label" for="inputMvpVal">Eficiencia</label>
-            <input type="text" class="form-input" id="inputMvpVal" placeholder="+32">
+            <input type="text" class="form-input" id="inputMvpVal" placeholder="0">
           </div>
         </div>
 
@@ -2489,7 +2489,7 @@
 
         <div class="form-group">
           <label class="form-label" for="inputMvpVideoTitulo">Descripción de la Jugada o Actuación Destacada</label>
-          <input type="text" class="form-input" id="inputMvpVideoTitulo" placeholder="Ej. Triple decisivo sobre la bocina para sellar la victoria">
+          <input type="text" class="form-input" id="inputMvpVideoTitulo" placeholder="Ej. Rendimiento sobresaliente pendiente por definir">
         </div>
 
         <div class="modal-actions" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
@@ -2644,10 +2644,10 @@
   </footer>
 
   <!-- Application Logic Scripts -->
-  <script src="./js/store.js?v=3.3.5"></script>
-  <script src="./js/standings.js?v=3.3.5"></script>
-  <script src="./js/csv-importer.js?v=3.3.5"></script>
-  <script src="./js/supabase.js?v=3.3.5"></script>
-  <script src="./js/app.js?v=3.3.5"></script>
+  <script src="./js/store.js?v=3.3.6"></script>
+  <script src="./js/standings.js?v=3.3.6"></script>
+  <script src="./js/csv-importer.js?v=3.3.6"></script>
+  <script src="./js/supabase.js?v=3.3.6"></script>
+  <script src="./js/app.js?v=3.3.6"></script>
 </body>
 </html>

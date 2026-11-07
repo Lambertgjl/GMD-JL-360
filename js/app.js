@@ -6228,51 +6228,25 @@ function renderMvpAndVideoSection(partido) {
   const section = document.getElementById('liveFeaturedSection');
   if (!section) return;
 
-  if (!partido) {
-    const elName = document.getElementById('mvpPlayerName');
-    if (elName) elName.textContent = 'En espera de partido';
-    const elTeam = document.getElementById('mvpPlayerTeamName');
-    if (elTeam) elTeam.textContent = 'Disciplina activa';
-    return;
-  }
-
   // Si el partido ya tiene datos configurados de MVP
-  const mvp = partido.mvp || {};
+  const mvp = (partido && partido.mvp) || {};
+  const hasConfiguredMvp = !!(mvp.nombre && mvp.nombre.trim() && mvp.nombre.trim() !== 'Nombre y Apellido');
 
-  const locName = partido.equipoLocal || 'Local';
-  const visName = partido.equipoVisitante || 'Visitante';
-  const scoreLoc = Number(partido.totalLocal ?? partido.puntosLocal ?? 0);
-  const scoreVis = Number(partido.totalVisitante ?? partido.puntosVisitante ?? 0);
-  const isVisWinner = scoreVis > scoreLoc;
-  const targetTeamName = mvp.equipo || (isVisWinner ? visName : locName);
+  // Valores de visualización limpios por defecto o configurados
+  const playerName = hasConfiguredMvp ? mvp.nombre : 'Nombre y Apellido';
+  const playerDorsal = (hasConfiguredMvp && mvp.dorsal) ? mvp.dorsal : '#00';
+  const targetTeamName = (hasConfiguredMvp && mvp.equipo) ? mvp.equipo : 'Franquicia o Equipo';
+  const playerPos = (hasConfiguredMvp && mvp.posicion) ? mvp.posicion : 'Posición / Rol';
+  const playerPhoto = (hasConfiguredMvp && mvp.fotoUrl) ? mvp.fotoUrl : './assets/logo.png';
 
-  // Intentar cargar atletas del roster para esta franquicia
-  const discId = partido.disciplinaId || window.tournamentStore?.getDisciplinaActual?.()?.id || 'baloncesto-master';
-  let atletas = [];
-  try {
-    if (window.tournamentStore && typeof window.tournamentStore.getAtletas === 'function') {
-      atletas = window.tournamentStore.getAtletas(targetTeamName, discId) || [];
-    }
-  } catch (e) {
-    console.warn('[renderMvpAndVideoSection] Error al obtener atletas:', e);
-  }
-  const defaultAthlete = atletas.length > 0 ? atletas[0] : null;
-
-  // Valores de visualización
-  const playerName = mvp.nombre || (defaultAthlete ? defaultAthlete.nombres : 'Carlos Mendoza');
-  const playerDorsal = mvp.dorsal || (defaultAthlete && defaultAthlete.camiseta ? '#' + defaultAthlete.camiseta : '#7');
-  const playerPos = mvp.posicion || (defaultAthlete && defaultAthlete.posicion ? `${defaultAthlete.posicion} • Capitán` : 'Base / Escolta • MVP');
-  const playerPhoto = mvp.fotoUrl || (defaultAthlete && defaultAthlete.fotoUrl ? defaultAthlete.fotoUrl : './assets/IMG-20260228-WA0066.jpg');
-
-  const baseScore = isVisWinner ? (scoreVis || 42) : (scoreLoc || 43);
-  const ptsVal = mvp.puntos !== undefined ? mvp.puntos : Math.max(18, Math.min(baseScore, Math.round(baseScore * 0.48) || 28));
-  const rebVal = mvp.rebotes !== undefined ? mvp.rebotes : 9;
-  const astVal = mvp.asistencias !== undefined ? mvp.asistencias : 7;
-  const valVal = mvp.eficiencia !== undefined ? mvp.eficiencia : '+32';
+  const ptsVal = (hasConfiguredMvp && mvp.puntos !== undefined) ? mvp.puntos : 0;
+  const rebVal = (hasConfiguredMvp && mvp.rebotes !== undefined) ? mvp.rebotes : 0;
+  const astVal = (hasConfiguredMvp && mvp.asistencias !== undefined) ? mvp.asistencias : 0;
+  const valVal = (hasConfiguredMvp && mvp.eficiencia !== undefined) ? mvp.eficiencia : '0';
 
   // Descripción de la actuación y sede del encuentro
-  const videoTitle = mvp.videoTitulo || 'Triple decisivo sobre la bocina y mejor jugada del encuentro';
-  const venueStr = partido.sede || 'Gimnasio Pablo Higuerey';
+  const videoTitle = (hasConfiguredMvp && mvp.videoTitulo) ? mvp.videoTitulo : 'Rendimiento sobresaliente pendiente por definir';
+  const venueStr = partido?.sede || 'Gimnasio Pablo Higuerey';
 
   // Actualizar DOM del Jugador MVP
   const elName = document.getElementById('mvpPlayerName');
@@ -6418,40 +6392,41 @@ function initMvpHighlightModal() {
       return;
     }
     const mvp = activeScorerMatch.mvp || {};
+    const hasConfiguredMvp = !!(mvp.nombre && mvp.nombre.trim() && mvp.nombre.trim() !== 'Nombre y Apellido');
     const locName = activeScorerMatch.equipoLocal || 'Local';
     const visName = activeScorerMatch.equipoVisitante || 'Visitante';
     const isVisWinner = Number(activeScorerMatch.totalVisitante || 0) > Number(activeScorerMatch.totalLocal || 0);
-    const targetTeamName = mvp.equipo || (isVisWinner ? visName : locName);
+    const targetTeamName = mvp.equipo || (hasConfiguredMvp ? (isVisWinner ? visName : locName) : (activeScorerMatch.equipoLocal || ''));
 
     const inputPartId = document.getElementById('editMvpPartidoId');
     if (inputPartId) inputPartId.value = activeScorerMatch.id;
 
     const inputName = document.getElementById('inputMvpNombre');
-    if (inputName) inputName.value = mvp.nombre || document.getElementById('mvpPlayerName')?.textContent || 'Carlos Mendoza';
+    if (inputName) inputName.value = hasConfiguredMvp ? mvp.nombre : '';
 
     const inputDorsal = document.getElementById('inputMvpDorsal');
-    if (inputDorsal) inputDorsal.value = mvp.dorsal || document.getElementById('mvpPlayerDorsal')?.textContent || '#7';
+    if (inputDorsal) inputDorsal.value = hasConfiguredMvp && mvp.dorsal ? mvp.dorsal : '';
 
     const inputTeam = document.getElementById('inputMvpEquipo');
-    if (inputTeam) inputTeam.value = targetTeamName;
+    if (inputTeam) inputTeam.value = hasConfiguredMvp && mvp.equipo ? mvp.equipo : targetTeamName;
 
     const inputPos = document.getElementById('inputMvpPosicion');
-    if (inputPos) inputPos.value = mvp.posicion || document.getElementById('mvpPlayerPosition')?.textContent || 'Base / Escolta • MVP';
+    if (inputPos) inputPos.value = hasConfiguredMvp && mvp.posicion ? mvp.posicion : '';
 
     const inputPts = document.getElementById('inputMvpPts');
-    if (inputPts) inputPts.value = mvp.puntos !== undefined ? mvp.puntos : (document.getElementById('mvpStatPts')?.textContent || 28);
+    if (inputPts) inputPts.value = hasConfiguredMvp && mvp.puntos !== undefined ? mvp.puntos : 0;
 
     const inputReb = document.getElementById('inputMvpReb');
-    if (inputReb) inputReb.value = mvp.rebotes !== undefined ? mvp.rebotes : (document.getElementById('mvpStatReb')?.textContent || 9);
+    if (inputReb) inputReb.value = hasConfiguredMvp && mvp.rebotes !== undefined ? mvp.rebotes : 0;
 
     const inputAst = document.getElementById('inputMvpAst');
-    if (inputAst) inputAst.value = mvp.asistencias !== undefined ? mvp.asistencias : (document.getElementById('mvpStatAst')?.textContent || 7);
+    if (inputAst) inputAst.value = hasConfiguredMvp && mvp.asistencias !== undefined ? mvp.asistencias : 0;
 
     const inputVal = document.getElementById('inputMvpVal');
-    if (inputVal) inputVal.value = mvp.eficiencia !== undefined ? mvp.eficiencia : (document.getElementById('mvpStatVal')?.textContent || '+32');
+    if (inputVal) inputVal.value = hasConfiguredMvp && mvp.eficiencia !== undefined ? mvp.eficiencia : '0';
 
     // Preview foto existente
-    const existingFoto = mvp.fotoUrl || '';
+    const existingFoto = (hasConfiguredMvp && mvp.fotoUrl) ? mvp.fotoUrl : '';
     if (photoPreview) {
       photoPreview.src = existingFoto;
       photoPreview.style.display = existingFoto ? 'block' : 'none';
@@ -6461,7 +6436,7 @@ function initMvpHighlightModal() {
 
     // Cargar descripción o título de actuación existente
     const inputVidTit = document.getElementById('inputMvpVideoTitulo');
-    if (inputVidTit) inputVidTit.value = mvp.videoTitulo || (document.getElementById('mvpVideoTitle')?.textContent || 'Triple decisivo sobre la bocina y mejor jugada del encuentro');
+    if (inputVidTit) inputVidTit.value = hasConfiguredMvp && mvp.videoTitulo ? mvp.videoTitulo : '';
 
     // Reset
     if (photoFileInput) photoFileInput.value = '';
