@@ -645,5 +645,15 @@ BEGIN
 END $$;
 
 -- ==============================================================================
+-- SOPORTE PARA EQUIPOS POR DEFINIR (TBD / PLAYOFFS) EN PARTIDOS
+-- ==============================================================================
+ALTER TABLE IF EXISTS public.partidos ALTER COLUMN equipo_local DROP NOT NULL;
+ALTER TABLE IF EXISTS public.partidos ALTER COLUMN equipo_visitante DROP NOT NULL;
+ALTER TABLE IF EXISTS public.partidos ADD COLUMN IF NOT EXISTS local_id TEXT;
+ALTER TABLE IF EXISTS public.partidos ADD COLUMN IF NOT EXISTS visitante_id TEXT;
+ALTER TABLE IF EXISTS public.partidos ADD COLUMN IF NOT EXISTS is_local_tbd BOOLEAN DEFAULT false;
+ALTER TABLE IF EXISTS public.partidos ADD COLUMN IF NOT EXISTS is_vis_tbd BOOLEAN DEFAULT false;
+
+-- ==============================================================================
 -- ¡LISTO! Tablas creadas, RLS configurado, Realtime activo y datos inicializados.
 -- ==============================================================================

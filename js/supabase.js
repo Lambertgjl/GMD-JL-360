@@ -382,6 +382,11 @@ class SupabaseService {
     if (!p) return null;
     const totLoc = Number(p.total_local ?? p.puntos_local ?? 0);
     const totVis = Number(p.total_visitante ?? p.puntos_visitante ?? 0);
+    const locName = p.equipo_local || (p.local_id ? p.local_id : 'Por Definir (TBD)');
+    const visName = p.equipo_visitante || (p.visitante_id ? p.visitante_id : 'Por Definir (TBD)');
+    const isLocTbd = !!p.is_local_tbd || (typeof isTbdTeam === 'function' ? isTbdTeam(locName) : false);
+    const isVisTbd = !!p.is_vis_tbd || (typeof isTbdTeam === 'function' ? isTbdTeam(visName) : false);
+
     return {
       id: p.id,
       disciplinaId: p.disciplina_id || 'baloncesto-master',
@@ -390,7 +395,12 @@ class SupabaseService {
       sede: p.sede || 'Gimnasio Pablo Higuerey',
       fase: p.fase || 'Fase de Grupos',
       grupo: p.grupo || 'Grupo A',
-      equipoLocal: p.equipo_local,
+      equipoLocal: locName,
+      equipoVisitante: visName,
+      isLocalTbd: isLocTbd,
+      isVisTbd: isVisTbd,
+      localId: p.local_id || null,
+      visitanteId: p.visitante_id || null,
       q1Loc: Number(p.q1_loc ?? 0),
       q2Loc: Number(p.q2_loc ?? 0),
       q3Loc: Number(p.q3_loc ?? 0),
@@ -398,7 +408,6 @@ class SupabaseService {
       otLoc: Number(p.ot_loc ?? 0),
       totalLocal: totLoc,
       puntosLocal: totLoc,
-      equipoVisitante: p.equipo_visitante,
       q1Vis: Number(p.q1_vis ?? 0),
       q2Vis: Number(p.q2_vis ?? 0),
       q3Vis: Number(p.q3_vis ?? 0),
@@ -419,6 +428,9 @@ class SupabaseService {
     if (!p) return null;
     const totLoc = Number(p.totalLocal ?? p.puntosLocal ?? 0);
     const totVis = Number(p.totalVisitante ?? p.puntosVisitante ?? 0);
+    const locName = (p.equipoLocal || 'Por Definir (TBD)').trim();
+    const visName = (p.equipoVisitante || 'Por Definir (TBD)').trim();
+
     return {
       id: p.id,
       disciplina_id: p.disciplinaId || 'baloncesto-master',
@@ -427,7 +439,7 @@ class SupabaseService {
       sede: p.sede || 'Gimnasio Pablo Higuerey',
       fase: p.fase || 'Fase de Grupos',
       grupo: p.grupo || 'Grupo A',
-      equipo_local: p.equipoLocal,
+      equipo_local: locName,
       q1_loc: Number(p.q1Loc) || 0,
       q2_loc: Number(p.q2Loc) || 0,
       q3_loc: Number(p.q3Loc) || 0,
@@ -435,7 +447,7 @@ class SupabaseService {
       ot_loc: Number(p.otLoc) || 0,
       total_local: totLoc,
       puntos_local: totLoc,
-      equipo_visitante: p.equipoVisitante,
+      equipo_visitante: visName,
       q1_vis: Number(p.q1Vis) || 0,
       q2_vis: Number(p.q2Vis) || 0,
       q3_vis: Number(p.q3Vis) || 0,
@@ -448,6 +460,7 @@ class SupabaseService {
       reloj: p.reloj || '10:00',
       faltas_loc: Number(p.faltasLoc) || 0,
       faltas_vis: Number(p.faltasVis) || 0,
+      mvp: p.mvp || null,
       actualizado_en: p.actualizadoEn || new Date().toISOString()
     };
   }

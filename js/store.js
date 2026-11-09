@@ -143,6 +143,47 @@ function sortMatchesChronologically(matches) {
 if (typeof window !== 'undefined') {
   window.getMatchTimestamp = getMatchTimestamp;
   window.sortMatchesChronologically = sortMatchesChronologically;
+  window.isTbdTeam = isTbdTeam;
+  window.getTeamDisplayName = getTeamDisplayName;
+}
+
+/**
+ * Determina si un equipo o nombre corresponde a un cupo "Por Definir" (TBD / Playoff bracket placeholder).
+ */
+function isTbdTeam(teamOrName) {
+  if (teamOrName === null || teamOrName === undefined) return true;
+  if (typeof teamOrName === 'object') {
+    if (teamOrName.isTbd) return true;
+    return isTbdTeam(teamOrName.nombre || teamOrName.equipo || '');
+  }
+  const t = String(teamOrName).trim().toLowerCase();
+  if (!t || t === 'tbd' || t === 'por definir' || t === 'por definir (tbd)') return true;
+  if (t.includes('(tbd)')) return true;
+  return (
+    t.startsWith('por definir') ||
+    t.startsWith('tbd') ||
+    t.startsWith('ganador ') ||
+    t.startsWith('clasificado ') ||
+    t.startsWith('1ro ') ||
+    t.startsWith('2do ') ||
+    t.startsWith('3ro ') ||
+    t.startsWith('4to ') ||
+    t.startsWith('llave ') ||
+    t.startsWith('semifinalista ') ||
+    t.startsWith('finalista ')
+  );
+}
+
+/**
+ * Devuelve el nombre visible y limpio de un equipo, formateando "TBD" a "Por Definir (TBD)".
+ */
+function getTeamDisplayName(teamName) {
+  if (!teamName) return 'Por Definir (TBD)';
+  const t = String(teamName).trim();
+  if (t.toUpperCase() === 'TBD' || t.toLowerCase() === 'por definir') {
+    return 'Por Definir (TBD)';
+  }
+  return t;
 }
 
 /**
@@ -1186,6 +1227,11 @@ class TournamentStore {
     const id = nuevoPartido.id || `PAR-${discId.substring(0, 3).toUpperCase()}-${String(matches.length + 1).padStart(3, '0')}`;
     const totLoc = Number(nuevoPartido.totalLocal ?? nuevoPartido.puntosLocal ?? 0);
     const totVis = Number(nuevoPartido.totalVisitante ?? nuevoPartido.puntosVisitante ?? 0);
+    const locTbd = !!nuevoPartido.isLocalTbd || isTbdTeam(nuevoPartido.equipoLocal);
+    const visTbd = !!nuevoPartido.isVisTbd || isTbdTeam(nuevoPartido.equipoVisitante);
+    const locName = (nuevoPartido.equipoLocal || 'Por Definir (TBD)').trim();
+    const visName = (nuevoPartido.equipoVisitante || 'Por Definir (TBD)').trim();
+
     const partido = {
       id,
       disciplinaId: discId,
@@ -1194,7 +1240,12 @@ class TournamentStore {
       sede: nuevoPartido.sede || 'Gimnasio Pablo Higuerey',
       fase: nuevoPartido.fase || 'Fase de Grupos',
       grupo: nuevoPartido.grupo || 'Grupo A',
-      equipoLocal: nuevoPartido.equipoLocal,
+      equipoLocal: locName,
+      equipoVisitante: visName,
+      isLocalTbd: locTbd,
+      isVisTbd: visTbd,
+      localId: nuevoPartido.localId || null,
+      visitanteId: nuevoPartido.visitanteId || null,
       q1Loc: Number(nuevoPartido.q1Loc) || 0,
       q2Loc: Number(nuevoPartido.q2Loc) || 0,
       q3Loc: Number(nuevoPartido.q3Loc) || 0,
