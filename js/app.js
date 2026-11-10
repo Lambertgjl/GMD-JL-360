@@ -3449,7 +3449,7 @@ async function handleExportarCalendarioImagen() {
     }
   }
 
-  // Contenedor temporal off-screen de 1080px de ancho optimizado para afiches de Instagram / RRSS
+  // Contenedor temporal off-screen de 1080px de ancho optimizado para afiches de Instagram / RRSS (Fondo claro e infografía de alto contraste)
   const flyer = document.createElement('div');
   flyer.id = 'exportCalendarioFlyerContainer';
   flyer.style.cssText = `
@@ -3457,9 +3457,8 @@ async function handleExportarCalendarioImagen() {
     top: 0;
     left: -9999px;
     width: 1080px;
-    background: #070d18;
-    background: radial-gradient(circle at 80% 20%, #0f2347 0%, #070d18 70%);
-    color: #ffffff;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+    color: #0f172a;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     padding: 44px 40px;
     box-sizing: border-box;
@@ -3468,7 +3467,17 @@ async function handleExportarCalendarioImagen() {
 
   const totalPartidos = partidos.length;
   const hoyStr = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const useTwoCols = totalPartidos > 8;
+
+  // Obtener dinámicamente el logotipo / imagen oficial de la disciplina activa
+  const discLogoSrc = (
+    disc.logoUrl ||
+    disc.avatar ||
+    disc.logo ||
+    (disc.banner && !disc.banner.includes('logo.png') ? disc.banner : '') ||
+    (disc.id === 'baloncesto-master' ? './assets/banner_baloncesto.jpg' :
+     disc.id === 'voleibol-femenino' ? './assets/banner_voleibol.jpg' :
+     disc.id === 'futsal-copa' ? './assets/banner_futsal.jpg' : './assets/logo.png')
+  ).trim();
 
   const matchesHtml = partidos.map((m) => {
     const rawLoc = m.equipoLocal || 'Local';
@@ -3511,11 +3520,11 @@ async function handleExportarCalendarioImagen() {
          </div>`;
 
     return `
-      <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.08); border-left: 4px solid #f59e0b; border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.35);">
+      <div style="background: #1e293b; border: 1px solid rgba(255, 255, 255, 0.08); border-left: 5px solid #f59e0b; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 9px; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18), 0 1px 3px rgba(15, 23, 42, 0.1); color: #ffffff;">
         <!-- Top row: Date & status -->
-        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #94a3b8; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 4px;">
-          <span style="font-weight: 700; color: #f1f5f9;">📅 ${m.fecha || 'Fecha por definir'}</span>
-          <span style="font-size: 10px; font-weight: 800; color: ${statusColor}; background: ${statusBg}; padding: 1px 6px; border-radius: 4px; text-transform: uppercase;">
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #94a3b8; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 5px;">
+          <span style="font-weight: 700; color: #f8fafc;">📅 ${m.fecha || 'Fecha por definir'}</span>
+          <span style="font-size: 10px; font-weight: 800; color: ${statusColor}; background: ${statusBg}; padding: 2px 7px; border-radius: 5px; text-transform: uppercase; letter-spacing: 0.5px;">
             ${statusLabel}
           </span>
         </div>
@@ -3539,55 +3548,60 @@ async function handleExportarCalendarioImagen() {
         </div>
 
         <!-- Bottom row: Venue & Phase -->
-        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #64748b;">
-          <span>📍 ${m.sede || 'Sede oficial'}</span>
-          <span style="color: #cbd5e1; font-weight: 600;">🏆 ${m.fase || 'Fase Regular'}</span>
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #94a3b8;">
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 65%;">📍 ${m.sede || 'Sede oficial'}</span>
+          <span style="color: #e2e8f0; font-weight: 600; text-align: right; flex-shrink: 0;">🏆 ${m.fase || 'Fase Regular'}</span>
         </div>
       </div>
     `;
   }).join('');
 
   flyer.innerHTML = `
-    <!-- Header oficial del Torneo -->
-    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid rgba(245, 158, 11, 0.5); padding-bottom: 22px; margin-bottom: 22px;">
-      <div style="display: flex; align-items: center; gap: 18px;">
-        <img src="./assets/logo.png" style="width: 80px; height: 80px; object-fit: contain; filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.4));" crossorigin="anonymous" />
+    <!-- Header oficial del Torneo con textos oscuros para alto contraste -->
+    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid rgba(15, 23, 42, 0.15); padding-bottom: 22px; margin-bottom: 22px;">
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <div style="width: 88px; height: 88px; border-radius: 18px; overflow: hidden; background: #0f172a; border: 3px solid #ffffff; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18); flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+          <img src="${escapeHtmlAttr(discLogoSrc)}" alt="${escapeHtmlAttr(disc.nombre)}" style="width: 100%; height: 100%; object-fit: cover; display: block;" crossorigin="anonymous" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+          <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; background: #0f172a;">
+            ${getDefaultSportsIconSvg(disc.id, '#f59e0b', 54)}
+          </div>
+        </div>
         <div>
-          <div style="font-size: 13px; font-weight: 800; letter-spacing: 2px; color: #f59e0b; text-transform: uppercase;">
+          <div style="font-size: 13px; font-weight: 800; letter-spacing: 2px; color: #b45309; text-transform: uppercase;">
             GRUPO MULTISERVICIOS DEPORTIVOS JL
           </div>
-          <h1 style="margin: 4px 0 0 0; font-size: 30px; font-weight: 900; letter-spacing: 0.5px; color: #ffffff; text-transform: uppercase;">
+          <h1 style="margin: 4px 0 0 0; font-size: 30px; font-weight: 900; letter-spacing: -0.5px; color: #0f172a; text-transform: uppercase;">
             CALENDARIO OFICIAL • ${escapeHtml(disc.nombre || 'TORNEO')}
           </h1>
-          <div style="font-size: 13px; color: #94a3b8; margin-top: 3px; font-weight: 500;">
+          <div style="font-size: 13px; color: #475569; margin-top: 4px; font-weight: 600;">
             Programación y Resultados de Encuentros • ${totalPartidos} partido${totalPartidos === 1 ? '' : 's'}
           </div>
         </div>
       </div>
 
       <div style="text-align: right;">
-        <div style="display: inline-block; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fbbf24; font-size: 12px; font-weight: 800; padding: 6px 14px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px;">
+        <div style="display: inline-block; background: #0f172a; color: #fbbf24; border: 1px solid #1e293b; font-size: 12px; font-weight: 800; padding: 7px 16px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1.2px; box-shadow: 0 4px 10px rgba(15, 23, 42, 0.15);">
           GMD JL 360
         </div>
-        <div style="font-size: 11px; color: #64748b; margin-top: 6px; text-transform: capitalize;">
+        <div style="font-size: 12px; color: #475569; margin-top: 8px; font-weight: 600; text-transform: capitalize;">
           ${hoyStr}
         </div>
       </div>
     </div>
 
-    <!-- Grid / Lista de Encuentros -->
-    <div style="${useTwoCols ? 'display: grid; grid-template-columns: 1fr 1fr; gap: 12px;' : 'display: flex; flex-direction: column; gap: 10px;'}">
+    <!-- Estructura de Tarjetas: Grid en 2 columnas para infografía panorámica profesional -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
       ${matchesHtml}
     </div>
 
-    <!-- Footer de Branding y Redes -->
-    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #94a3b8;">
+    <!-- Pie de Página (Footer sutil) -->
+    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(15, 23, 42, 0.15); display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #475569;">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="color: #f59e0b; font-weight: 800;">JL 360</span>
-        <span>• Plataforma Integral de Gestión y Marcador Digital</span>
+        <span style="color: #0f172a; font-weight: 800; letter-spacing: 0.5px;">JL 360</span>
+        <span style="font-weight: 600;">• Generado desde Plataforma Integral JL 360</span>
       </div>
-      <div>
-        Síguenos en nuestras redes oficiales • ¡Vive la pasión del deporte!
+      <div style="font-weight: 600; color: #334155;">
+        📅 ${hoyStr}
       </div>
     </div>
   `;
@@ -3602,7 +3616,7 @@ async function handleExportarCalendarioImagen() {
       scale: 2, // 2160px para máxima definición en pantallas e impresiones
       useCORS: true,
       allowTaint: true,
-      backgroundColor: '#070d18',
+      backgroundColor: '#e2e8f0',
       logging: false,
       windowWidth: 1080
     });
@@ -3621,7 +3635,7 @@ async function handleExportarCalendarioImagen() {
         scale: 2,
         useCORS: false,
         allowTaint: false,
-        backgroundColor: '#070d18',
+        backgroundColor: '#e2e8f0',
         logging: false,
         windowWidth: 1080
       });
